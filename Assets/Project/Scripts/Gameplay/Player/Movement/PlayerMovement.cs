@@ -7,7 +7,8 @@ namespace Breachpoint.Gameplay.Player.Movement
     public sealed class PlayerMovement : MonoBehaviour
     {
         private const float StanceThreshold = 0.01f;
-        private const int ClearanceResultCapacity = 8;
+        private const float MovementThreshold = 0.01f;
+        private const int ClearanceHitCapacity = 8;
 
         [Header("References")]
         [SerializeField] private Rigidbody _rigidbody;
@@ -18,22 +19,24 @@ namespace Breachpoint.Gameplay.Player.Movement
         [SerializeField] private PlayerMovementConfig _config;
 
         private readonly RaycastHit[] _clearanceHits =
-            new RaycastHit[ClearanceResultCapacity];
+            new RaycastHit[ClearanceHitCapacity];
 
         private IPlayerInput _input;
 
         private Vector2 _moveInput;
+
         private bool _isSprintHeld;
-        private bool _isCrouchHeld;
-        private bool _jumpRequested;
         private bool _wantsToCrouch;
+        private bool _isStandingBlocked;
 
         private float _standingBottomLocalY;
-        private float _targetColliderHeight;
-        private bool _isStandingBlocked;
+        private float _coyoteTimeRemaining;
+        private float _jumpBufferTimeRemaining;
 
         public bool IsGrounded { get; private set; }
         public bool IsCrouching { get; private set; }
+
+        public PlayerMovementState CurrentState { get; private set; }
 
         public Vector3 Velocity =>
             _rigidbody != null
@@ -51,11 +54,14 @@ namespace Breachpoint.Gameplay.Player.Movement
             ValidateReferences();
             ConfigureRigidbody();
             InitializeStance();
+
+            CurrentState = PlayerMovementState.Idle;
         }
 
         private void Update()
         {
             ReadInput();
+            UpdateJumpBuffer();
             UpdateCameraHeight();
         }
 
@@ -68,26 +74,43 @@ namespace Breachpoint.Gameplay.Player.Movement
 
             UpdateStance();
 
-            GroundInfo groundInfo = _groundDetector.DetectGround();
+            GroundInfo groundInfo =
+                _groundDetector.DetectGround();
+
             IsGrounded = groundInfo.IsGrounded;
 
-            Vector3 velocity = _rigidbody.linearVelocity;
-            Vector3 horizontalVelocity = GetHorizontalVelocity(velocity);
-            float verticalVelocity = velocity.y;
+            UpdateCoyoteTime();
 
-            horizontalVelocity = CalculateHorizontalVelocity(
-                horizontalVelocity,
-                groundInfo);
+            Vector3 currentVelocity =
+                _rigidbody.linearVelocity;
 
-            verticalVelocity = CalculateVerticalVelocity(
-                verticalVelocity,
-                groundInfo);
+            Vector3 horizontalVelocity =
+                GetHorizontalVelocity(currentVelocity);
 
-            _rigidbody.linearVelocity =
+            float verticalVelocity =
+                currentVelocity.y;
+
+            bool didJump = TryConsumeJump();
+
+            horizontalVelocity =
+                CalculateHorizontalVelocity(
+                    horizontalVelocity,
+                    groundInfo);
+
+            verticalVelocity = didJump
+                ? CalculateJumpSpeed()
+                : CalculateVerticalVelocity(
+                    verticalVelocity,
+                    groundInfo);
+
+            Vector3 finalVelocity =
                 horizontalVelocity +
                 Vector3.up * verticalVelocity;
 
-            _jumpRequested = false;
+            _rigidbody.linearVelocity =
+                finalVelocity;
+
+            UpdateMovementState(finalVelocity);
         }
 
         private void ReadInput()
@@ -101,8 +124,8 @@ namespace Breachpoint.Gameplay.Player.Movement
                 _input.Move,
                 1f);
 
-            _isCrouchHeld = _input.IsCrouchHeld;
-            _wantsToCrouch = _isCrouchHeld;
+            _wantsToCrouch =
+                _input.IsCrouchHeld;
 
             _isSprintHeld =
                 _input.IsSprintHeld &&
@@ -111,8 +134,60 @@ namespace Breachpoint.Gameplay.Player.Movement
 
             if (_input.WasJumpPressed)
             {
-                _jumpRequested = true;
+                _jumpBufferTimeRemaining =
+                    _config.JumpBufferTime;
             }
+        }
+
+        private void UpdateJumpBuffer()
+        {
+            if (_jumpBufferTimeRemaining <= 0f)
+            {
+                return;
+            }
+
+            _jumpBufferTimeRemaining -=
+                Time.deltaTime;
+        }
+
+        private void UpdateCoyoteTime()
+        {
+            if (IsGrounded)
+            {
+                _coyoteTimeRemaining =
+                    _config.CoyoteTime;
+
+                return;
+            }
+
+            _coyoteTimeRemaining = Mathf.Max(
+                0f,
+                _coyoteTimeRemaining -
+                Time.fixedDeltaTime);
+        }
+
+        private bool TryConsumeJump()
+        {
+            bool hasBufferedJump =
+                _jumpBufferTimeRemaining > 0f;
+
+            bool canUseGroundJump =
+                IsGrounded ||
+                _coyoteTimeRemaining > 0f;
+
+            if (!hasBufferedJump ||
+                !canUseGroundJump ||
+                IsCrouching ||
+                _wantsToCrouch)
+            {
+                return false;
+            }
+
+            _jumpBufferTimeRemaining = 0f;
+            _coyoteTimeRemaining = 0f;
+            IsGrounded = false;
+
+            return true;
         }
 
         private void UpdateStance()
@@ -125,7 +200,7 @@ namespace Breachpoint.Gameplay.Player.Movement
                 _wantsToCrouch ||
                 _isStandingBlocked;
 
-            _targetColliderHeight = shouldCrouch
+            float targetHeight = shouldCrouch
                 ? _config.CrouchingHeight
                 : _config.StandingHeight;
 
@@ -135,7 +210,7 @@ namespace Breachpoint.Gameplay.Player.Movement
 
             float newHeight = Mathf.MoveTowards(
                 _capsuleCollider.height,
-                _targetColliderHeight,
+                targetHeight,
                 heightStep);
 
             ApplyColliderHeight(newHeight);
@@ -157,32 +232,37 @@ namespace Breachpoint.Gameplay.Player.Movement
                 height,
                 minimumHeight);
 
-            _capsuleCollider.height = validHeight;
+            _capsuleCollider.height =
+                validHeight;
 
-            Vector3 center = _capsuleCollider.center;
+            Vector3 center =
+                _capsuleCollider.center;
 
             center.y =
                 _standingBottomLocalY +
                 validHeight * 0.5f;
 
-            _capsuleCollider.center = center;
+            _capsuleCollider.center =
+                center;
         }
 
         private void UpdateCameraHeight()
         {
-            if (_cameraRoot == null || _config == null)
+            if (_cameraRoot == null ||
+                _config == null)
             {
                 return;
             }
 
-            bool shouldUseCrouchingCamera =
+            bool useCrouchingHeight =
                 _wantsToCrouch ||
                 IsCrouching ||
                 _isStandingBlocked;
 
-            float targetCameraY = shouldUseCrouchingCamera
-                ? _config.CrouchingCameraLocalY
-                : _config.StandingCameraLocalY;
+            float targetCameraY =
+                useCrouchingHeight
+                    ? _config.CrouchingCameraLocalY
+                    : _config.StandingCameraLocalY;
 
             Vector3 localPosition =
                 _cameraRoot.localPosition;
@@ -193,12 +273,14 @@ namespace Breachpoint.Gameplay.Player.Movement
                 _config.CameraTransitionSpeed *
                 Time.deltaTime);
 
-            _cameraRoot.localPosition = localPosition;
+            _cameraRoot.localPosition =
+                localPosition;
         }
 
         private bool CanStandUp()
         {
-            if (_capsuleCollider == null || _config == null)
+            if (_capsuleCollider == null ||
+                _config == null)
             {
                 return false;
             }
@@ -209,16 +291,19 @@ namespace Breachpoint.Gameplay.Player.Movement
             float standingHeight =
                 _config.StandingHeight;
 
-            if (currentHeight >= standingHeight - StanceThreshold)
+            if (currentHeight >=
+                standingHeight - StanceThreshold)
             {
                 return true;
             }
 
-            float radius = GetWorldCapsuleRadius();
+            float radius =
+                GetWorldCapsuleRadius();
 
             radius = Mathf.Max(
                 0.01f,
-                radius - _config.ClearancePadding);
+                radius -
+                _config.ClearancePadding);
 
             Vector3 currentTopSphereCenter =
                 GetTopSphereCenter(
@@ -236,28 +321,30 @@ namespace Breachpoint.Gameplay.Player.Movement
                     standingCenterY,
                     radius);
 
-            Vector3 castDirection =
+            Vector3 castOffset =
                 standingTopSphereCenter -
                 currentTopSphereCenter;
 
             float castDistance =
-                castDirection.magnitude;
+                castOffset.magnitude;
 
             if (castDistance <= Mathf.Epsilon)
             {
                 return true;
             }
 
-            castDirection /= castDistance;
+            Vector3 castDirection =
+                castOffset / castDistance;
 
-            int hitCount = Physics.SphereCastNonAlloc(
-                currentTopSphereCenter,
-                radius,
-                castDirection,
-                _clearanceHits,
-                castDistance,
-                _config.ClearanceMask,
-                QueryTriggerInteraction.Ignore);
+            int hitCount =
+                Physics.SphereCastNonAlloc(
+                    currentTopSphereCenter,
+                    radius,
+                    castDirection,
+                    _clearanceHits,
+                    castDistance,
+                    _config.ClearanceMask,
+                    QueryTriggerInteraction.Ignore);
 
             for (int i = 0; i < hitCount; i++)
             {
@@ -269,12 +356,14 @@ namespace Breachpoint.Gameplay.Player.Movement
                     continue;
                 }
 
-                if (hitCollider == _capsuleCollider)
+                if (hitCollider ==
+                    _capsuleCollider)
                 {
                     continue;
                 }
 
-                if (hitCollider.transform.IsChildOf(transform))
+                if (hitCollider.transform
+                    .IsChildOf(transform))
                 {
                     continue;
                 }
@@ -293,22 +382,25 @@ namespace Breachpoint.Gameplay.Player.Movement
             Vector3 localCenter =
                 _capsuleCollider.center;
 
-            localCenter.y = localCenterY;
+            localCenter.y =
+                localCenterY;
 
             Vector3 worldCenter =
-                transform.TransformPoint(localCenter);
+                transform.TransformPoint(
+                    localCenter);
 
             float verticalScale =
-                Mathf.Abs(transform.lossyScale.y);
+                Mathf.Abs(
+                    transform.lossyScale.y);
 
             float worldHeight =
-                localHeight * verticalScale;
+                localHeight *
+                verticalScale;
 
-            float topOffset =
-                Mathf.Max(
-                    0f,
-                    worldHeight * 0.5f -
-                    worldRadius);
+            float topOffset = Mathf.Max(
+                0f,
+                worldHeight * 0.5f -
+                worldRadius);
 
             return worldCenter +
                    transform.up * topOffset;
@@ -323,8 +415,9 @@ namespace Breachpoint.Gameplay.Player.Movement
                 Mathf.Abs(scale.x),
                 Mathf.Abs(scale.z));
 
-            return _capsuleCollider.radius *
-                   horizontalScale;
+            return
+                _capsuleCollider.radius *
+                horizontalScale;
         }
 
         private Vector3 CalculateHorizontalVelocity(
@@ -335,29 +428,35 @@ namespace Breachpoint.Gameplay.Player.Movement
                 GetDesiredDirection();
 
             if (groundInfo.IsGrounded &&
-                desiredDirection.sqrMagnitude > 0f)
+                desiredDirection.sqrMagnitude >
+                MovementThreshold)
             {
-                desiredDirection = Vector3.ProjectOnPlane(
-                    desiredDirection,
-                    groundInfo.Normal).normalized;
+                desiredDirection =
+                    Vector3.ProjectOnPlane(
+                        desiredDirection,
+                        groundInfo.Normal)
+                    .normalized;
             }
 
             float targetSpeed =
                 GetTargetSpeed();
 
             Vector3 targetVelocity =
-                desiredDirection * targetSpeed;
+                desiredDirection *
+                targetSpeed;
 
-            float acceleration = GetAcceleration(
-                desiredDirection,
-                groundInfo.IsGrounded);
+            float acceleration =
+                GetAcceleration(
+                    desiredDirection,
+                    groundInfo.IsGrounded);
 
             if (!groundInfo.IsGrounded)
             {
-                targetVelocity = Vector3.Lerp(
-                    currentHorizontalVelocity,
-                    targetVelocity,
-                    _config.AirControl);
+                targetVelocity =
+                    Vector3.Lerp(
+                        currentHorizontalVelocity,
+                        targetVelocity,
+                        _config.AirControl);
             }
 
             return Vector3.MoveTowards(
@@ -371,17 +470,12 @@ namespace Breachpoint.Gameplay.Player.Movement
             float currentVerticalVelocity,
             GroundInfo groundInfo)
         {
-            if (_jumpRequested &&
-                groundInfo.IsGrounded &&
-                !IsCrouching)
-            {
-                return CalculateJumpSpeed();
-            }
-
             if (groundInfo.IsGrounded &&
                 currentVerticalVelocity <= 0f)
             {
-                return -_config.GroundedVerticalSpeed;
+                return
+                    -_config
+                        .GroundedVerticalSpeed;
             }
 
             float nextVerticalVelocity =
@@ -400,7 +494,8 @@ namespace Breachpoint.Gameplay.Player.Movement
                 _wantsToCrouch ||
                 _isStandingBlocked)
             {
-                return _config.CrouchSpeed;
+                return
+                    _config.CrouchSpeed;
             }
 
             return _isSprintHeld
@@ -451,10 +546,12 @@ namespace Breachpoint.Gameplay.Player.Movement
         {
             if (!isGrounded)
             {
-                return _config.AirAcceleration;
+                return
+                    _config.AirAcceleration;
             }
 
-            return desiredDirection.sqrMagnitude > 0f
+            return desiredDirection.sqrMagnitude >
+                   MovementThreshold
                 ? _config.GroundAcceleration
                 : _config.GroundDeceleration;
         }
@@ -465,6 +562,47 @@ namespace Breachpoint.Gameplay.Player.Movement
                 2f *
                 _config.Gravity *
                 _config.JumpHeight);
+        }
+
+        private void UpdateMovementState(
+            Vector3 velocity)
+        {
+            if (!IsGrounded)
+            {
+                CurrentState =
+                    PlayerMovementState.Airborne;
+
+                return;
+            }
+
+            if (IsCrouching ||
+                _wantsToCrouch ||
+                _isStandingBlocked)
+            {
+                CurrentState =
+                    PlayerMovementState.Crouching;
+
+                return;
+            }
+
+            Vector3 horizontalVelocity =
+                GetHorizontalVelocity(velocity);
+
+            bool isMoving =
+                horizontalVelocity.sqrMagnitude >
+                MovementThreshold;
+
+            if (!isMoving)
+            {
+                CurrentState =
+                    PlayerMovementState.Idle;
+
+                return;
+            }
+
+            CurrentState = _isSprintHeld
+                ? PlayerMovementState.Sprinting
+                : PlayerMovementState.Walking;
         }
 
         private void InitializeStance()
@@ -488,13 +626,11 @@ namespace Breachpoint.Gameplay.Player.Movement
                 _cameraRoot.localPosition;
 
             cameraPosition.y =
-                _config.StandingCameraLocalY;
+                _config
+                    .StandingCameraLocalY;
 
             _cameraRoot.localPosition =
                 cameraPosition;
-
-            _targetColliderHeight =
-                _config.StandingHeight;
 
             IsCrouching = false;
             _isStandingBlocked = false;
@@ -521,15 +657,21 @@ namespace Breachpoint.Gameplay.Player.Movement
             _rigidbody.useGravity = false;
 
             _rigidbody.interpolation =
-                RigidbodyInterpolation.Interpolate;
+                RigidbodyInterpolation
+                    .Interpolate;
 
-            _rigidbody.collisionDetectionMode =
-                CollisionDetectionMode.ContinuousDynamic;
+            _rigidbody
+                .collisionDetectionMode =
+                CollisionDetectionMode
+                    .ContinuousDynamic;
 
             _rigidbody.constraints =
-                RigidbodyConstraints.FreezeRotationX |
-                RigidbodyConstraints.FreezeRotationY |
-                RigidbodyConstraints.FreezeRotationZ;
+                RigidbodyConstraints
+                    .FreezeRotationX |
+                RigidbodyConstraints
+                    .FreezeRotationY |
+                RigidbodyConstraints
+                    .FreezeRotationZ;
         }
 
         private void ValidateReferences()
@@ -586,28 +728,29 @@ namespace Breachpoint.Gameplay.Player.Movement
                 return;
             }
 
-            float radius = GetWorldCapsuleRadius();
+            float radius =
+                GetWorldCapsuleRadius();
 
             radius = Mathf.Max(
                 0.01f,
-                radius - _config.ClearancePadding);
-
-            float currentCenterY =
-                _capsuleCollider.center.y;
+                radius -
+                _config.ClearancePadding);
 
             Vector3 currentTop =
                 GetTopSphereCenter(
                     _capsuleCollider.height,
-                    currentCenterY,
+                    _capsuleCollider.center.y,
                     radius);
 
             float standingBottom =
                 _config.StandingCenterY -
-                _config.StandingHeight * 0.5f;
+                _config.StandingHeight *
+                0.5f;
 
             float standingCenterY =
                 standingBottom +
-                _config.StandingHeight * 0.5f;
+                _config.StandingHeight *
+                0.5f;
 
             Vector3 standingTop =
                 GetTopSphereCenter(

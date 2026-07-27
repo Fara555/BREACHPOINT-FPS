@@ -20,6 +20,8 @@ namespace Breachpoint.Gameplay.Player.Movement
 
         [Header("Jump")]
         [SerializeField, Min(0f)] private float _jumpHeight = 1.25f;
+        [SerializeField, Min(0f)] private float _coyoteTime = 0.12f;
+        [SerializeField, Min(0f)] private float _jumpBufferTime = 0.12f;
 
         [Header("Gravity")]
         [SerializeField, Min(0f)] private float _gravity = 25f;
@@ -58,6 +60,8 @@ namespace Breachpoint.Gameplay.Player.Movement
         public float AirControl => _airControl;
 
         public float JumpHeight => _jumpHeight;
+        public float CoyoteTime => _coyoteTime;
+        public float JumpBufferTime => _jumpBufferTime;
 
         public float Gravity => _gravity;
         public float MaxFallSpeed => _maxFallSpeed;
@@ -83,25 +87,25 @@ namespace Breachpoint.Gameplay.Player.Movement
 
         private void OnValidate()
         {
-            if (_sprintSpeed < _walkSpeed)
-            {
-                _sprintSpeed = _walkSpeed;
-            }
+            _sprintSpeed = Mathf.Max(
+                _sprintSpeed,
+                _walkSpeed);
 
-            if (_crouchSpeed > _walkSpeed)
-            {
-                _crouchSpeed = _walkSpeed;
-            }
+            _crouchSpeed = Mathf.Min(
+                _crouchSpeed,
+                _walkSpeed);
 
-            if (_crouchingHeight > _standingHeight)
-            {
-                _crouchingHeight = _standingHeight;
-            }
+            float minimumColliderHeight =
+                _groundProbeRadius * 2f;
 
-            if (_groundedDistance > _groundProbeDistance)
-            {
-                _groundedDistance = _groundProbeDistance;
-            }
+            _crouchingHeight = Mathf.Clamp(
+                _crouchingHeight,
+                minimumColliderHeight,
+                _standingHeight);
+
+            _groundedDistance = Mathf.Min(
+                _groundedDistance,
+                _groundProbeDistance);
         }
     }
 }
