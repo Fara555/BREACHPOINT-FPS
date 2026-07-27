@@ -1,0 +1,43 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 40e3947ed65d487792d01b2d0fc433b5, type: 3}
+  m_Name: PlayerMovementConfig
+  m_EditorClassIdentifier: Assembly-CSharp::Breachpoint.Gameplay.Player.Movement.PlayerMovementConfig
+  _walkSpeed: 5
+  _sprintSpeed: 8
+  _crouchSpeed: 2.5
+  _groundAcceleration: 35
+  _groundDeceleration: 45
+  _airAcceleration: 12
+  _airControl: 0.5
+  _jumpHeight: 1.25
+  _gravity: 25
+  _maxFallSpeed: 35
+  _groundedVerticalSpeed: 2
+  _standingHeight: 2
+  _standingCenterY: 0
+  _crouchingHeight: 1.2
+  _stanceTransitionSpeed: 8
+  _standingCameraLocalY: 0.5
+  _crouchingCameraLocalY: 0.1
+  _cameraTransitionSpeed: 10
+  _clearanceMask:
+    serializedVersion: 2
+    m_Bits: 1
+  _clearancePadding: 0.02
+  _groundMask:
+    serializedVersion: 2
+    m_Bits: 1
+  _groundProbeRadius: 0.45
+  _groundProbeDistance: 0.15
+  _groundedDistance: 0.08
+  _maximumGroundAngle: 50
