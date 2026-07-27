@@ -28,6 +28,15 @@ namespace Breachpoint.Gameplay.Player.Movement
         [SerializeField, Min(0f)] private float _maxFallSpeed = 35f;
         [SerializeField, Min(0f)] private float _groundedVerticalSpeed = 2f;
 
+        [Header("Steep Slope")]
+        [SerializeField, Min(0f)] private float _steepSlopeSlideAcceleration = 20f;
+        [SerializeField, Min(0f)] private float _maximumSteepSlopeSlideSpeed = 10f;
+
+        [Header("Curbs")]
+        [SerializeField, Min(0.01f)] private float _maximumCurbHeight = 0.15f;
+        [SerializeField, Min(0.01f)] private float _curbCheckDistance = 0.12f;
+        [SerializeField, Min(0.01f)] private float _curbCameraSmoothTime = 0.08f;
+
         [Header("Crouch Collider")]
         [SerializeField, Min(0.1f)] private float _standingHeight = 2f;
         [SerializeField] private float _standingCenterY;
@@ -35,7 +44,7 @@ namespace Breachpoint.Gameplay.Player.Movement
         [SerializeField, Min(0.01f)] private float _stanceTransitionSpeed = 8f;
 
         [Header("Crouch Camera")]
-        [SerializeField] private float _standingCameraLocalY = 0.75f;
+        [SerializeField] private float _standingCameraLocalY = 0.5f;
         [SerializeField] private float _crouchingCameraLocalY = 0.1f;
         [SerializeField, Min(0.01f)] private float _cameraTransitionSpeed = 10f;
 
@@ -45,7 +54,7 @@ namespace Breachpoint.Gameplay.Player.Movement
 
         [Header("Ground Detection")]
         [SerializeField] private LayerMask _groundMask = ~0;
-        [SerializeField, Min(0.01f)] private float _groundProbeRadius = 0.45f;
+        [SerializeField, Min(0.01f)] private float _groundProbeRadius = 0.4f;
         [SerializeField, Min(0.01f)] private float _groundProbeDistance = 0.15f;
         [SerializeField, Min(0.001f)] private float _groundedDistance = 0.08f;
         [SerializeField, Range(0f, 89f)] private float _maximumGroundAngle = 50f;
@@ -66,6 +75,21 @@ namespace Breachpoint.Gameplay.Player.Movement
         public float Gravity => _gravity;
         public float MaxFallSpeed => _maxFallSpeed;
         public float GroundedVerticalSpeed => _groundedVerticalSpeed;
+
+        public float SteepSlopeSlideAcceleration =>
+            _steepSlopeSlideAcceleration;
+
+        public float MaximumSteepSlopeSlideSpeed =>
+            _maximumSteepSlopeSlideSpeed;
+
+        public float MaximumCurbHeight =>
+            _maximumCurbHeight;
+
+        public float CurbCheckDistance =>
+            _curbCheckDistance;
+
+        public float CurbCameraSmoothTime =>
+            _curbCameraSmoothTime;
 
         public float StandingHeight => _standingHeight;
         public float StandingCenterY => _standingCenterY;
@@ -95,12 +119,12 @@ namespace Breachpoint.Gameplay.Player.Movement
                 _crouchSpeed,
                 _walkSpeed);
 
-            float minimumColliderHeight =
+            float minimumCrouchingHeight =
                 _groundProbeRadius * 2f;
 
             _crouchingHeight = Mathf.Clamp(
                 _crouchingHeight,
-                minimumColliderHeight,
+                minimumCrouchingHeight,
                 _standingHeight);
 
             _groundedDistance = Mathf.Min(

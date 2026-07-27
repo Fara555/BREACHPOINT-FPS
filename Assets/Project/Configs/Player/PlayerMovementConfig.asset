@@ -20,9 +20,16 @@ MonoBehaviour:
   _airAcceleration: 12
   _airControl: 0.5
   _jumpHeight: 1.25
+  _coyoteTime: 0.12
+  _jumpBufferTime: 0.12
   _gravity: 25
   _maxFallSpeed: 35
   _groundedVerticalSpeed: 2
+  _steepSlopeSlideAcceleration: 20
+  _maximumSteepSlopeSlideSpeed: 10
+  _maximumCurbHeight: 0.3
+  _curbCheckDistance: 0.05
+  _curbCameraSmoothTime: 0.08
   _standingHeight: 2
   _standingCenterY: 0
   _crouchingHeight: 1.2
@@ -40,4 +47,4 @@ MonoBehaviour:
   _groundProbeRadius: 0.45
   _groundProbeDistance: 0.15
   _groundedDistance: 0.08
-  _maximumGroundAngle: 50
+  _maximumGroundAngle: 34.5

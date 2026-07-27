@@ -6,13 +6,28 @@ namespace Breachpoint.Gameplay.Player.Movement
     {
         public static GroundInfo None => new(
             false,
+            false,
+            false,
             Vector3.up,
             Vector3.zero,
             null,
             float.PositiveInfinity,
             90f);
 
-        public bool IsGrounded { get; }
+        public bool HasSurface { get; }
+        public bool IsWithinGroundDistance { get; }
+        public bool IsWalkable { get; }
+
+        public bool IsGrounded =>
+            HasSurface &&
+            IsWithinGroundDistance &&
+            IsWalkable;
+
+        public bool IsOnSteepSlope =>
+            HasSurface &&
+            IsWithinGroundDistance &&
+            !IsWalkable;
+
         public Vector3 Normal { get; }
         public Vector3 Point { get; }
         public Collider Collider { get; }
@@ -20,14 +35,18 @@ namespace Breachpoint.Gameplay.Player.Movement
         public float SurfaceAngle { get; }
 
         public GroundInfo(
-            bool isGrounded,
+            bool hasSurface,
+            bool isWithinGroundDistance,
+            bool isWalkable,
             Vector3 normal,
             Vector3 point,
             Collider collider,
             float distance,
             float surfaceAngle)
         {
-            IsGrounded = isGrounded;
+            HasSurface = hasSurface;
+            IsWithinGroundDistance = isWithinGroundDistance;
+            IsWalkable = isWalkable;
             Normal = normal;
             Point = point;
             Collider = collider;

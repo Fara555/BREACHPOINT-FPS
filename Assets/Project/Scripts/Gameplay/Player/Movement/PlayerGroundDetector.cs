@@ -4,11 +4,15 @@ namespace Breachpoint.Gameplay.Player.Movement
 {
     public sealed class PlayerGroundDetector : MonoBehaviour
     {
+        private const int GroundHitCapacity = 8;
+        private const float ProbeStartOffset = 0.1f;
+
         [Header("References")]
         [SerializeField] private Transform _groundProbe;
         [SerializeField] private PlayerMovementConfig _config;
 
-        private readonly RaycastHit[] _hits = new RaycastHit[8];
+        private readonly RaycastHit[] _hits =
+            new RaycastHit[GroundHitCapacity];
 
         public GroundInfo CurrentGround { get; private set; } =
             GroundInfo.None;
@@ -26,14 +30,20 @@ namespace Breachpoint.Gameplay.Player.Movement
                 return CurrentGround;
             }
 
-            Vector3 origin = _groundProbe.position;
+            Vector3 origin =
+                _groundProbe.position +
+                Vector3.up * ProbeStartOffset;
+
+            float castDistance =
+                _config.GroundProbeDistance +
+                ProbeStartOffset;
 
             int hitCount = Physics.SphereCastNonAlloc(
                 origin,
                 _config.GroundProbeRadius,
                 Vector3.down,
                 _hits,
-                _config.GroundProbeDistance,
+                castDistance,
                 _config.GroundMask,
                 QueryTriggerInteraction.Ignore);
 
@@ -43,65 +53,125 @@ namespace Breachpoint.Gameplay.Player.Movement
                 return CurrentGround;
             }
 
-            RaycastHit bestHit = default;
-            bool hasValidHit = false;
-            float shortestDistance = float.PositiveInfinity;
+            bool hasWalkableHit = false;
+            bool hasSteepHit = false;
+
+            RaycastHit closestWalkableHit = default;
+            RaycastHit closestSteepHit = default;
+
+            float closestWalkableDistance =
+                float.PositiveInfinity;
+
+            float closestSteepDistance =
+                float.PositiveInfinity;
 
             for (int i = 0; i < hitCount; i++)
             {
                 RaycastHit hit = _hits[i];
 
-                if (hit.collider == null)
+                if (!IsValidHit(hit))
                 {
                     continue;
                 }
 
-                if (hit.collider.transform.IsChildOf(transform))
-                {
-                    continue;
-                }
+                float correctedDistance = Mathf.Max(
+                    0f,
+                    hit.distance - ProbeStartOffset);
 
                 float surfaceAngle = Vector3.Angle(
                     hit.normal,
                     Vector3.up);
 
-                if (surfaceAngle > _config.MaximumGroundAngle)
+                bool isWalkable =
+                    surfaceAngle <=
+                    _config.MaximumGroundAngle;
+
+                if (isWalkable)
+                {
+                    if (correctedDistance >=
+                        closestWalkableDistance)
+                    {
+                        continue;
+                    }
+
+                    closestWalkableHit = hit;
+                    closestWalkableDistance =
+                        correctedDistance;
+
+                    hasWalkableHit = true;
+                    continue;
+                }
+
+                if (correctedDistance >=
+                    closestSteepDistance)
                 {
                     continue;
                 }
 
-                if (hit.distance >= shortestDistance)
-                {
-                    continue;
-                }
+                closestSteepHit = hit;
+                closestSteepDistance =
+                    correctedDistance;
 
-                bestHit = hit;
-                shortestDistance = hit.distance;
-                hasValidHit = true;
+                hasSteepHit = true;
             }
 
-            if (!hasValidHit)
+            if (hasWalkableHit)
             {
-                CurrentGround = GroundInfo.None;
+                CurrentGround = CreateGroundInfo(
+                    closestWalkableHit,
+                    closestWalkableDistance,
+                    true);
+
                 return CurrentGround;
             }
 
-            float bestSurfaceAngle = Vector3.Angle(
-                bestHit.normal,
+            if (hasSteepHit)
+            {
+                CurrentGround = CreateGroundInfo(
+                    closestSteepHit,
+                    closestSteepDistance,
+                    false);
+
+                return CurrentGround;
+            }
+
+            CurrentGround = GroundInfo.None;
+            return CurrentGround;
+        }
+
+        private bool IsValidHit(RaycastHit hit)
+        {
+            if (hit.collider == null)
+            {
+                return false;
+            }
+
+            return !hit.collider.transform.IsChildOf(
+                transform);
+        }
+
+        private GroundInfo CreateGroundInfo(
+            RaycastHit hit,
+            float correctedDistance,
+            bool isWalkable)
+        {
+            float surfaceAngle = Vector3.Angle(
+                hit.normal,
                 Vector3.up);
 
-            bool isGrounded =
-                bestHit.distance <= _config.GroundedDistance;
+            bool isWithinGroundDistance =
+                correctedDistance <=
+                _config.GroundedDistance;
 
-            CurrentGround = new GroundInfo(
-                isGrounded,
-                bestHit.normal,
-                bestHit.point,
-                bestHit.collider,
-                bestHit.distance,
-                bestSurfaceAngle);
-
-            return CurrentGround;
+            return new GroundInfo(
+                true,
+                isWithinGroundDistance,
+                isWalkable,
+                hit.normal,
+                hit.point,
+                hit.collider,
+                correctedDistance,
+                surfaceAngle);
         }
 
         private void ValidateReferences()
@@ -129,15 +199,21 @@ namespace Breachpoint.Gameplay.Player.Movement
                 return;
             }
 
-            Vector3 origin = _groundProbe.position;
+            Vector3 origin =
+                _groundProbe.position +
+                Vector3.up * ProbeStartOffset;
 
             Vector3 groundedPosition =
                 origin +
-                Vector3.down * _config.GroundedDistance;
+                Vector3.down *
+                (_config.GroundedDistance +
+                 ProbeStartOffset);
 
             Vector3 maximumPosition =
                 origin +
-                Vector3.down * _config.GroundProbeDistance;
+                Vector3.down *
+                (_config.GroundProbeDistance +
+                 ProbeStartOffset);
 
             Gizmos.DrawWireSphere(
                 origin,
@@ -151,7 +227,9 @@ namespace Breachpoint.Gameplay.Player.Movement
                 maximumPosition,
                 _config.GroundProbeRadius);
 
-            Gizmos.DrawLine(origin, maximumPosition);
+            Gizmos.DrawLine(
+                origin,
+                maximumPosition);
         }
 #endif
     }
