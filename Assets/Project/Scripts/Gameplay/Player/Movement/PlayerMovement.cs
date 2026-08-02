@@ -1,4 +1,5 @@
-﻿using Breachpoint.Gameplay.Player.Input;
+﻿using System;
+using Breachpoint.Gameplay.Player.Input;
 using UnityEngine;
 using VContainer;
 
@@ -29,15 +30,24 @@ namespace Breachpoint.Gameplay.Player.Movement
         private bool _isSprintHeld;
         private bool _wantsToCrouch;
         private bool _isStandingBlocked;
+        private bool _wasGrounded;
+        private bool _hasGroundState;
 
         private float _standingBottomLocalY;
         private float _coyoteTimeRemaining;
         private float _jumpBufferTimeRemaining;
         private float _curbCameraOffset;
         private float _curbCameraOffsetVelocity;
+        private float _maximumDownwardSpeed;
+
+        public event Action Jumped;
+        public event Action<float> Landed;
 
         public bool IsGrounded { get; private set; }
         public bool IsCrouching { get; private set; }
+        
+        public bool IsSprintHeld =>
+            _isSprintHeld;
 
         public PlayerMovementState CurrentState { get; private set; }
 
@@ -84,6 +94,9 @@ namespace Breachpoint.Gameplay.Player.Movement
             IsGrounded =
                 groundInfo.IsGrounded;
 
+            InitializeGroundState();
+            TrackDownwardSpeed();
+
             UpdateCoyoteTime();
 
             Vector3 currentVelocity =
@@ -91,6 +104,15 @@ namespace Breachpoint.Gameplay.Player.Movement
 
             bool didJump =
                 TryConsumeJump();
+
+            if (didJump)
+            {
+                Jumped?.Invoke();
+            }
+            else
+            {
+                TryNotifyLanding();
+            }
 
             Vector3 desiredDirection =
                 GetDesiredDirection();
@@ -142,6 +164,56 @@ namespace Breachpoint.Gameplay.Player.Movement
 
             UpdateMovementState(
                 finalVelocity);
+
+            _wasGrounded =
+                IsGrounded;
+        }
+
+        private void InitializeGroundState()
+        {
+            if (_hasGroundState)
+            {
+                return;
+            }
+
+            _wasGrounded =
+                IsGrounded;
+
+            _hasGroundState = true;
+            _maximumDownwardSpeed = 0f;
+        }
+
+        private void TrackDownwardSpeed()
+        {
+            if (IsGrounded)
+            {
+                return;
+            }
+
+            float downwardSpeed =
+                Mathf.Max(
+                    0f,
+                    -_rigidbody.linearVelocity.y);
+
+            _maximumDownwardSpeed =
+                Mathf.Max(
+                    _maximumDownwardSpeed,
+                    downwardSpeed);
+        }
+
+        private void TryNotifyLanding()
+        {
+            if (!_hasGroundState ||
+                !IsGrounded ||
+                _wasGrounded)
+            {
+                return;
+            }
+
+            Landed?.Invoke(
+                _maximumDownwardSpeed);
+
+            _maximumDownwardSpeed = 0f;
         }
 
         private void ReadInput()
@@ -218,6 +290,7 @@ namespace Breachpoint.Gameplay.Player.Movement
 
             _jumpBufferTimeRemaining = 0f;
             _coyoteTimeRemaining = 0f;
+            _maximumDownwardSpeed = 0f;
             IsGrounded = false;
 
             return true;
@@ -729,6 +802,8 @@ namespace Breachpoint.Gameplay.Player.Movement
             _isStandingBlocked = false;
             _curbCameraOffset = 0f;
             _curbCameraOffsetVelocity = 0f;
+            _maximumDownwardSpeed = 0f;
+            _hasGroundState = false;
         }
 
         private bool CanSimulate()

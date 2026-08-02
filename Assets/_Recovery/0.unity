@@ -3206,38 +3206,6 @@ Mesh:
       - serializedVersion: 1
         m_IndexStart: 0
         m_IndexCount: 0
---- !u!1 &252769510
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 252769511}
-  m_Layer: 6
-  m_Name: HeadBobRoot
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &252769511
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 252769510}
-  serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children:
-  - {fileID: 731444534}
-  m_Father: {fileID: 552817767}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!43 &306027316
 Mesh:
   m_ObjectHideFlags: 0
@@ -8994,38 +8962,6 @@ Mesh:
       - serializedVersion: 1
         m_IndexStart: 0
         m_IndexCount: 0
---- !u!1 &552817766
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 552817767}
-  m_Layer: 6
-  m_Name: CameraImpactRoot
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &552817767
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 552817766}
-  serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children:
-  - {fileID: 252769511}
-  m_Father: {fileID: 807918159}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &586648989
 GameObject:
   m_ObjectHideFlags: 0
@@ -24833,7 +24769,7 @@ Transform:
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 252769511}
+  m_Father: {fileID: 2130761956}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &731444535
 MonoBehaviour:
@@ -25330,38 +25266,6 @@ Mesh:
       - serializedVersion: 1
         m_IndexStart: 0
         m_IndexCount: 0
---- !u!1 &807918158
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 807918159}
-  m_Layer: 6
-  m_Name: CameraTiltRoot
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &807918159
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 807918158}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children:
-  - {fileID: 552817767}
-  m_Father: {fileID: 2130761956}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &820745617
 GameObject:
   m_ObjectHideFlags: 0
@@ -53255,9 +53159,6 @@ GameObject:
   - component: {fileID: 1469114858}
   - component: {fileID: 1469114857}
   - component: {fileID: 1469114865}
-  - component: {fileID: 1469114866}
-  - component: {fileID: 1469114867}
-  - component: {fileID: 1469114868}
   m_Layer: 6
   m_Name: Player
   m_TagString: Player
@@ -53434,54 +53335,6 @@ MonoBehaviour:
   _rigidbody: {fileID: 1469114863}
   _capsuleCollider: {fileID: 1469114862}
   _config: {fileID: 11400000, guid: 0b2c50e936a52434286ec9d0f7eaea41, type: 2}
---- !u!114 &1469114866
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1469114856}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 9575ca3ea24c46f59a20ba5dbcfaec61, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::Breachpoint.Gameplay.Player.Camera.PlayerHeadBob
-  _headBobRoot: {fileID: 252769511}
-  _movement: {fileID: 1469114859}
-  _config: {fileID: 11400000, guid: 951fa30c80e26cf43ab0eaa647af12fa, type: 2}
---- !u!114 &1469114867
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1469114856}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 11b60432b00e4c8c95cd4dc522da1320, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::Breachpoint.Gameplay.Player.Camera.PlayerCameraImpact
-  _cameraImpactRoot: {fileID: 552817767}
-  _movement: {fileID: 1469114859}
-  _config: {fileID: 11400000, guid: 69613555a103c8b408e9fe17414f4c7d, type: 2}
---- !u!114 &1469114868
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1469114856}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 8c2e639be54b4f4f9739c660a1db2f04, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::Breachpoint.Gameplay.Player.Camera.PlayerCameraMotion
-  _cameraTiltRoot: {fileID: 807918159}
-  _playerCamera: {fileID: 731444533}
-  _orientation: {fileID: 326045339}
-  _movement: {fileID: 1469114859}
-  _movementConfig: {fileID: 11400000, guid: 0b2c50e936a52434286ec9d0f7eaea41, type: 2}
-  _config: {fileID: 11400000, guid: d696082d59eae1f46b2a64c0924a575b, type: 2}
 --- !u!1 &1529448608
 GameObject:
   m_ObjectHideFlags: 0
@@ -67172,7 +67025,7 @@ Transform:
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
-  - {fileID: 807918159}
+  - {fileID: 731444534}
   m_Father: {fileID: 1469114864}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1660057539 &9223372036854775807
