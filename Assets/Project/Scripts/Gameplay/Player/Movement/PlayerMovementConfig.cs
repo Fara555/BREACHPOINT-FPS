@@ -63,6 +63,56 @@ namespace Breachpoint.Gameplay.Player.Movement
         [SerializeField, Min(0f)]
         private float _groundedVerticalSpeed = 2f;
 
+        [Header("Slide")]
+        [SerializeField, Min(0f)]
+        private float _minimumSlideStartSpeed = 6f;
+
+        [SerializeField, Min(0f)]
+        private float _minimumSlideResumeSpeed = 4.5f;
+
+        [SerializeField, Min(0f)]
+        private float _initialSlideSpeed = 9f;
+
+        [SerializeField, Min(0f)]
+        private float _maximumSlideSpeed = 18f;
+
+        [SerializeField, Min(0f)]
+        private float _slideEndSpeed = 3.5f;
+
+        [SerializeField, Min(0f)]
+        private float _slideDeceleration = 5f;
+
+        [SerializeField, Min(0f)]
+        private float _slideDownhillAcceleration = 20f;
+
+        [SerializeField, Min(0f)]
+        private float _slideStairAcceleration = 10f;
+
+        [SerializeField, Min(0f)]
+        private float _slideSteeringSpeed = 55f;
+
+        [SerializeField, Min(0.01f)]
+        private float _maximumSlideDuration = 1.5f;
+
+        [SerializeField, Min(0f)]
+        private float _slideCooldown = 0.35f;
+
+        [Header("Slide Momentum")]
+        [SerializeField, Min(0f)]
+        private float _slideMomentumRetentionTime = 0.5f;
+
+        [SerializeField, Range(0f, 1f)]
+        private float _retainedMomentumDecelerationMultiplier = 0.3f;
+
+        [SerializeField, Min(0f)]
+        private float _minimumStairDescentSpeed = 0.5f;
+
+        [SerializeField, Min(0f)]
+        private float _maximumStairDescentSpeed = 5f;
+
+        [SerializeField, Min(0f)]
+        private float _slideGroundGraceTime = 0.12f;
+
         [Header("Steep Slope")]
         [SerializeField, Min(0f)]
         private float _steepSlopeSlideAcceleration = 20f;
@@ -177,6 +227,54 @@ namespace Breachpoint.Gameplay.Player.Movement
         public float GroundedVerticalSpeed =>
             _groundedVerticalSpeed;
 
+        public float MinimumSlideStartSpeed =>
+            _minimumSlideStartSpeed;
+
+        public float MinimumSlideResumeSpeed =>
+            _minimumSlideResumeSpeed;
+
+        public float InitialSlideSpeed =>
+            _initialSlideSpeed;
+
+        public float MaximumSlideSpeed =>
+            _maximumSlideSpeed;
+
+        public float SlideEndSpeed =>
+            _slideEndSpeed;
+
+        public float SlideDeceleration =>
+            _slideDeceleration;
+
+        public float SlideDownhillAcceleration =>
+            _slideDownhillAcceleration;
+
+        public float SlideStairAcceleration =>
+            _slideStairAcceleration;
+
+        public float SlideSteeringSpeed =>
+            _slideSteeringSpeed;
+
+        public float MaximumSlideDuration =>
+            _maximumSlideDuration;
+
+        public float SlideCooldown =>
+            _slideCooldown;
+
+        public float SlideMomentumRetentionTime =>
+            _slideMomentumRetentionTime;
+
+        public float RetainedMomentumDecelerationMultiplier =>
+            _retainedMomentumDecelerationMultiplier;
+
+        public float MinimumStairDescentSpeed =>
+            _minimumStairDescentSpeed;
+
+        public float MaximumStairDescentSpeed =>
+            _maximumStairDescentSpeed;
+
+        public float SlideGroundGraceTime =>
+            _slideGroundGraceTime;
+
         public float SteepSlopeSlideAcceleration =>
             _steepSlopeSlideAcceleration;
 
@@ -243,6 +341,27 @@ namespace Breachpoint.Gameplay.Player.Movement
             _crouchSpeed = Mathf.Min(
                 _crouchSpeed,
                 _walkSpeed);
+
+            _initialSlideSpeed = Mathf.Max(
+                _initialSlideSpeed,
+                _minimumSlideStartSpeed);
+
+            _maximumSlideSpeed = Mathf.Max(
+                _maximumSlideSpeed,
+                _initialSlideSpeed);
+
+            _slideEndSpeed = Mathf.Min(
+                _slideEndSpeed,
+                _minimumSlideStartSpeed);
+
+            _minimumSlideResumeSpeed = Mathf.Clamp(
+                _minimumSlideResumeSpeed,
+                _slideEndSpeed,
+                _maximumSlideSpeed);
+
+            _maximumStairDescentSpeed = Mathf.Max(
+                _maximumStairDescentSpeed,
+                _minimumStairDescentSpeed);
 
             float minimumCrouchingHeight =
                 _groundProbeRadius * 2f;

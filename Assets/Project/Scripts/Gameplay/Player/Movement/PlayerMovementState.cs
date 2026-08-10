@@ -6,6 +6,7 @@
         Walking,
         Sprinting,
         Crouching,
+        Sliding,
         Airborne
     }
 }

@@ -120,7 +120,9 @@ namespace Breachpoint.Gameplay.Player.Camera
             {
                 _preserveSprintFieldOfViewInAir =
                     _movement.CurrentState ==
-                    PlayerMovementState.Sprinting;
+                    PlayerMovementState.Sprinting ||
+                    _movement.CurrentState ==
+                    PlayerMovementState.Sliding;
 
                 return;
             }
@@ -150,6 +152,8 @@ namespace Breachpoint.Gameplay.Player.Camera
             bool useSprintFieldOfView =
                 _movement.CurrentState ==
                 PlayerMovementState.Sprinting ||
+                _movement.CurrentState ==
+                PlayerMovementState.Sliding ||
                 _preserveSprintFieldOfViewInAir;
 
             float targetFieldOfView =
@@ -167,10 +171,11 @@ namespace Breachpoint.Gameplay.Player.Camera
 
         private float GetMinimumSprintFieldOfViewSpeed()
         {
-            return Mathf.Lerp(
-                _movementConfig.WalkSpeed,
-                _movementConfig.SprintSpeed,
-                0.5f);
+            return
+                Mathf.Lerp(
+                    _movementConfig.WalkSpeed,
+                    _movementConfig.SprintSpeed,
+                    0.5f);
         }
 
         private Vector3 GetHorizontalVelocity()
@@ -190,7 +195,8 @@ namespace Breachpoint.Gameplay.Player.Camera
                 PlayerMovementState.Sprinting =>
                     _config.SprintTiltAngle,
 
-                PlayerMovementState.Crouching =>
+                PlayerMovementState.Crouching or
+                PlayerMovementState.Sliding =>
                     _config.CrouchTiltAngle,
 
                 _ =>
@@ -207,6 +213,9 @@ namespace Breachpoint.Gameplay.Player.Camera
 
                 PlayerMovementState.Crouching =>
                     _movementConfig.CrouchSpeed,
+
+                PlayerMovementState.Sliding =>
+                    _movementConfig.MaximumSlideSpeed,
 
                 _ =>
                     _movementConfig.WalkSpeed

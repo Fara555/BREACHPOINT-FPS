@@ -45,6 +45,7 @@ namespace Breachpoint.Gameplay.Player.Camera
 
             bool shouldBob =
                 _movement.IsGrounded &&
+                !_movement.IsSliding &&
                 horizontalSpeed >=
                 _config.MinimumMovementSpeed;
 
