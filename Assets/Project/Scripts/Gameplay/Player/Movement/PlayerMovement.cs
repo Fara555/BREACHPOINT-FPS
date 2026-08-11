@@ -143,7 +143,7 @@ namespace Breachpoint.Gameplay.Player.Movement
                 IsGrounded,
                 currentVelocity);
 
-            _jumpController.UpdateCoyoteTime(
+            _jumpController.FixedUpdate(
                 IsGrounded,
                 fixedDeltaTime);
 
@@ -208,11 +208,6 @@ namespace Breachpoint.Gameplay.Player.Movement
             else
             {
                 NotifyLanding();
-
-                currentVelocity =
-                    _jumpController.ApplyJumpCut(
-                        currentVelocity,
-                        IsGrounded);
             }
 
             TryResolveCurb(
@@ -239,8 +234,6 @@ namespace Breachpoint.Gameplay.Player.Movement
 
             _wasGrounded =
                 IsGrounded;
-
-            _jumpController.EndFixedStep();
 
             _slideController.EndFixedStep(
                 _rigidbody.position.y);
@@ -278,12 +271,15 @@ namespace Breachpoint.Gameplay.Player.Movement
         {
             if (didJump)
             {
-                return jumpedFromSlide
-                    ? _jumpController.CalculateJumpVelocity(
-                        currentVelocity,
-                        slideJumpVelocity)
-                    : _jumpController.CalculateJumpVelocity(
-                        currentVelocity);
+                return
+                    jumpedFromSlide
+                        ? _jumpController
+                            .CalculateJumpVelocity(
+                                currentVelocity,
+                                slideJumpVelocity)
+                        : _jumpController
+                            .CalculateJumpVelocity(
+                                currentVelocity);
             }
 
             if (IsSliding &&
@@ -327,7 +323,8 @@ namespace Breachpoint.Gameplay.Player.Movement
             return
                 CalculateAirVelocity(
                     currentVelocity,
-                    desiredDirection);
+                    desiredDirection,
+                    fixedDeltaTime);
         }
 
         private Vector3 CalculateGroundVelocity(
@@ -378,7 +375,8 @@ namespace Breachpoint.Gameplay.Player.Movement
 
         private Vector3 CalculateAirVelocity(
             Vector3 currentVelocity,
-            Vector3 desiredDirection)
+            Vector3 desiredDirection,
+            float fixedDeltaTime)
         {
             Vector3 currentHorizontalVelocity =
                 GetHorizontalVelocity(
@@ -399,19 +397,20 @@ namespace Breachpoint.Gameplay.Player.Movement
                     currentHorizontalVelocity,
                     controlledVelocity,
                     _config.AirAcceleration *
-                    Time.fixedDeltaTime);
+                    fixedDeltaTime);
 
             float gravityMultiplier =
                 _jumpController
                     .CalculateGravityMultiplier(
-                        currentVelocity.y);
+                        currentVelocity.y,
+                        fixedDeltaTime);
 
             float verticalVelocity =
                 Mathf.Max(
                     currentVelocity.y -
                     _config.Gravity *
                     gravityMultiplier *
-                    Time.fixedDeltaTime,
+                    fixedDeltaTime,
                     -_config.MaxFallSpeed);
 
             return
@@ -606,7 +605,8 @@ namespace Breachpoint.Gameplay.Player.Movement
             _slideController.Initialize(
                 _rigidbody.position.y);
 
-            _moveInput = Vector2.zero;
+            _moveInput =
+                Vector2.zero;
 
             _isSprintInputHeld = false;
             _wantsToCrouch = false;
@@ -675,35 +675,35 @@ namespace Breachpoint.Gameplay.Player.Movement
             if (_rigidbody == null)
             {
                 Debug.LogError(
-                    $"{nameof(PlayerMovement)} requires a Rigidbody reference.",
+                    $"{nameof(PlayerMovement)} requires Rigidbody.",
                     this);
             }
 
             if (_capsuleCollider == null)
             {
                 Debug.LogError(
-                    $"{nameof(PlayerMovement)} requires a CapsuleCollider reference.",
+                    $"{nameof(PlayerMovement)} requires CapsuleCollider.",
                     this);
             }
 
             if (_orientation == null)
             {
                 Debug.LogError(
-                    $"{nameof(PlayerMovement)} requires an Orientation reference.",
+                    $"{nameof(PlayerMovement)} requires Orientation.",
                     this);
             }
 
             if (_groundDetector == null)
             {
                 Debug.LogError(
-                    $"{nameof(PlayerMovement)} requires a PlayerGroundDetector reference.",
+                    $"{nameof(PlayerMovement)} requires PlayerGroundDetector.",
                     this);
             }
 
             if (_curbHandler == null)
             {
                 Debug.LogError(
-                    $"{nameof(PlayerMovement)} requires a PlayerCurbHandler reference.",
+                    $"{nameof(PlayerMovement)} requires PlayerCurbHandler.",
                     this);
             }
         }

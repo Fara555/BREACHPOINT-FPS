@@ -34,8 +34,8 @@ namespace Breachpoint.Gameplay.Player.Movement
         [SerializeField, Min(0f)]
         private float _jumpHeight = 1.25f;
 
-        [SerializeField, Range(0f, 1f)]
-        private float _jumpCutVelocityMultiplier = 0.5f;
+        [SerializeField, Min(0f)]
+        private float _minimumJumpHoldTime = 0.06f;
 
         [SerializeField, Min(0f)]
         private float _coyoteTime = 0.12f;
@@ -44,14 +44,20 @@ namespace Breachpoint.Gameplay.Player.Movement
         private float _jumpBufferTime = 0.12f;
 
         [Header("Jump Gravity")]
+        [SerializeField, Min(1f)]
+        private float _jumpReleaseGravityMultiplier = 2.2f;
+
         [SerializeField, Min(0f)]
         private float _fallGravityMultiplier = 1.65f;
 
         [SerializeField, Range(0f, 1f)]
         private float _apexGravityMultiplier = 0.65f;
 
-        [SerializeField, Min(0f)]
+        [SerializeField, Min(0.01f)]
         private float _apexVelocityThreshold = 1.5f;
+
+        [SerializeField, Min(0.01f)]
+        private float _gravityTransitionSmoothTime = 0.055f;
 
         [Header("Gravity")]
         [SerializeField, Min(0f)]
@@ -185,22 +191,41 @@ namespace Breachpoint.Gameplay.Player.Movement
         [SerializeField, Range(0f, 89f)]
         private float _maximumGroundAngle = 50f;
 
-        public float WalkSpeed => _walkSpeed;
-        public float SprintSpeed => _sprintSpeed;
-        public float CrouchSpeed => _crouchSpeed;
+        public float WalkSpeed =>
+            _walkSpeed;
 
-        public float GroundAcceleration => _groundAcceleration;
-        public float GroundDeceleration => _groundDeceleration;
-        public float AirAcceleration => _airAcceleration;
-        public float AirControl => _airControl;
+        public float SprintSpeed =>
+            _sprintSpeed;
 
-        public float JumpHeight => _jumpHeight;
+        public float CrouchSpeed =>
+            _crouchSpeed;
 
-        public float JumpCutVelocityMultiplier =>
-            _jumpCutVelocityMultiplier;
+        public float GroundAcceleration =>
+            _groundAcceleration;
 
-        public float CoyoteTime => _coyoteTime;
-        public float JumpBufferTime => _jumpBufferTime;
+        public float GroundDeceleration =>
+            _groundDeceleration;
+
+        public float AirAcceleration =>
+            _airAcceleration;
+
+        public float AirControl =>
+            _airControl;
+
+        public float JumpHeight =>
+            _jumpHeight;
+
+        public float MinimumJumpHoldTime =>
+            _minimumJumpHoldTime;
+
+        public float CoyoteTime =>
+            _coyoteTime;
+
+        public float JumpBufferTime =>
+            _jumpBufferTime;
+
+        public float JumpReleaseGravityMultiplier =>
+            _jumpReleaseGravityMultiplier;
 
         public float FallGravityMultiplier =>
             _fallGravityMultiplier;
@@ -211,8 +236,14 @@ namespace Breachpoint.Gameplay.Player.Movement
         public float ApexVelocityThreshold =>
             _apexVelocityThreshold;
 
-        public float Gravity => _gravity;
-        public float MaxFallSpeed => _maxFallSpeed;
+        public float GravityTransitionSmoothTime =>
+            _gravityTransitionSmoothTime;
+
+        public float Gravity =>
+            _gravity;
+
+        public float MaxFallSpeed =>
+            _maxFallSpeed;
 
         public float GroundedVerticalSpeed =>
             _groundedVerticalSpeed;

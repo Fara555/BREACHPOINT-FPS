@@ -8,11 +8,15 @@ namespace Breachpoint.Gameplay.Player.Movement.Jump
         private readonly PlayerMovementConfig _config;
 
         private bool _isJumpHeld;
-        private bool _wasJumpReleased;
+        private bool _isJumpActive;
 
+        private float _jumpElapsedTime;
         private float _coyoteTimeRemaining;
         private float _jumpBufferTimeRemaining;
         private float _maximumDownwardSpeed;
+
+        private float _currentGravityMultiplier;
+        private float _gravityMultiplierVelocity;
 
         public PlayerJumpController(
             PlayerMovementConfig config)
@@ -31,9 +35,6 @@ namespace Breachpoint.Gameplay.Player.Movement.Jump
             _isJumpHeld =
                 input.IsJumpHeld;
 
-            _wasJumpReleased |=
-                input.WasJumpReleased;
-
             if (input.WasJumpPressed)
             {
                 _jumpBufferTimeRemaining =
@@ -44,35 +45,36 @@ namespace Breachpoint.Gameplay.Player.Movement.Jump
         public void Update(
             float deltaTime)
         {
-            if (_jumpBufferTimeRemaining <= 0f)
+            if (_jumpBufferTimeRemaining > 0f)
             {
-                return;
+                _jumpBufferTimeRemaining =
+                    Mathf.Max(
+                        0f,
+                        _jumpBufferTimeRemaining -
+                        deltaTime);
             }
-
-            _jumpBufferTimeRemaining =
-                Mathf.Max(
-                    0f,
-                    _jumpBufferTimeRemaining -
-                    deltaTime);
         }
 
-        public void UpdateCoyoteTime(
+        public void FixedUpdate(
             bool isGrounded,
             float fixedDeltaTime)
         {
-            if (isGrounded)
-            {
-                _coyoteTimeRemaining =
-                    _config.CoyoteTime;
+            UpdateCoyoteTime(
+                isGrounded,
+                fixedDeltaTime);
 
-                return;
+            if (_isJumpActive)
+            {
+                _jumpElapsedTime +=
+                    fixedDeltaTime;
             }
 
-            _coyoteTimeRemaining =
-                Mathf.Max(
-                    0f,
-                    _coyoteTimeRemaining -
-                    fixedDeltaTime);
+            if (isGrounded &&
+                _isJumpActive)
+            {
+                _isJumpActive = false;
+                _jumpElapsedTime = 0f;
+            }
         }
 
         public void TrackDownwardSpeed(
@@ -116,7 +118,12 @@ namespace Breachpoint.Gameplay.Player.Movement.Jump
             _jumpBufferTimeRemaining = 0f;
             _coyoteTimeRemaining = 0f;
             _maximumDownwardSpeed = 0f;
-            _wasJumpReleased = false;
+
+            _isJumpActive = true;
+            _jumpElapsedTime = 0f;
+
+            _currentGravityMultiplier = 1f;
+            _gravityMultiplierVelocity = 0f;
 
             return true;
         }
@@ -140,23 +147,6 @@ namespace Breachpoint.Gameplay.Player.Movement.Jump
             _maximumDownwardSpeed = 0f;
 
             return true;
-        }
-
-        public Vector3 ApplyJumpCut(
-            Vector3 currentVelocity,
-            bool isGrounded)
-        {
-            if (isGrounded ||
-                !_wasJumpReleased ||
-                currentVelocity.y <= 0f)
-            {
-                return currentVelocity;
-            }
-
-            currentVelocity.y *=
-                _config.JumpCutVelocityMultiplier;
-
-            return currentVelocity;
         }
 
         public Vector3 CalculateJumpVelocity(
@@ -187,38 +177,128 @@ namespace Breachpoint.Gameplay.Player.Movement.Jump
         }
 
         public float CalculateGravityMultiplier(
-            float verticalVelocity)
+            float verticalVelocity,
+            float fixedDeltaTime)
         {
-            if (verticalVelocity < 0f)
-            {
-                return
-                    _config.FallGravityMultiplier;
-            }
+            float targetMultiplier =
+                CalculateTargetGravityMultiplier(
+                    verticalVelocity);
 
-            if (_isJumpHeld &&
-                Mathf.Abs(verticalVelocity) <=
-                _config.ApexVelocityThreshold)
-            {
-                return
-                    _config.ApexGravityMultiplier;
-            }
+            _currentGravityMultiplier =
+                Mathf.SmoothDamp(
+                    _currentGravityMultiplier,
+                    targetMultiplier,
+                    ref _gravityMultiplierVelocity,
+                    _config.GravityTransitionSmoothTime,
+                    Mathf.Infinity,
+                    fixedDeltaTime);
 
-            return 1f;
-        }
-
-        public void EndFixedStep()
-        {
-            _wasJumpReleased = false;
+            return
+                _currentGravityMultiplier;
         }
 
         public void Reset()
         {
             _isJumpHeld = false;
-            _wasJumpReleased = false;
+            _isJumpActive = false;
 
+            _jumpElapsedTime = 0f;
             _coyoteTimeRemaining = 0f;
             _jumpBufferTimeRemaining = 0f;
             _maximumDownwardSpeed = 0f;
+
+            _currentGravityMultiplier = 1f;
+            _gravityMultiplierVelocity = 0f;
+        }
+
+        private void UpdateCoyoteTime(
+            bool isGrounded,
+            float fixedDeltaTime)
+        {
+            if (isGrounded)
+            {
+                _coyoteTimeRemaining =
+                    _config.CoyoteTime;
+
+                return;
+            }
+
+            _coyoteTimeRemaining =
+                Mathf.Max(
+                    0f,
+                    _coyoteTimeRemaining -
+                    fixedDeltaTime);
+        }
+
+        private float CalculateTargetGravityMultiplier(
+            float verticalVelocity)
+        {
+            if (verticalVelocity < 0f)
+            {
+                return
+                    CalculateFallGravityMultiplier(
+                        verticalVelocity);
+            }
+
+            bool canUseShortJumpGravity =
+                _isJumpActive &&
+                !_isJumpHeld &&
+                _jumpElapsedTime >=
+                _config.MinimumJumpHoldTime;
+
+            if (canUseShortJumpGravity)
+            {
+                return
+                    _config
+                        .JumpReleaseGravityMultiplier;
+            }
+
+            return
+                CalculateAscendingGravityMultiplier(
+                    verticalVelocity);
+        }
+
+        private float CalculateAscendingGravityMultiplier(
+            float verticalVelocity)
+        {
+            float apexProximity =
+                1f -
+                Mathf.Clamp01(
+                    Mathf.Abs(verticalVelocity) /
+                    _config.ApexVelocityThreshold);
+
+            float smoothApexProximity =
+                SmoothStep(
+                    apexProximity);
+
+            return
+                Mathf.Lerp(
+                    1f,
+                    _config.ApexGravityMultiplier,
+                    smoothApexProximity);
+        }
+
+        private float CalculateFallGravityMultiplier(
+            float verticalVelocity)
+        {
+            float fallSpeed =
+                Mathf.Abs(
+                    verticalVelocity);
+
+            float fallBlend =
+                Mathf.Clamp01(
+                    fallSpeed /
+                    _config.ApexVelocityThreshold);
+
+            float smoothFallBlend =
+                SmoothStep(
+                    fallBlend);
+
+            return
+                Mathf.Lerp(
+                    _config.ApexGravityMultiplier,
+                    _config.FallGravityMultiplier,
+                    smoothFallBlend);
         }
 
         private float CalculateJumpSpeed()
@@ -228,6 +308,21 @@ namespace Breachpoint.Gameplay.Player.Movement.Jump
                     2f *
                     _config.Gravity *
                     _config.JumpHeight);
+        }
+
+        private static float SmoothStep(
+            float value)
+        {
+            value =
+                Mathf.Clamp01(
+                    value);
+
+            return
+                value *
+                value *
+                (3f -
+                 2f *
+                 value);
         }
     }
 }
