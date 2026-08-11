@@ -15,8 +15,11 @@ namespace Breachpoint.Gameplay.Player.Camera
 
         private PlayerMovementConfig _config;
 
+        private float _heightVelocity;
         private float _curbCameraOffset;
         private float _curbCameraOffsetVelocity;
+
+        private bool _wasSliding;
 
         [Inject]
         public void Construct(
@@ -66,8 +69,13 @@ namespace Breachpoint.Gameplay.Player.Camera
             _cameraRoot.localPosition =
                 position;
 
+            _heightVelocity = 0f;
             _curbCameraOffset = 0f;
             _curbCameraOffsetVelocity = 0f;
+
+            _wasSliding =
+                _movement != null &&
+                _movement.IsSliding;
         }
 
         private void Update()
@@ -79,6 +87,9 @@ namespace Breachpoint.Gameplay.Player.Camera
 
             UpdateCurbOffset();
             UpdateHeight();
+
+            _wasSliding =
+                _movement.IsSliding;
         }
 
         private void HandleCurbResolved(
@@ -100,9 +111,12 @@ namespace Breachpoint.Gameplay.Player.Camera
 
         private void UpdateHeight()
         {
-            float stanceCameraY =
+            bool useCrouchingHeight =
                 _movement
-                    .ShouldUseCrouchingCameraHeight
+                    .ShouldUseCrouchingCameraHeight;
+
+            float stanceCameraY =
+                useCrouchingHeight
                     ? _config.CrouchingCameraLocalY
                     : _config.StandingCameraLocalY;
 
@@ -110,18 +124,46 @@ namespace Breachpoint.Gameplay.Player.Camera
                 stanceCameraY -
                 _curbCameraOffset;
 
+            float smoothTime =
+                GetCurrentSmoothTime(
+                    useCrouchingHeight);
+
             Vector3 position =
                 _cameraRoot.localPosition;
 
             position.y =
-                Mathf.MoveTowards(
+                Mathf.SmoothDamp(
                     position.y,
                     targetCameraY,
-                    _config.CameraTransitionSpeed *
+                    ref _heightVelocity,
+                    smoothTime,
+                    _config.CameraTransitionSpeed,
                     Time.deltaTime);
 
             _cameraRoot.localPosition =
                 position;
+        }
+
+        private float GetCurrentSmoothTime(
+            bool useCrouchingHeight)
+        {
+            if (_movement.IsSliding)
+            {
+                return
+                    _config
+                        .SlideCameraEnterSmoothTime;
+            }
+
+            if (_wasSliding &&
+                !useCrouchingHeight)
+            {
+                return
+                    _config
+                        .SlideCameraExitSmoothTime;
+            }
+
+            return
+                _config.CrouchCameraSmoothTime;
         }
 
         private bool CanUpdate()

@@ -51,10 +51,6 @@ namespace Breachpoint.Gameplay.Player.Input
             _jumpAction != null &&
             _jumpAction.action.WasReleasedThisFrame();
 
-        public bool WasCrouchPressed =>
-            _crouchAction != null &&
-            _crouchAction.action.WasPressedThisFrame();
-
         private void OnEnable()
         {
             EnableAction(

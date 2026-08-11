@@ -143,7 +143,7 @@ namespace Breachpoint.Gameplay.Player.Movement
         [SerializeField, Min(0.01f)]
         private float _stanceTransitionSpeed = 8f;
 
-        [Header("Crouch Camera")]
+        [Header("Camera Height")]
         [SerializeField]
         private float _standingCameraLocalY = 0.5f;
 
@@ -152,6 +152,15 @@ namespace Breachpoint.Gameplay.Player.Movement
 
         [SerializeField, Min(0.01f)]
         private float _cameraTransitionSpeed = 10f;
+
+        [SerializeField, Min(0.01f)]
+        private float _crouchCameraSmoothTime = 0.1f;
+
+        [SerializeField, Min(0.01f)]
+        private float _slideCameraEnterSmoothTime = 0.16f;
+
+        [SerializeField, Min(0.01f)]
+        private float _slideCameraExitSmoothTime = 0.2f;
 
         [Header("Standing Clearance")]
         [SerializeField]
@@ -176,38 +185,22 @@ namespace Breachpoint.Gameplay.Player.Movement
         [SerializeField, Range(0f, 89f)]
         private float _maximumGroundAngle = 50f;
 
-        public float WalkSpeed =>
-            _walkSpeed;
+        public float WalkSpeed => _walkSpeed;
+        public float SprintSpeed => _sprintSpeed;
+        public float CrouchSpeed => _crouchSpeed;
 
-        public float SprintSpeed =>
-            _sprintSpeed;
+        public float GroundAcceleration => _groundAcceleration;
+        public float GroundDeceleration => _groundDeceleration;
+        public float AirAcceleration => _airAcceleration;
+        public float AirControl => _airControl;
 
-        public float CrouchSpeed =>
-            _crouchSpeed;
-
-        public float GroundAcceleration =>
-            _groundAcceleration;
-
-        public float GroundDeceleration =>
-            _groundDeceleration;
-
-        public float AirAcceleration =>
-            _airAcceleration;
-
-        public float AirControl =>
-            _airControl;
-
-        public float JumpHeight =>
-            _jumpHeight;
+        public float JumpHeight => _jumpHeight;
 
         public float JumpCutVelocityMultiplier =>
             _jumpCutVelocityMultiplier;
 
-        public float CoyoteTime =>
-            _coyoteTime;
-
-        public float JumpBufferTime =>
-            _jumpBufferTime;
+        public float CoyoteTime => _coyoteTime;
+        public float JumpBufferTime => _jumpBufferTime;
 
         public float FallGravityMultiplier =>
             _fallGravityMultiplier;
@@ -218,11 +211,8 @@ namespace Breachpoint.Gameplay.Player.Movement
         public float ApexVelocityThreshold =>
             _apexVelocityThreshold;
 
-        public float Gravity =>
-            _gravity;
-
-        public float MaxFallSpeed =>
-            _maxFallSpeed;
+        public float Gravity => _gravity;
+        public float MaxFallSpeed => _maxFallSpeed;
 
         public float GroundedVerticalSpeed =>
             _groundedVerticalSpeed;
@@ -311,6 +301,15 @@ namespace Breachpoint.Gameplay.Player.Movement
         public float CameraTransitionSpeed =>
             _cameraTransitionSpeed;
 
+        public float CrouchCameraSmoothTime =>
+            _crouchCameraSmoothTime;
+
+        public float SlideCameraEnterSmoothTime =>
+            _slideCameraEnterSmoothTime;
+
+        public float SlideCameraExitSmoothTime =>
+            _slideCameraExitSmoothTime;
+
         public LayerMask ClearanceMask =>
             _clearanceMask;
 
@@ -334,46 +333,55 @@ namespace Breachpoint.Gameplay.Player.Movement
 
         private void OnValidate()
         {
-            _sprintSpeed = Mathf.Max(
-                _sprintSpeed,
-                _walkSpeed);
+            _sprintSpeed =
+                Mathf.Max(
+                    _sprintSpeed,
+                    _walkSpeed);
 
-            _crouchSpeed = Mathf.Min(
-                _crouchSpeed,
-                _walkSpeed);
+            _crouchSpeed =
+                Mathf.Min(
+                    _crouchSpeed,
+                    _walkSpeed);
 
-            _initialSlideSpeed = Mathf.Max(
-                _initialSlideSpeed,
-                _minimumSlideStartSpeed);
+            _initialSlideSpeed =
+                Mathf.Max(
+                    _initialSlideSpeed,
+                    _minimumSlideStartSpeed);
 
-            _maximumSlideSpeed = Mathf.Max(
-                _maximumSlideSpeed,
-                _initialSlideSpeed);
+            _maximumSlideSpeed =
+                Mathf.Max(
+                    _maximumSlideSpeed,
+                    _initialSlideSpeed);
 
-            _slideEndSpeed = Mathf.Min(
-                _slideEndSpeed,
-                _minimumSlideStartSpeed);
+            _slideEndSpeed =
+                Mathf.Min(
+                    _slideEndSpeed,
+                    _minimumSlideStartSpeed);
 
-            _minimumSlideResumeSpeed = Mathf.Clamp(
-                _minimumSlideResumeSpeed,
-                _slideEndSpeed,
-                _maximumSlideSpeed);
+            _minimumSlideResumeSpeed =
+                Mathf.Clamp(
+                    _minimumSlideResumeSpeed,
+                    _slideEndSpeed,
+                    _maximumSlideSpeed);
 
-            _maximumStairDescentSpeed = Mathf.Max(
-                _maximumStairDescentSpeed,
-                _minimumStairDescentSpeed);
+            _maximumStairDescentSpeed =
+                Mathf.Max(
+                    _maximumStairDescentSpeed,
+                    _minimumStairDescentSpeed);
 
             float minimumCrouchingHeight =
                 _groundProbeRadius * 2f;
 
-            _crouchingHeight = Mathf.Clamp(
-                _crouchingHeight,
-                minimumCrouchingHeight,
-                _standingHeight);
+            _crouchingHeight =
+                Mathf.Clamp(
+                    _crouchingHeight,
+                    minimumCrouchingHeight,
+                    _standingHeight);
 
-            _groundedDistance = Mathf.Min(
-                _groundedDistance,
-                _groundProbeDistance);
+            _groundedDistance =
+                Mathf.Min(
+                    _groundedDistance,
+                    _groundProbeDistance);
         }
     }
 }

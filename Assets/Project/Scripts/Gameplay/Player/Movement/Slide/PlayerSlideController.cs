@@ -11,7 +11,6 @@ namespace Breachpoint.Gameplay.Player.Movement.Slide
         private readonly PlayerMovementConfig _config;
 
         private bool _isCrouchHeld;
-        private bool _wasCrouchPressed;
         private bool _resumeSlideAfterLanding;
 
         private Vector3 _slideDirection;
@@ -51,9 +50,6 @@ namespace Breachpoint.Gameplay.Player.Movement.Slide
 
             _isCrouchHeld =
                 input.IsCrouchHeld;
-
-            _wasCrouchPressed |=
-                input.WasCrouchPressed;
 
             if (!_isCrouchHeld)
             {
@@ -104,7 +100,7 @@ namespace Breachpoint.Gameplay.Player.Movement.Slide
             bool isGrounded,
             bool isSprintHeld)
         {
-            if (!_wasCrouchPressed ||
+            if (!_isCrouchHeld ||
                 IsSliding ||
                 !isGrounded ||
                 _slideCooldownRemaining > 0f ||
@@ -189,6 +185,13 @@ namespace Breachpoint.Gameplay.Player.Movement.Slide
         {
             if (!IsSliding)
             {
+                return;
+            }
+
+            if (!_isCrouchHeld)
+            {
+                StopSlide();
+
                 return;
             }
 
@@ -383,8 +386,6 @@ namespace Breachpoint.Gameplay.Player.Movement.Slide
         {
             _previousFixedPositionY =
                 currentPositionY;
-
-            _wasCrouchPressed = false;
         }
 
         public void Reset()
@@ -392,10 +393,10 @@ namespace Breachpoint.Gameplay.Player.Movement.Slide
             IsSliding = false;
 
             _isCrouchHeld = false;
-            _wasCrouchPressed = false;
             _resumeSlideAfterLanding = false;
 
-            _slideDirection = Vector3.zero;
+            _slideDirection =
+                Vector3.zero;
 
             _slideSpeed = 0f;
             _slideTimeRemaining = 0f;
