@@ -1,5 +1,8 @@
 ﻿using System;
 using Breachpoint.Gameplay.Player.Input;
+using Breachpoint.Gameplay.Player.Movement.Jump;
+using Breachpoint.Gameplay.Player.Movement.Slide;
+using Breachpoint.Gameplay.Player.Movement.Stance;
 using UnityEngine;
 using VContainer;
 
@@ -7,10 +10,7 @@ namespace Breachpoint.Gameplay.Player.Movement
 {
     public sealed class PlayerMovement : MonoBehaviour
     {
-        private const float StanceThreshold = 0.01f;
         private const float MovementThreshold = 0.01f;
-        private const float DownhillThreshold = 0.01f;
-        private const int ClearanceHitCapacity = 8;
 
         [Header("References")]
         [SerializeField]
@@ -23,65 +23,47 @@ namespace Breachpoint.Gameplay.Player.Movement
         private Transform _orientation;
 
         [SerializeField]
-        private Transform _cameraRoot;
-
-        [SerializeField]
         private PlayerGroundDetector _groundDetector;
 
         [SerializeField]
         private PlayerCurbHandler _curbHandler;
 
-        [SerializeField]
-        private PlayerMovementConfig _config;
-
-        private readonly RaycastHit[] _clearanceHits =
-            new RaycastHit[ClearanceHitCapacity];
-
         private IPlayerInput _input;
+        private PlayerMovementConfig _config;
+        private PlayerJumpController _jumpController;
+        private PlayerSlideController _slideController;
+        private PlayerStanceController _stanceController;
 
         private Vector2 _moveInput;
 
         private bool _isSprintInputHeld;
-        private bool _isJumpHeld;
-        private bool _wasJumpReleased;
-        private bool _wasCrouchPressed;
         private bool _wantsToCrouch;
-        private bool _isStandingBlocked;
         private bool _wasGrounded;
         private bool _hasGroundState;
-        private bool _isSliding;
-        private bool _resumeSlideAfterLanding;
-        private bool _jumpedFromSlide;
-
-        private Vector3 _slideDirection;
-        private Vector3 _slideJumpHorizontalVelocity;
-
-        private float _standingBottomLocalY;
-        private float _coyoteTimeRemaining;
-        private float _jumpBufferTimeRemaining;
-        private float _curbCameraOffset;
-        private float _curbCameraOffsetVelocity;
-        private float _maximumDownwardSpeed;
-
-        private float _slideSpeed;
-        private float _slideTimeRemaining;
-        private float _slideCooldownRemaining;
-        private float _slideMomentumRetentionRemaining;
-        private float _slideGroundGraceRemaining;
-
-        private float _previousFixedPositionY;
 
         public event Action Jumped;
         public event Action<float> Landed;
+        public event Action<float> CurbResolved;
 
         public bool IsGrounded { get; private set; }
-        public bool IsCrouching { get; private set; }
+
+        public bool IsCrouching =>
+            _stanceController != null &&
+            _stanceController.IsCrouching;
+
+        public bool IsSliding =>
+            _slideController != null &&
+            _slideController.IsSliding;
 
         public bool IsSprintHeld =>
             _isSprintInputHeld;
 
-        public bool IsSliding =>
-            _isSliding;
+        public bool ShouldUseCrouchingCameraHeight =>
+            _wantsToCrouch ||
+            IsSliding ||
+            IsCrouching ||
+            (_stanceController != null &&
+             _stanceController.IsStandingBlocked);
 
         public PlayerMovementState CurrentState { get; private set; }
 
@@ -92,26 +74,42 @@ namespace Breachpoint.Gameplay.Player.Movement
 
         [Inject]
         public void Construct(
-            IPlayerInput input)
+            IPlayerInput input,
+            PlayerMovementConfig config,
+            PlayerJumpController jumpController,
+            PlayerSlideController slideController,
+            PlayerStanceController stanceController)
         {
             _input = input;
+            _config = config;
+            _jumpController = jumpController;
+            _slideController = slideController;
+            _stanceController = stanceController;
         }
 
         private void Awake()
         {
             ValidateReferences();
             ConfigureRigidbody();
-            InitializeStance();
+        }
 
-            CurrentState =
-                PlayerMovementState.Idle;
+        private void Start()
+        {
+            ValidateDependencies();
+            Initialize();
         }
 
         private void Update()
         {
+            if (!CanProcessInput())
+            {
+                return;
+            }
+
             ReadInput();
-            UpdateJumpBuffer();
-            UpdateCameraHeight();
+
+            _jumpController.Update(
+                Time.deltaTime);
         }
 
         private void FixedUpdate()
@@ -121,8 +119,14 @@ namespace Breachpoint.Gameplay.Player.Movement
                 return;
             }
 
+            float fixedDeltaTime =
+                Time.fixedDeltaTime;
+
             float downwardTravelSpeed =
-                CalculateDownwardTravelSpeed();
+                _slideController
+                    .CalculateDownwardTravelSpeed(
+                        _rigidbody.position.y,
+                        fixedDeltaTime);
 
             GroundInfo groundInfo =
                 _groundDetector.DetectGround();
@@ -131,102 +135,101 @@ namespace Breachpoint.Gameplay.Player.Movement
                 groundInfo.IsGrounded;
 
             InitializeGroundState();
-            TrackDownwardSpeed();
-            UpdateCoyoteTime();
-            UpdateSlideCooldown();
 
             Vector3 currentVelocity =
                 _rigidbody.linearVelocity;
 
+            _jumpController.TrackDownwardSpeed(
+                IsGrounded,
+                currentVelocity);
+
+            _jumpController.UpdateCoyoteTime(
+                IsGrounded,
+                fixedDeltaTime);
+
+            _slideController.UpdateCooldown(
+                fixedDeltaTime);
+
             Vector3 desiredDirection =
                 GetDesiredDirection();
 
-            TryResumeSlideAfterLanding(
+            _slideController.TryResumeAfterLanding(
                 currentVelocity,
-                groundInfo);
+                IsGrounded,
+                _wasGrounded);
 
-            TryStartSlide(
+            _slideController.TryStart(
                 currentVelocity,
-                desiredDirection);
+                desiredDirection,
+                IsGrounded,
+                _isSprintInputHeld);
 
-            UpdateSlideGroundState(
-                groundInfo);
+            _slideController.UpdateGroundState(
+                groundInfo,
+                fixedDeltaTime);
 
-            UpdateStance();
+            _stanceController.Update(
+                _capsuleCollider,
+                transform,
+                _wantsToCrouch,
+                IsSliding,
+                fixedDeltaTime);
+
+            bool canJump =
+                IsSliding ||
+                (!IsCrouching &&
+                 !_wantsToCrouch);
 
             bool didJump =
-                TryConsumeJump();
+                _jumpController.TryConsumeJump(
+                    IsGrounded,
+                    canJump);
+
+            Vector3 slideJumpVelocity =
+                Vector3.zero;
+
+            bool jumpedFromSlide =
+                didJump &&
+                IsSliding;
+
+            if (jumpedFromSlide)
+            {
+                slideJumpVelocity =
+                    _slideController.PrepareJump(
+                        currentVelocity);
+            }
 
             if (didJump)
             {
+                IsGrounded = false;
+
                 Jumped?.Invoke();
             }
             else
             {
-                TryNotifyLanding();
+                NotifyLanding();
 
                 currentVelocity =
-                    ApplyJumpCut(
-                        currentVelocity);
+                    _jumpController.ApplyJumpCut(
+                        currentVelocity,
+                        IsGrounded);
             }
 
-            if (!didJump &&
-                !_isSliding &&
-                groundInfo.IsGrounded &&
-                _curbHandler.TryResolveCurb(
-                    desiredDirection,
+            TryResolveCurb(
+                didJump,
+                groundInfo,
+                desiredDirection);
+
+            Vector3 finalVelocity =
+                ResolveVelocity(
+                    currentVelocity,
                     groundInfo,
-                    out float curbHeight))
-            {
-                _curbCameraOffset +=
-                    curbHeight;
-            }
-
-            Vector3 finalVelocity;
-
-            if (didJump)
-            {
-                finalVelocity =
-                    CalculateJumpVelocity(
-                        currentVelocity);
-            }
-            else if (_isSliding &&
-                     groundInfo.IsGrounded)
-            {
-                finalVelocity =
-                    CalculateSlideVelocity(
-                        groundInfo,
-                        desiredDirection,
-                        downwardTravelSpeed);
-            }
-            else if (_isSliding)
-            {
-                finalVelocity =
-                    CalculateAirborneSlideVelocity(
-                        currentVelocity);
-            }
-            else if (groundInfo.IsGrounded)
-            {
-                finalVelocity =
-                    CalculateGroundVelocity(
-                        currentVelocity,
-                        groundInfo,
-                        desiredDirection);
-            }
-            else if (groundInfo.IsOnSteepSlope)
-            {
-                finalVelocity =
-                    CalculateSteepSlopeVelocity(
-                        currentVelocity,
-                        groundInfo);
-            }
-            else
-            {
-                finalVelocity =
-                    CalculateAirVelocity(
-                        currentVelocity,
-                        desiredDirection);
-            }
+                    desiredDirection,
+                    downwardTravelSpeed,
+                    didJump,
+                    jumpedFromSlide,
+                    slideJumpVelocity,
+                    fixedDeltaTime);
 
             _rigidbody.linearVelocity =
                 finalVelocity;
@@ -237,21 +240,14 @@ namespace Breachpoint.Gameplay.Player.Movement
             _wasGrounded =
                 IsGrounded;
 
-            _previousFixedPositionY =
-                _rigidbody.position.y;
+            _jumpController.EndFixedStep();
 
-            _wasJumpReleased = false;
-            _wasCrouchPressed = false;
-            _jumpedFromSlide = false;
+            _slideController.EndFixedStep(
+                _rigidbody.position.y);
         }
 
         private void ReadInput()
         {
-            if (_input == null)
-            {
-                return;
-            }
-
             _moveInput =
                 Vector2.ClampMagnitude(
                     _input.Move,
@@ -263,668 +259,75 @@ namespace Breachpoint.Gameplay.Player.Movement
             _wantsToCrouch =
                 _input.IsCrouchHeld;
 
-            _wasCrouchPressed |=
-                _input.WasCrouchPressed;
+            _jumpController.ReadInput(
+                _input);
 
-            _isJumpHeld =
-                _input.IsJumpHeld;
-
-            _wasJumpReleased |=
-                _input.WasJumpReleased;
-
-            if (!_wantsToCrouch)
-            {
-                _resumeSlideAfterLanding =
-                    false;
-            }
-
-            if (_input.WasJumpPressed)
-            {
-                _jumpBufferTimeRemaining =
-                    _config.JumpBufferTime;
-            }
+            _slideController.ReadInput(
+                _input);
         }
 
-        private float CalculateDownwardTravelSpeed()
+        private Vector3 ResolveVelocity(
+            Vector3 currentVelocity,
+            GroundInfo groundInfo,
+            Vector3 desiredDirection,
+            float downwardTravelSpeed,
+            bool didJump,
+            bool jumpedFromSlide,
+            Vector3 slideJumpVelocity,
+            float fixedDeltaTime)
         {
-            float downwardDistance =
-                _previousFixedPositionY -
-                _rigidbody.position.y;
-
-            return Mathf.Max(
-                0f,
-                downwardDistance /
-                Time.fixedDeltaTime);
-        }
-
-        private void UpdateJumpBuffer()
-        {
-            if (_jumpBufferTimeRemaining <= 0f)
+            if (didJump)
             {
-                return;
-            }
-
-            _jumpBufferTimeRemaining =
-                Mathf.Max(
-                    0f,
-                    _jumpBufferTimeRemaining -
-                    Time.deltaTime);
-        }
-
-        private void UpdateCoyoteTime()
-        {
-            if (IsGrounded)
-            {
-                _coyoteTimeRemaining =
-                    _config.CoyoteTime;
-
-                return;
-            }
-
-            _coyoteTimeRemaining =
-                Mathf.Max(
-                    0f,
-                    _coyoteTimeRemaining -
-                    Time.fixedDeltaTime);
-        }
-
-        private bool TryConsumeJump()
-        {
-            bool hasBufferedJump =
-                _jumpBufferTimeRemaining > 0f;
-
-            bool canUseGroundJump =
-                IsGrounded ||
-                _coyoteTimeRemaining > 0f;
-
-            if (!hasBufferedJump ||
-                !canUseGroundJump)
-            {
-                return false;
-            }
-
-            if (!_isSliding &&
-                (IsCrouching ||
-                 _wantsToCrouch))
-            {
-                return false;
-            }
-
-            if (_isSliding)
-            {
-                PrepareSlideJump();
-            }
-
-            _jumpBufferTimeRemaining = 0f;
-            _coyoteTimeRemaining = 0f;
-            _maximumDownwardSpeed = 0f;
-            _wasJumpReleased = false;
-
-            IsGrounded = false;
-
-            return true;
-        }
-
-        private void PrepareSlideJump()
-        {
-            _jumpedFromSlide = true;
-
-            Vector3 currentHorizontalVelocity =
-                GetHorizontalVelocity(
-                    _rigidbody.linearVelocity);
-
-            if (currentHorizontalVelocity.sqrMagnitude >
-                MovementThreshold)
-            {
-                _slideJumpHorizontalVelocity =
-                    currentHorizontalVelocity;
-            }
-            else
-            {
-                Vector3 horizontalSlideDirection =
-                    GetHorizontalVelocity(
-                        _slideDirection);
-
-                if (horizontalSlideDirection.sqrMagnitude >
-                    MovementThreshold)
-                {
-                    horizontalSlideDirection.Normalize();
-                }
-
-                _slideJumpHorizontalVelocity =
-                    horizontalSlideDirection *
-                    _slideSpeed;
-            }
-
-            _resumeSlideAfterLanding =
-                _wantsToCrouch;
-
-            StopSlide(
-                false);
-        }
-
-        private Vector3 ApplyJumpCut(
-            Vector3 currentVelocity)
-        {
-            if (IsGrounded ||
-                !_wasJumpReleased ||
-                currentVelocity.y <= 0f)
-            {
-                return currentVelocity;
-            }
-
-            currentVelocity.y *=
-                _config.JumpCutVelocityMultiplier;
-
-            return currentVelocity;
-        }
-
-        private Vector3 CalculateJumpVelocity(
-            Vector3 currentVelocity)
-        {
-            Vector3 horizontalVelocity =
-                _jumpedFromSlide
-                    ? _slideJumpHorizontalVelocity
-                    : GetHorizontalVelocity(
+                return jumpedFromSlide
+                    ? _jumpController.CalculateJumpVelocity(
+                        currentVelocity,
+                        slideJumpVelocity)
+                    : _jumpController.CalculateJumpVelocity(
                         currentVelocity);
+            }
 
-            return
-                horizontalVelocity +
-                Vector3.up *
-                CalculateJumpSpeed();
-        }
-
-        private Vector3 CalculateAirVelocity(
-            Vector3 currentVelocity,
-            Vector3 desiredDirection)
-        {
-            Vector3 currentHorizontalVelocity =
-                GetHorizontalVelocity(
-                    currentVelocity);
-
-            Vector3 desiredVelocity =
-                desiredDirection *
-                GetTargetSpeed();
-
-            Vector3 controlledVelocity =
-                Vector3.Lerp(
-                    currentHorizontalVelocity,
-                    desiredVelocity,
-                    _config.AirControl);
-
-            Vector3 horizontalVelocity =
-                Vector3.MoveTowards(
-                    currentHorizontalVelocity,
-                    controlledVelocity,
-                    _config.AirAcceleration *
-                    Time.fixedDeltaTime);
-
-            float gravityMultiplier =
-                GetGravityMultiplier(
-                    currentVelocity.y);
-
-            float verticalVelocity =
-                Mathf.Max(
-                    currentVelocity.y -
-                    _config.Gravity *
-                    gravityMultiplier *
-                    Time.fixedDeltaTime,
-                    -_config.MaxFallSpeed);
-
-            return
-                horizontalVelocity +
-                Vector3.up *
-                verticalVelocity;
-        }
-
-        private Vector3 CalculateAirborneSlideVelocity(
-            Vector3 currentVelocity)
-        {
-            Vector3 horizontalVelocity =
-                GetHorizontalVelocity(
-                    currentVelocity);
-
-            float verticalVelocity =
-                Mathf.Max(
-                    currentVelocity.y -
-                    _config.Gravity *
-                    _config.FallGravityMultiplier *
-                    Time.fixedDeltaTime,
-                    -_config.MaxFallSpeed);
-
-            return
-                horizontalVelocity +
-                Vector3.up *
-                verticalVelocity;
-        }
-
-        private float GetGravityMultiplier(
-            float verticalVelocity)
-        {
-            if (verticalVelocity < 0f)
+            if (IsSliding &&
+                groundInfo.IsGrounded)
             {
                 return
-                    _config.FallGravityMultiplier;
+                    _slideController
+                        .CalculateGroundVelocity(
+                            groundInfo,
+                            desiredDirection,
+                            downwardTravelSpeed,
+                            fixedDeltaTime);
             }
 
-            if (_isJumpHeld &&
-                Mathf.Abs(verticalVelocity) <=
-                _config.ApexVelocityThreshold)
+            if (IsSliding)
             {
                 return
-                    _config.ApexGravityMultiplier;
-            }
-
-            return 1f;
-        }
-
-        private void InitializeGroundState()
-        {
-            if (_hasGroundState)
-            {
-                return;
-            }
-
-            _wasGrounded =
-                IsGrounded;
-
-            _hasGroundState = true;
-            _maximumDownwardSpeed = 0f;
-        }
-
-        private void TrackDownwardSpeed()
-        {
-            if (IsGrounded)
-            {
-                return;
-            }
-
-            float downwardSpeed =
-                Mathf.Max(
-                    0f,
-                    -_rigidbody.linearVelocity.y);
-
-            _maximumDownwardSpeed =
-                Mathf.Max(
-                    _maximumDownwardSpeed,
-                    downwardSpeed);
-        }
-
-        private void TryNotifyLanding()
-        {
-            if (!_hasGroundState ||
-                !IsGrounded ||
-                _wasGrounded)
-            {
-                return;
-            }
-
-            Landed?.Invoke(
-                _maximumDownwardSpeed);
-
-            _maximumDownwardSpeed = 0f;
-        }
-
-        private void TryStartSlide(
-            Vector3 currentVelocity,
-            Vector3 desiredDirection)
-        {
-            if (!_wasCrouchPressed ||
-                _isSliding ||
-                !IsGrounded ||
-                _slideCooldownRemaining > 0f ||
-                !_isSprintInputHeld)
-            {
-                return;
-            }
-
-            Vector3 horizontalVelocity =
-                GetHorizontalVelocity(
-                    currentVelocity);
-
-            float horizontalSpeed =
-                horizontalVelocity.magnitude;
-
-            if (horizontalSpeed <
-                _config.MinimumSlideStartSpeed)
-            {
-                return;
-            }
-
-            Vector3 startDirection =
-                horizontalSpeed >
-                MovementThreshold
-                    ? horizontalVelocity.normalized
-                    : desiredDirection;
-
-            if (startDirection.sqrMagnitude <=
-                MovementThreshold)
-            {
-                return;
-            }
-
-            StartSlide(
-                startDirection,
-                Mathf.Max(
-                    horizontalSpeed,
-                    _config.InitialSlideSpeed));
-        }
-
-        private void TryResumeSlideAfterLanding(
-            Vector3 currentVelocity,
-            GroundInfo groundInfo)
-        {
-            if (!_resumeSlideAfterLanding ||
-                _isSliding ||
-                !_wantsToCrouch ||
-                !groundInfo.IsGrounded ||
-                _wasGrounded)
-            {
-                return;
-            }
-
-            Vector3 horizontalVelocity =
-                GetHorizontalVelocity(
-                    currentVelocity);
-
-            float horizontalSpeed =
-                horizontalVelocity.magnitude;
-
-            if (horizontalSpeed <
-                _config.MinimumSlideResumeSpeed)
-            {
-                _resumeSlideAfterLanding =
-                    false;
-
-                return;
-            }
-
-            StartSlide(
-                horizontalVelocity.normalized,
-                horizontalSpeed);
-
-            _resumeSlideAfterLanding = false;
-            _slideCooldownRemaining = 0f;
-        }
-
-        private void StartSlide(
-            Vector3 direction,
-            float speed)
-        {
-            _isSliding = true;
-
-            _slideDirection =
-                direction.normalized;
-
-            _slideSpeed =
-                Mathf.Clamp(
-                    speed,
-                    0f,
-                    _config.MaximumSlideSpeed);
-
-            _slideTimeRemaining =
-                _config.MaximumSlideDuration;
-
-            _slideGroundGraceRemaining =
-                _config.SlideGroundGraceTime;
-        }
-
-        private void UpdateSlideGroundState(
-            GroundInfo groundInfo)
-        {
-            if (!_isSliding)
-            {
-                return;
+                    _slideController
+                        .CalculateAirborneVelocity(
+                            currentVelocity,
+                            fixedDeltaTime);
             }
 
             if (groundInfo.IsGrounded)
             {
-                _slideGroundGraceRemaining =
-                    _config.SlideGroundGraceTime;
-
-                return;
+                return
+                    CalculateGroundVelocity(
+                        currentVelocity,
+                        groundInfo,
+                        desiredDirection);
             }
 
-            _slideGroundGraceRemaining =
-                Mathf.Max(
-                    0f,
-                    _slideGroundGraceRemaining -
-                    Time.fixedDeltaTime);
-
-            if (_slideGroundGraceRemaining <= 0f)
+            if (groundInfo.IsOnSteepSlope)
             {
-                StopSlide();
+                return
+                    CalculateSteepSlopeVelocity(
+                        currentVelocity,
+                        groundInfo);
             }
-        }
-
-        private void UpdateSlideCooldown()
-        {
-            if (_slideCooldownRemaining <= 0f)
-            {
-                return;
-            }
-
-            _slideCooldownRemaining =
-                Mathf.Max(
-                    0f,
-                    _slideCooldownRemaining -
-                    Time.fixedDeltaTime);
-        }
-
-        private Vector3 CalculateSlideVelocity(
-            GroundInfo groundInfo,
-            Vector3 desiredDirection,
-            float downwardTravelSpeed)
-        {
-            Vector3 surfaceDirection =
-                Vector3.ProjectOnPlane(
-                    _slideDirection,
-                    groundInfo.Normal);
-
-            if (surfaceDirection.sqrMagnitude <=
-                MovementThreshold)
-            {
-                surfaceDirection =
-                    GetHorizontalVelocity(
-                        _slideDirection);
-            }
-
-            if (surfaceDirection.sqrMagnitude >
-                MovementThreshold)
-            {
-                surfaceDirection.Normalize();
-            }
-
-            Vector3 desiredSurfaceDirection =
-                Vector3.ProjectOnPlane(
-                    desiredDirection,
-                    groundInfo.Normal);
-
-            if (desiredSurfaceDirection.sqrMagnitude >
-                MovementThreshold)
-            {
-                desiredSurfaceDirection.Normalize();
-
-                float maximumRadians =
-                    _config.SlideSteeringSpeed *
-                    Mathf.Deg2Rad *
-                    Time.fixedDeltaTime;
-
-                surfaceDirection =
-                    Vector3.RotateTowards(
-                            surfaceDirection,
-                            desiredSurfaceDirection,
-                            maximumRadians,
-                            0f)
-                        .normalized;
-            }
-
-            _slideDirection =
-                surfaceDirection;
-
-            float downhillFactor =
-                CalculateDownhillFactor(
-                    groundInfo,
-                    surfaceDirection);
-
-            float stairFactor =
-                Mathf.InverseLerp(
-                    _config.MinimumStairDescentSpeed,
-                    _config.MaximumStairDescentSpeed,
-                    downwardTravelSpeed);
-
-            float momentumGainFactor =
-                Mathf.Max(
-                    downhillFactor,
-                    stairFactor);
-
-            bool isGainingMomentum =
-                momentumGainFactor >
-                DownhillThreshold;
-
-            if (isGainingMomentum)
-            {
-                float slopeAcceleration =
-                    downhillFactor *
-                    _config.SlideDownhillAcceleration;
-
-                float stairAcceleration =
-                    stairFactor *
-                    _config.SlideStairAcceleration;
-
-                float acceleration =
-                    Mathf.Max(
-                        slopeAcceleration,
-                        stairAcceleration);
-
-                _slideSpeed +=
-                    acceleration *
-                    Time.fixedDeltaTime;
-
-                _slideMomentumRetentionRemaining =
-                    _config.SlideMomentumRetentionTime;
-
-                _slideTimeRemaining =
-                    _config.MaximumSlideDuration;
-            }
-            else
-            {
-                _slideMomentumRetentionRemaining =
-                    Mathf.Max(
-                        0f,
-                        _slideMomentumRetentionRemaining -
-                        Time.fixedDeltaTime);
-
-                _slideTimeRemaining =
-                    Mathf.Max(
-                        0f,
-                        _slideTimeRemaining -
-                        Time.fixedDeltaTime);
-            }
-
-            float decelerationMultiplier =
-                _slideMomentumRetentionRemaining > 0f
-                    ? _config.RetainedMomentumDecelerationMultiplier
-                    : 1f;
-
-            float deceleration =
-                _config.SlideDeceleration *
-                decelerationMultiplier;
-
-            _slideSpeed =
-                Mathf.MoveTowards(
-                    _slideSpeed,
-                    0f,
-                    deceleration *
-                    Time.fixedDeltaTime);
-
-            _slideSpeed =
-                Mathf.Clamp(
-                    _slideSpeed,
-                    0f,
-                    _config.MaximumSlideSpeed);
-
-            float resultSpeed =
-                _slideSpeed;
-
-            Vector3 groundAdhesionVelocity =
-                -groundInfo.Normal *
-                _config.GroundedVerticalSpeed;
-
-            Vector3 resultVelocity =
-                surfaceDirection *
-                resultSpeed +
-                groundAdhesionVelocity;
-
-            if (_slideSpeed <=
-                    _config.SlideEndSpeed ||
-                _slideTimeRemaining <= 0f)
-            {
-                StopSlide();
-            }
-
-            return resultVelocity;
-        }
-
-        private static float CalculateDownhillFactor(
-            GroundInfo groundInfo,
-            Vector3 slideDirection)
-        {
-            if (groundInfo.SurfaceAngle <=
-                Mathf.Epsilon)
-            {
-                return 0f;
-            }
-
-            Vector3 downhillDirection =
-                Vector3.ProjectOnPlane(
-                    Vector3.down,
-                    groundInfo.Normal);
-
-            if (downhillDirection.sqrMagnitude <=
-                MovementThreshold)
-            {
-                return 0f;
-            }
-
-            downhillDirection.Normalize();
-
-            float downhillAlignment =
-                Mathf.Max(
-                    0f,
-                    Vector3.Dot(
-                        slideDirection,
-                        downhillDirection));
-
-            float slopeSteepness =
-                Mathf.Sin(
-                    groundInfo.SurfaceAngle *
-                    Mathf.Deg2Rad);
 
             return
-                downhillAlignment *
-                slopeSteepness;
-        }
-
-        private void StopSlide(
-            bool startCooldown = true)
-        {
-            if (!_isSliding)
-            {
-                return;
-            }
-
-            _isSliding = false;
-            _slideDirection = Vector3.zero;
-            _slideSpeed = 0f;
-            _slideTimeRemaining = 0f;
-            _slideGroundGraceRemaining = 0f;
-
-            if (startCooldown)
-            {
-                _slideCooldownRemaining =
-                    _config.SlideCooldown;
-            }
+                CalculateAirVelocity(
+                    currentVelocity,
+                    desiredDirection);
         }
 
         private Vector3 CalculateGroundVelocity(
@@ -973,6 +376,50 @@ namespace Breachpoint.Gameplay.Player.Movement
                 groundAdhesionVelocity;
         }
 
+        private Vector3 CalculateAirVelocity(
+            Vector3 currentVelocity,
+            Vector3 desiredDirection)
+        {
+            Vector3 currentHorizontalVelocity =
+                GetHorizontalVelocity(
+                    currentVelocity);
+
+            Vector3 desiredVelocity =
+                desiredDirection *
+                GetTargetSpeed();
+
+            Vector3 controlledVelocity =
+                Vector3.Lerp(
+                    currentHorizontalVelocity,
+                    desiredVelocity,
+                    _config.AirControl);
+
+            Vector3 horizontalVelocity =
+                Vector3.MoveTowards(
+                    currentHorizontalVelocity,
+                    controlledVelocity,
+                    _config.AirAcceleration *
+                    Time.fixedDeltaTime);
+
+            float gravityMultiplier =
+                _jumpController
+                    .CalculateGravityMultiplier(
+                        currentVelocity.y);
+
+            float verticalVelocity =
+                Mathf.Max(
+                    currentVelocity.y -
+                    _config.Gravity *
+                    gravityMultiplier *
+                    Time.fixedDeltaTime,
+                    -_config.MaxFallSpeed);
+
+            return
+                horizontalVelocity +
+                Vector3.up *
+                verticalVelocity;
+        }
+
         private Vector3 CalculateSteepSlopeVelocity(
             Vector3 currentVelocity,
             GroundInfo groundInfo)
@@ -1008,258 +455,63 @@ namespace Breachpoint.Gameplay.Player.Movement
                 slopeAdhesionVelocity;
         }
 
-        private void UpdateStance()
+        private void TryResolveCurb(
+            bool didJump,
+            GroundInfo groundInfo,
+            Vector3 desiredDirection)
         {
-            _isStandingBlocked =
-                !_wantsToCrouch &&
-                !_isSliding &&
-                !CanStandUp();
-
-            bool shouldCrouch =
-                _wantsToCrouch ||
-                _isSliding ||
-                _isStandingBlocked;
-
-            float targetHeight =
-                shouldCrouch
-                    ? _config.CrouchingHeight
-                    : _config.StandingHeight;
-
-            float newHeight =
-                Mathf.MoveTowards(
-                    _capsuleCollider.height,
-                    targetHeight,
-                    _config.StanceTransitionSpeed *
-                    Time.fixedDeltaTime);
-
-            ApplyColliderHeight(
-                newHeight);
-
-            IsCrouching =
-                shouldCrouch ||
-                Mathf.Abs(
-                    _capsuleCollider.height -
-                    _config.StandingHeight) >
-                StanceThreshold;
-        }
-
-        private void ApplyColliderHeight(
-            float height)
-        {
-            float minimumHeight =
-                _capsuleCollider.radius * 2f;
-
-            float validHeight =
-                Mathf.Max(
-                    height,
-                    minimumHeight);
-
-            _capsuleCollider.height =
-                validHeight;
-
-            Vector3 center =
-                _capsuleCollider.center;
-
-            center.y =
-                _standingBottomLocalY +
-                validHeight * 0.5f;
-
-            _capsuleCollider.center =
-                center;
-        }
-
-        private void UpdateCameraHeight()
-        {
-            if (_cameraRoot == null ||
-                _config == null)
+            if (didJump ||
+                IsSliding ||
+                !groundInfo.IsGrounded)
             {
                 return;
             }
 
-            _curbCameraOffset =
-                Mathf.SmoothDamp(
-                    _curbCameraOffset,
-                    0f,
-                    ref _curbCameraOffsetVelocity,
-                    _config.CurbCameraSmoothTime);
+            if (!_curbHandler.TryResolveCurb(
+                    desiredDirection,
+                    groundInfo,
+                    out float curbHeight))
+            {
+                return;
+            }
 
-            bool useCrouchingHeight =
-                _wantsToCrouch ||
-                _isSliding ||
-                IsCrouching ||
-                _isStandingBlocked;
-
-            float stanceCameraY =
-                useCrouchingHeight
-                    ? _config.CrouchingCameraLocalY
-                    : _config.StandingCameraLocalY;
-
-            float targetCameraY =
-                stanceCameraY -
-                _curbCameraOffset;
-
-            Vector3 localPosition =
-                _cameraRoot.localPosition;
-
-            localPosition.y =
-                Mathf.MoveTowards(
-                    localPosition.y,
-                    targetCameraY,
-                    _config.CameraTransitionSpeed *
-                    Time.deltaTime);
-
-            _cameraRoot.localPosition =
-                localPosition;
+            CurbResolved?.Invoke(
+                curbHeight);
         }
 
-        private bool CanStandUp()
+        private void NotifyLanding()
         {
-            if (_capsuleCollider == null ||
-                _config == null)
+            if (!_jumpController.TryGetLandingSpeed(
+                    IsGrounded,
+                    _wasGrounded,
+                    out float downwardSpeed))
             {
-                return false;
+                return;
             }
 
-            float currentHeight =
-                _capsuleCollider.height;
-
-            float standingHeight =
-                _config.StandingHeight;
-
-            if (currentHeight >=
-                standingHeight -
-                StanceThreshold)
-            {
-                return true;
-            }
-
-            float radius =
-                GetWorldCapsuleRadius();
-
-            radius =
-                Mathf.Max(
-                    0.01f,
-                    radius -
-                    _config.ClearancePadding);
-
-            Vector3 currentTopSphereCenter =
-                GetTopSphereCenter(
-                    currentHeight,
-                    _capsuleCollider.center.y,
-                    radius);
-
-            float standingCenterY =
-                _standingBottomLocalY +
-                standingHeight * 0.5f;
-
-            Vector3 standingTopSphereCenter =
-                GetTopSphereCenter(
-                    standingHeight,
-                    standingCenterY,
-                    radius);
-
-            Vector3 castOffset =
-                standingTopSphereCenter -
-                currentTopSphereCenter;
-
-            float castDistance =
-                castOffset.magnitude;
-
-            if (castDistance <=
-                Mathf.Epsilon)
-            {
-                return true;
-            }
-
-            Vector3 castDirection =
-                castOffset /
-                castDistance;
-
-            int hitCount =
-                Physics.SphereCastNonAlloc(
-                    currentTopSphereCenter,
-                    radius,
-                    castDirection,
-                    _clearanceHits,
-                    castDistance,
-                    _config.ClearanceMask,
-                    QueryTriggerInteraction.Ignore);
-
-            for (int i = 0; i < hitCount; i++)
-            {
-                Collider hitCollider =
-                    _clearanceHits[i].collider;
-
-                if (hitCollider == null ||
-                    hitCollider ==
-                    _capsuleCollider ||
-                    hitCollider.transform
-                        .IsChildOf(transform))
-                {
-                    continue;
-                }
-
-                return false;
-            }
-
-            return true;
+            Landed?.Invoke(
+                downwardSpeed);
         }
 
-        private Vector3 GetTopSphereCenter(
-            float localHeight,
-            float localCenterY,
-            float worldRadius)
+        private void InitializeGroundState()
         {
-            Vector3 localCenter =
-                _capsuleCollider.center;
+            if (_hasGroundState)
+            {
+                return;
+            }
 
-            localCenter.y =
-                localCenterY;
+            _wasGrounded =
+                IsGrounded;
 
-            Vector3 worldCenter =
-                transform.TransformPoint(
-                    localCenter);
-
-            float verticalScale =
-                Mathf.Abs(
-                    transform.lossyScale.y);
-
-            float worldHeight =
-                localHeight *
-                verticalScale;
-
-            float topOffset =
-                Mathf.Max(
-                    0f,
-                    worldHeight * 0.5f -
-                    worldRadius);
-
-            return
-                worldCenter +
-                transform.up *
-                topOffset;
-        }
-
-        private float GetWorldCapsuleRadius()
-        {
-            Vector3 scale =
-                transform.lossyScale;
-
-            float horizontalScale =
-                Mathf.Max(
-                    Mathf.Abs(scale.x),
-                    Mathf.Abs(scale.z));
-
-            return
-                _capsuleCollider.radius *
-                horizontalScale;
+            _hasGroundState = true;
         }
 
         private float GetTargetSpeed()
         {
             if (IsCrouching ||
                 _wantsToCrouch ||
-                _isStandingBlocked)
+                (_stanceController != null &&
+                 _stanceController.IsStandingBlocked))
             {
                 return
                     _config.CrouchSpeed;
@@ -1273,11 +525,6 @@ namespace Breachpoint.Gameplay.Player.Movement
 
         private Vector3 GetDesiredDirection()
         {
-            if (_orientation == null)
-            {
-                return Vector3.zero;
-            }
-
             Vector3 forward =
                 _orientation.forward;
 
@@ -1300,24 +547,6 @@ namespace Breachpoint.Gameplay.Player.Movement
                     1f);
         }
 
-        private static Vector3 GetHorizontalVelocity(
-            Vector3 velocity)
-        {
-            return new Vector3(
-                velocity.x,
-                0f,
-                velocity.z);
-        }
-
-        private float CalculateJumpSpeed()
-        {
-            return
-                Mathf.Sqrt(
-                    2f *
-                    _config.Gravity *
-                    _config.JumpHeight);
-        }
-
         private void UpdateMovementState(
             Vector3 velocity)
         {
@@ -1329,7 +558,7 @@ namespace Breachpoint.Gameplay.Player.Movement
                 return;
             }
 
-            if (_isSliding)
+            if (IsSliding)
             {
                 CurrentState =
                     PlayerMovementState.Sliding;
@@ -1339,7 +568,8 @@ namespace Breachpoint.Gameplay.Player.Movement
 
             if (IsCrouching ||
                 _wantsToCrouch ||
-                _isStandingBlocked)
+                (_stanceController != null &&
+                 _stanceController.IsStandingBlocked))
             {
                 CurrentState =
                     PlayerMovementState.Crouching;
@@ -1366,63 +596,43 @@ namespace Breachpoint.Gameplay.Player.Movement
                     : PlayerMovementState.Walking;
         }
 
-        private void InitializeStance()
+        private void Initialize()
         {
-            if (_capsuleCollider == null ||
-                _cameraRoot == null ||
-                _config == null)
-            {
-                return;
-            }
+            _stanceController.Initialize(
+                _capsuleCollider);
 
-            _standingBottomLocalY =
-                _config.StandingCenterY -
-                _config.StandingHeight *
-                0.5f;
+            _jumpController.Reset();
 
-            ApplyColliderHeight(
-                _config.StandingHeight);
+            _slideController.Initialize(
+                _rigidbody.position.y);
 
-            Vector3 cameraPosition =
-                _cameraRoot.localPosition;
-
-            cameraPosition.y =
-                _config.StandingCameraLocalY;
-
-            _cameraRoot.localPosition =
-                cameraPosition;
-
-            IsCrouching = false;
+            _moveInput = Vector2.zero;
 
             _isSprintInputHeld = false;
-            _isJumpHeld = false;
-            _wasJumpReleased = false;
-            _wasCrouchPressed = false;
             _wantsToCrouch = false;
-            _isStandingBlocked = false;
-            _isSliding = false;
-            _resumeSlideAfterLanding = false;
-            _jumpedFromSlide = false;
-
-            _slideDirection = Vector3.zero;
-            _slideJumpHorizontalVelocity = Vector3.zero;
-
-            _curbCameraOffset = 0f;
-            _curbCameraOffsetVelocity = 0f;
-            _maximumDownwardSpeed = 0f;
-
-            _slideSpeed = 0f;
-            _slideTimeRemaining = 0f;
-            _slideCooldownRemaining = 0f;
-            _slideMomentumRetentionRemaining = 0f;
-            _slideGroundGraceRemaining = 0f;
-
-            _previousFixedPositionY =
-                _rigidbody != null
-                    ? _rigidbody.position.y
-                    : transform.position.y;
-
+            _wasGrounded = false;
             _hasGroundState = false;
+
+            IsGrounded = false;
+
+            CurrentState =
+                PlayerMovementState.Idle;
+        }
+
+        private static Vector3 GetHorizontalVelocity(
+            Vector3 velocity)
+        {
+            velocity.y = 0f;
+
+            return velocity;
+        }
+
+        private bool CanProcessInput()
+        {
+            return
+                _input != null &&
+                _jumpController != null &&
+                _slideController != null;
         }
 
         private bool CanSimulate()
@@ -1431,10 +641,12 @@ namespace Breachpoint.Gameplay.Player.Movement
                 _rigidbody != null &&
                 _capsuleCollider != null &&
                 _orientation != null &&
-                _cameraRoot != null &&
                 _groundDetector != null &&
                 _curbHandler != null &&
-                _config != null;
+                _config != null &&
+                _jumpController != null &&
+                _slideController != null &&
+                _stanceController != null;
         }
 
         private void ConfigureRigidbody()
@@ -1481,13 +693,6 @@ namespace Breachpoint.Gameplay.Player.Movement
                     this);
             }
 
-            if (_cameraRoot == null)
-            {
-                Debug.LogError(
-                    $"{nameof(PlayerMovement)} requires a CameraRoot reference.",
-                    this);
-            }
-
             if (_groundDetector == null)
             {
                 Debug.LogError(
@@ -1501,67 +706,44 @@ namespace Breachpoint.Gameplay.Player.Movement
                     $"{nameof(PlayerMovement)} requires a PlayerCurbHandler reference.",
                     this);
             }
+        }
+
+        private void ValidateDependencies()
+        {
+            if (_input == null)
+            {
+                Debug.LogError(
+                    $"{nameof(PlayerMovement)} requires IPlayerInput.",
+                    this);
+            }
 
             if (_config == null)
             {
                 Debug.LogError(
-                    $"{nameof(PlayerMovement)} requires a PlayerMovementConfig reference.",
+                    $"{nameof(PlayerMovement)} requires PlayerMovementConfig.",
+                    this);
+            }
+
+            if (_jumpController == null)
+            {
+                Debug.LogError(
+                    $"{nameof(PlayerMovement)} requires PlayerJumpController.",
+                    this);
+            }
+
+            if (_slideController == null)
+            {
+                Debug.LogError(
+                    $"{nameof(PlayerMovement)} requires PlayerSlideController.",
+                    this);
+            }
+
+            if (_stanceController == null)
+            {
+                Debug.LogError(
+                    $"{nameof(PlayerMovement)} requires PlayerStanceController.",
                     this);
             }
         }
-
-#if UNITY_EDITOR
-        private void OnDrawGizmosSelected()
-        {
-            if (_capsuleCollider == null ||
-                _config == null)
-            {
-                return;
-            }
-
-            float radius =
-                GetWorldCapsuleRadius();
-
-            radius =
-                Mathf.Max(
-                    0.01f,
-                    radius -
-                    _config.ClearancePadding);
-
-            Vector3 currentTop =
-                GetTopSphereCenter(
-                    _capsuleCollider.height,
-                    _capsuleCollider.center.y,
-                    radius);
-
-            float standingBottom =
-                _config.StandingCenterY -
-                _config.StandingHeight *
-                0.5f;
-
-            float standingCenterY =
-                standingBottom +
-                _config.StandingHeight *
-                0.5f;
-
-            Vector3 standingTop =
-                GetTopSphereCenter(
-                    _config.StandingHeight,
-                    standingCenterY,
-                    radius);
-
-            Gizmos.DrawWireSphere(
-                currentTop,
-                radius);
-
-            Gizmos.DrawWireSphere(
-                standingTop,
-                radius);
-
-            Gizmos.DrawLine(
-                currentTop,
-                standingTop);
-        }
-#endif
     }
 }

@@ -64560,6 +64560,7 @@ GameObject:
   - component: {fileID: 1469114859}
   - component: {fileID: 1469114858}
   - component: {fileID: 1469114857}
+  - component: {fileID: 1469114869}
   - component: {fileID: 1469114865}
   - component: {fileID: 1469114866}
   - component: {fileID: 1469114867}
@@ -64587,10 +64588,13 @@ MonoBehaviour:
     TypeName: 
   autoRun: 1
   autoInjectGameObjects: []
+  _movementConfig: {fileID: 11400000, guid: 0b2c50e936a52434286ec9d0f7eaea41, type: 2}
   _inputReader: {fileID: 1469114861}
   _movement: {fileID: 1469114859}
   _groundDetector: {fileID: 1469114860}
+  _curbHandler: {fileID: 1469114865}
   _look: {fileID: 1469114858}
+  _cameraHeight: {fileID: 1469114869}
 --- !u!114 &1469114858
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -64621,10 +64625,8 @@ MonoBehaviour:
   _rigidbody: {fileID: 1469114863}
   _capsuleCollider: {fileID: 1469114862}
   _orientation: {fileID: 326045339}
-  _cameraRoot: {fileID: 2130761956}
   _groundDetector: {fileID: 1469114860}
   _curbHandler: {fileID: 1469114865}
-  _config: {fileID: 11400000, guid: 0b2c50e936a52434286ec9d0f7eaea41, type: 2}
 --- !u!114 &1469114860
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -64638,7 +64640,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Breachpoint.Gameplay.Player.Movement.PlayerGroundDetector
   _groundProbe: {fileID: 1001513648}
-  _config: {fileID: 11400000, guid: 0b2c50e936a52434286ec9d0f7eaea41, type: 2}
 --- !u!114 &1469114861
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -64739,7 +64740,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Breachpoint.Gameplay.Player.Movement.PlayerCurbHandler
   _rigidbody: {fileID: 1469114863}
   _capsuleCollider: {fileID: 1469114862}
-  _config: {fileID: 11400000, guid: 0b2c50e936a52434286ec9d0f7eaea41, type: 2}
 --- !u!114 &1469114866
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -64788,6 +64788,20 @@ MonoBehaviour:
   _movement: {fileID: 1469114859}
   _movementConfig: {fileID: 11400000, guid: 0b2c50e936a52434286ec9d0f7eaea41, type: 2}
   _config: {fileID: 11400000, guid: d696082d59eae1f46b2a64c0924a575b, type: 2}
+--- !u!114 &1469114869
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1469114856}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 34831aad3b2945d0be82c36d5f05e80c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Breachpoint.Gameplay.Player.Camera.PlayerCameraHeight
+  _cameraRoot: {fileID: 2130761956}
+  _movement: {fileID: 1469114859}
 --- !u!1 &1529448608
 GameObject:
   m_ObjectHideFlags: 0

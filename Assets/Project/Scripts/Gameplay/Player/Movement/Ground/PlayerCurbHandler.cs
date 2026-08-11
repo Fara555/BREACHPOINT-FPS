@@ -1,4 +1,5 @@
 ﻿using UnityEngine;
+using VContainer;
 
 namespace Breachpoint.Gameplay.Player.Movement
 {
@@ -12,12 +13,23 @@ namespace Breachpoint.Gameplay.Player.Movement
         private const int ClearanceCapacity = 8;
 
         [Header("References")]
-        [SerializeField] private Rigidbody _rigidbody;
-        [SerializeField] private CapsuleCollider _capsuleCollider;
-        [SerializeField] private PlayerMovementConfig _config;
+        [SerializeField]
+        private Rigidbody _rigidbody;
+
+        [SerializeField]
+        private CapsuleCollider _capsuleCollider;
 
         private readonly Collider[] _clearanceResults =
             new Collider[ClearanceCapacity];
+
+        private PlayerMovementConfig _config;
+
+        [Inject]
+        public void Construct(
+            PlayerMovementConfig config)
+        {
+            _config = config;
+        }
 
         private void Awake()
         {
@@ -50,7 +62,8 @@ namespace Breachpoint.Gameplay.Player.Movement
 
             Vector3 obstacleProbeOrigin =
                 worldBottom +
-                Vector3.up * FootProbeHeight;
+                Vector3.up *
+                FootProbeHeight;
 
             float obstacleProbeDistance =
                 worldRadius +
@@ -86,7 +99,8 @@ namespace Breachpoint.Gameplay.Player.Movement
 
             Vector3 surfaceProbeOrigin =
                 obstacleHit.point +
-                direction * SurfaceProbeInset +
+                direction *
+                SurfaceProbeInset +
                 Vector3.up *
                 (_config.MaximumCurbHeight +
                  SurfaceProbePadding);
@@ -129,15 +143,17 @@ namespace Breachpoint.Gameplay.Player.Movement
                     worldBottom,
                     Vector3.up);
 
-            if (curbHeight <= FootProbeHeight ||
+            if (curbHeight <=
+                    FootProbeHeight ||
                 curbHeight >
-                _config.MaximumCurbHeight)
+                    _config.MaximumCurbHeight)
             {
                 return false;
             }
 
             Vector3 positionOffset =
-                Vector3.up * curbHeight;
+                Vector3.up *
+                curbHeight;
 
             if (!HasClearance(
                     worldCenter,
@@ -213,13 +229,16 @@ namespace Breachpoint.Gameplay.Player.Movement
                     _config.GroundMask,
                     QueryTriggerInteraction.Ignore);
 
-            for (int i = 0; i < overlapCount; i++)
+            for (int i = 0;
+                 i < overlapCount;
+                 i++)
             {
                 Collider overlap =
                     _clearanceResults[i];
 
                 if (overlap == null ||
-                    IsPlayerCollider(overlap))
+                    IsPlayerCollider(
+                        overlap))
                 {
                     continue;
                 }
@@ -287,10 +306,11 @@ namespace Breachpoint.Gameplay.Player.Movement
         {
             direction.y = 0f;
 
-            return direction.sqrMagnitude >
-                   MovementThreshold
-                ? direction.normalized
-                : Vector3.zero;
+            return
+                direction.sqrMagnitude >
+                MovementThreshold
+                    ? direction.normalized
+                    : Vector3.zero;
         }
 
         private void ValidateReferences()
@@ -298,21 +318,14 @@ namespace Breachpoint.Gameplay.Player.Movement
             if (_rigidbody == null)
             {
                 Debug.LogError(
-                    $"{nameof(PlayerCurbHandler)} requires a Rigidbody reference.",
+                    $"{nameof(PlayerCurbHandler)} requires Rigidbody.",
                     this);
             }
 
             if (_capsuleCollider == null)
             {
                 Debug.LogError(
-                    $"{nameof(PlayerCurbHandler)} requires a CapsuleCollider reference.",
-                    this);
-            }
-
-            if (_config == null)
-            {
-                Debug.LogError(
-                    $"{nameof(PlayerCurbHandler)} requires a PlayerMovementConfig reference.",
+                    $"{nameof(PlayerCurbHandler)} requires CapsuleCollider.",
                     this);
             }
         }
