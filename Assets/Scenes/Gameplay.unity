@@ -50426,6 +50426,55 @@ Transform:
   m_Children: []
   m_Father: {fileID: 1469114864}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &1005215912
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1005215914}
+  - component: {fileID: 1005215913}
+  m_Layer: 0
+  m_Name: GameLifetimeScope
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1005215913
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1005215912}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c0a990c568b04b58819d85679a498406, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Breachpoint.Composition.GameLifetimeScope
+  parentReference:
+    TypeName: 
+  autoRun: 1
+  autoInjectGameObjects: []
+  _audioService: {fileID: 1538074587}
+--- !u!4 &1005215914
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1005215912}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -4.24235, y: 1.21851, z: 10}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1006060999
 GameObject:
   m_ObjectHideFlags: 0
@@ -59921,6 +59970,38 @@ MonoBehaviour:
   m_SelectedFaces: 
   m_SelectedEdges: []
   m_SelectedVertices: 
+--- !u!1 &1314999048
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1314999049}
+  m_Layer: 0
+  m_Name: Systems
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1314999049
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1314999048}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 1538074588}
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!43 &1391184636
 Mesh:
   m_ObjectHideFlags: 0
@@ -64555,16 +64636,17 @@ GameObject:
   - component: {fileID: 1469114864}
   - component: {fileID: 1469114863}
   - component: {fileID: 1469114862}
+  - component: {fileID: 1469114857}
   - component: {fileID: 1469114861}
   - component: {fileID: 1469114860}
   - component: {fileID: 1469114859}
   - component: {fileID: 1469114858}
-  - component: {fileID: 1469114857}
   - component: {fileID: 1469114869}
   - component: {fileID: 1469114865}
   - component: {fileID: 1469114866}
   - component: {fileID: 1469114867}
   - component: {fileID: 1469114868}
+  - component: {fileID: 1469114870}
   m_Layer: 6
   m_Name: Player
   m_TagString: Player
@@ -64585,16 +64667,18 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Breachpoint.Gameplay.Player.Composition.PlayerLifetimeScope
   parentReference:
-    TypeName: 
+    TypeName: Breachpoint.Composition.GameLifetimeScope
   autoRun: 1
   autoInjectGameObjects: []
   _movementConfig: {fileID: 11400000, guid: 0b2c50e936a52434286ec9d0f7eaea41, type: 2}
+  _movementAudioConfig: {fileID: 0}
   _inputReader: {fileID: 1469114861}
   _movement: {fileID: 1469114859}
   _groundDetector: {fileID: 1469114860}
   _curbHandler: {fileID: 1469114865}
   _look: {fileID: 1469114858}
   _cameraHeight: {fileID: 1469114869}
+  _movementAudio: {fileID: 0}
 --- !u!114 &1469114858
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -64802,6 +64886,20 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Breachpoint.Gameplay.Player.Camera.PlayerCameraHeight
   _cameraRoot: {fileID: 2130761956}
   _movement: {fileID: 1469114859}
+--- !u!114 &1469114870
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1469114856}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 852e9877f326449e8711537fa11050ac, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Breachpoint.Gameplay.Player.Audio.PlayerMovementAudio
+  _movement: {fileID: 1469114859}
+  _audioOrigin: {fileID: 1469114864}
 --- !u!1 &1529448608
 GameObject:
   m_ObjectHideFlags: 0
@@ -65336,6 +65434,52 @@ Mesh:
       - serializedVersion: 1
         m_IndexStart: 0
         m_IndexCount: 0
+--- !u!1 &1538074586
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1538074588}
+  - component: {fileID: 1538074587}
+  m_Layer: 0
+  m_Name: AudioSystem
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1538074587
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1538074586}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 31b81c3c212b43bdab04f73d051cabe4, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Breachpoint.Audio.AudioService
+  _initialPoolSize: 16
+  _maxPoolSize: 48
+--- !u!4 &1538074588
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1538074586}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1314999049}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!43 &1541591821
 Mesh:
   m_ObjectHideFlags: 0
@@ -78858,3 +79002,5 @@ SceneRoots:
   - {fileID: 205001501}
   - {fileID: 1410979826}
   - {fileID: 1469114864}
+  - {fileID: 1314999049}
+  - {fileID: 1005215914}

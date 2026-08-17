@@ -1,0 +1,31 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 85143b7116654e1c98dca7285e5d98b4, type: 3}
+  m_Name: PlayerMovementAudioConfig
+  m_EditorClassIdentifier: Assembly-CSharp::Breachpoint.Gameplay.Player.Audio.PlayerMovementAudioConfig
+  _walkFootstepCue: {fileID: 0}
+  _sprintFootstepCue: {fileID: 0}
+  _crouchFootstepCue: {fileID: 0}
+  _walkStepDistance: 1.7
+  _sprintStepDistance: 2
+  _crouchStepDistance: 1.25
+  _minimumFootstepSpeed: 0.3
+  _jumpCue: {fileID: 0}
+  _lightLandingCue: {fileID: 0}
+  _mediumLandingCue: {fileID: 0}
+  _heavyLandingCue: {fileID: 0}
+  _minimumLandingSpeed: 2
+  _mediumLandingSpeed: 7
+  _heavyLandingSpeed: 13
+  _slideEnterCue: {fileID: 0}
+  _slideLoopCue: {fileID: 0}
+  _slideExitCue: {fileID: 0}

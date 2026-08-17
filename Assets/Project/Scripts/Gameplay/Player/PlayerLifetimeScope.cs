@@ -1,4 +1,5 @@
-﻿using Breachpoint.Gameplay.Player.Camera;
+﻿using Breachpoint.Gameplay.Player.Audio;
+using Breachpoint.Gameplay.Player.Camera;
 using Breachpoint.Gameplay.Player.Input;
 using Breachpoint.Gameplay.Player.Look;
 using Breachpoint.Gameplay.Player.Movement;
@@ -16,6 +17,9 @@ namespace Breachpoint.Gameplay.Player.Composition
         [Header("Config")]
         [SerializeField]
         private PlayerMovementConfig _movementConfig;
+
+        [SerializeField]
+        private PlayerMovementAudioConfig _movementAudioConfig;
 
         [Header("Player Components")]
         [SerializeField]
@@ -36,6 +40,9 @@ namespace Breachpoint.Gameplay.Player.Composition
         [SerializeField]
         private PlayerCameraHeight _cameraHeight;
 
+        [SerializeField]
+        private PlayerMovementAudio _movementAudio;
+
         protected override void Configure(
             IContainerBuilder builder)
         {
@@ -43,6 +50,9 @@ namespace Breachpoint.Gameplay.Player.Composition
 
             builder.RegisterInstance(
                 _movementConfig);
+
+            builder.RegisterInstance(
+                _movementAudioConfig);
 
             builder.Register<PlayerJumpController>(
                 Lifetime.Scoped);
@@ -71,6 +81,9 @@ namespace Breachpoint.Gameplay.Player.Composition
 
             builder.RegisterComponent(
                 _cameraHeight);
+
+            builder.RegisterComponent(
+                _movementAudio);
         }
 
         private void ValidateReferences()
@@ -79,6 +92,13 @@ namespace Breachpoint.Gameplay.Player.Composition
             {
                 Debug.LogError(
                     $"{nameof(PlayerLifetimeScope)} requires PlayerMovementConfig.",
+                    this);
+            }
+
+            if (_movementAudioConfig == null)
+            {
+                Debug.LogError(
+                    $"{nameof(PlayerLifetimeScope)} requires PlayerMovementAudioConfig.",
                     this);
             }
 
@@ -121,6 +141,13 @@ namespace Breachpoint.Gameplay.Player.Composition
             {
                 Debug.LogError(
                     $"{nameof(PlayerLifetimeScope)} requires PlayerCameraHeight.",
+                    this);
+            }
+
+            if (_movementAudio == null)
+            {
+                Debug.LogError(
+                    $"{nameof(PlayerLifetimeScope)} requires PlayerMovementAudio.",
                     this);
             }
         }
