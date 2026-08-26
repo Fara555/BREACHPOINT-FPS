@@ -12,20 +12,20 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 85143b7116654e1c98dca7285e5d98b4, type: 3}
   m_Name: PlayerMovementAudioConfig
   m_EditorClassIdentifier: Assembly-CSharp::Breachpoint.Gameplay.Player.Audio.PlayerMovementAudioConfig
-  _walkFootstepCue: {fileID: 0}
-  _sprintFootstepCue: {fileID: 0}
-  _crouchFootstepCue: {fileID: 0}
-  _walkStepDistance: 1.7
-  _sprintStepDistance: 2
-  _crouchStepDistance: 1.25
+  _walkFootstepCue: {fileID: 11400000, guid: a83515e2f71af174896bc2e014e368ab, type: 2}
+  _sprintFootstepCue: {fileID: 11400000, guid: 156662d6c82fa3a428d1e630a67182a0, type: 2}
+  _crouchFootstepCue: {fileID: 11400000, guid: ff9d04e534277b9418788e7d69793e5f, type: 2}
+  _walkStepDistance: 1.9
+  _sprintStepDistance: 2.4
+  _crouchStepDistance: 1.4
   _minimumFootstepSpeed: 0.3
-  _jumpCue: {fileID: 0}
-  _lightLandingCue: {fileID: 0}
-  _mediumLandingCue: {fileID: 0}
-  _heavyLandingCue: {fileID: 0}
+  _jumpCue: {fileID: 11400000, guid: f77ccfe5b0db2624b975c955ea1d48b1, type: 2}
+  _lightLandingCue: {fileID: 11400000, guid: 3e9f51eb3a7b12a4791eb8fc2e010778, type: 2}
+  _mediumLandingCue: {fileID: 11400000, guid: 180cb85bee8b75942bf30a6b051913b6, type: 2}
+  _heavyLandingCue: {fileID: 11400000, guid: eb4a1dfad7a4aef4d9aadf92c706ebb3, type: 2}
   _minimumLandingSpeed: 2
   _mediumLandingSpeed: 7
   _heavyLandingSpeed: 13
-  _slideEnterCue: {fileID: 0}
-  _slideLoopCue: {fileID: 0}
-  _slideExitCue: {fileID: 0}
+  _slideEnterCue: {fileID: 11400000, guid: 1e5bac53e34c27e45bbf06a34fa321ff, type: 2}
+  _slideLoopCue: {fileID: 11400000, guid: f96e53891e857a248a95c40e795a59e2, type: 2}
+  _slideExitCue: {fileID: 11400000, guid: 6d6383e06c3976c4bac85d0d5637ba16, type: 2}

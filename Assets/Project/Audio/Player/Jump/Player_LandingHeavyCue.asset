@@ -12,10 +12,13 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1284f702222f4c0e9d8c744513fef9ca, type: 3}
   m_Name: Player_LandingHeavyCue
   m_EditorClassIdentifier: Assembly-CSharp::Breachpoint.Audio.AudioCue
-  _clips: []
-  _outputMixerGroup: {fileID: 0}
-  _volumeRange: {x: 1, y: 1}
-  _pitchRange: {x: 1, y: 1}
+  _clips:
+  - {fileID: 8300000, guid: 4a003b542db113a40905da9bce712c42, type: 3}
+  - {fileID: 8300000, guid: 8a87b0392c5fcda4f9e24f00d131182e, type: 3}
+  - {fileID: 8300000, guid: ce184adeaf41fce409c4df59e33ce8e8, type: 3}
+  _outputMixerGroup: {fileID: 2770872308832991219, guid: cf37430eb494ae747b1602ece35c34c0, type: 2}
+  _volumeRange: {x: 0.25, y: 0.25}
+  _pitchRange: {x: 0.9, y: 1}
   _spatialBlend: 1
   _minDistance: 1
   _maxDistance: 25

@@ -12,10 +12,14 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1284f702222f4c0e9d8c744513fef9ca, type: 3}
   m_Name: Player_CrouchFootstepCue
   m_EditorClassIdentifier: Assembly-CSharp::Breachpoint.Audio.AudioCue
-  _clips: []
-  _outputMixerGroup: {fileID: 0}
-  _volumeRange: {x: 1, y: 1}
-  _pitchRange: {x: 1, y: 1}
+  _clips:
+  - {fileID: 8300000, guid: e0c0a7ed9bfdfc443890365325dfceef, type: 3}
+  - {fileID: 8300000, guid: 21a7ba42f89a432438a88987cdc1b252, type: 3}
+  - {fileID: 8300000, guid: f2772a95a3e852b4bb0bd88a8edb4754, type: 3}
+  - {fileID: 8300000, guid: 94fdf130b54bba84b833081ae8e88307, type: 3}
+  _outputMixerGroup: {fileID: 2770872308832991219, guid: cf37430eb494ae747b1602ece35c34c0, type: 2}
+  _volumeRange: {x: 0.2, y: 0.3}
+  _pitchRange: {x: 0.8, y: 0.9}
   _spatialBlend: 1
   _minDistance: 1
   _maxDistance: 25
