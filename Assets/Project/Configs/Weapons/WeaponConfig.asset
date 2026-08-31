@@ -18,19 +18,28 @@ MonoBehaviour:
     serializedVersion: 2
     m_Bits: 257
   _roundsPerMinute: 600
-  _hipSpreadAngle: 0.15
-  _aimSpreadAngle: 0.08
+  _hipSpreadAngle: 0.45
+  _aimSpreadAngle: 0.04
   _aimTransitionSpeed: 12
   _aimFieldOfViewMultiplier: 0.85
   _magazineSize: 30
   _startingReserveAmmunition: 990
   _reloadDuration: 2.1
-  _cameraRecoilPitch: 1.1
-  _cameraRecoilYaw: 0.3
-  _cameraRecoilSnappiness: 18
-  _cameraRecoilReturnSpeed: 10
-  _maximumCameraRecoil: 8
+  _cameraRecoilPitch: 0.45
+  _cameraRecoilPitchVariation: 0.06
+  _cameraRecoilYaw: 0.14
+  _maximumBurstRecoilMultiplier: 1.35
+  _shotsToMaximumBurstRecoil: 10
+  _aimRecoilMultiplier: 0.8
+  _cameraRecoilSnappiness: 24
+  _cameraRecoilReturnSpeed: 6
+  _cameraRecoilRecoveryDelay: 0.16
+  _recoilBurstResetDelay: 0.25
+  _maximumCameraRecoil: 10
+  _maximumHorizontalCameraRecoil: 2.5
   _visualKickDistance: 0.04
   _visualKickPitch: 2.5
   _visualRecoilSnappiness: 24
   _visualRecoilReturnSpeed: 14
+  _aimVisualKickDistanceMultiplier: 0.35
+  _aimVisualKickPitchMultiplier: 0

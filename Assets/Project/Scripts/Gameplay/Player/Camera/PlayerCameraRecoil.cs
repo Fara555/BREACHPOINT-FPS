@@ -18,6 +18,8 @@ namespace Breachpoint.Gameplay.Player.Camera
         private Quaternion _baseLocalRotation;
         private Vector2 _currentRecoil;
         private Vector2 _targetRecoil;
+        private float _lastShotTime = float.NegativeInfinity;
+        private int _burstShotCount;
 
         [Inject]
         public void Construct(WeaponConfig config)
@@ -60,16 +62,20 @@ namespace Breachpoint.Gameplay.Player.Camera
                 return;
             }
 
-            float returnWeight = 1f - Mathf.Exp(
-                -_config.CameraRecoilReturnSpeed * Time.deltaTime);
-
             float followWeight = 1f - Mathf.Exp(
                 -_config.CameraRecoilSnappiness * Time.deltaTime);
 
-            _targetRecoil = Vector2.Lerp(
-                _targetRecoil,
-                Vector2.zero,
-                returnWeight);
+            if (Time.time - _lastShotTime >=
+                _config.CameraRecoilRecoveryDelay)
+            {
+                float returnWeight = 1f - Mathf.Exp(
+                    -_config.CameraRecoilReturnSpeed * Time.deltaTime);
+
+                _targetRecoil = Vector2.Lerp(
+                    _targetRecoil,
+                    Vector2.zero,
+                    returnWeight);
+            }
 
             _currentRecoil = Vector2.Lerp(
                 _currentRecoil,
@@ -86,24 +92,61 @@ namespace Breachpoint.Gameplay.Player.Camera
 
         private void HandleShotFired(WeaponShotResult result)
         {
+            if (Time.time - _lastShotTime >=
+                _config.RecoilBurstResetDelay)
+            {
+                _burstShotCount = 0;
+            }
+
+            _lastShotTime = Time.time;
+            _burstShotCount++;
+
+            float burstProgress = Mathf.Clamp01(
+                (_burstShotCount - 1f) /
+                _config.ShotsToMaximumBurstRecoil);
+
+            float burstMultiplier = Mathf.Lerp(
+                1f,
+                _config.MaximumBurstRecoilMultiplier,
+                burstProgress);
+
+            float aimMultiplier =
+                _weaponController.IsAiming
+                    ? _config.AimRecoilMultiplier
+                    : 1f;
+
+            float pitch = Random.Range(
+                _config.CameraRecoilPitch -
+                _config.CameraRecoilPitchVariation,
+                _config.CameraRecoilPitch +
+                _config.CameraRecoilPitchVariation);
+
+            pitch = Mathf.Max(0f, pitch) *
+                    burstMultiplier *
+                    aimMultiplier;
+
             float yaw = Random.Range(
                 -_config.CameraRecoilYaw,
-                _config.CameraRecoilYaw);
+                _config.CameraRecoilYaw) *
+                burstMultiplier *
+                aimMultiplier;
 
             _targetRecoil.x = Mathf.Min(
-                _targetRecoil.x + _config.CameraRecoilPitch,
+                _targetRecoil.x + pitch,
                 _config.MaximumCameraRecoil);
 
             _targetRecoil.y = Mathf.Clamp(
                 _targetRecoil.y + yaw,
-                -_config.MaximumCameraRecoil,
-                _config.MaximumCameraRecoil);
+                -_config.MaximumHorizontalCameraRecoil,
+                _config.MaximumHorizontalCameraRecoil);
         }
 
         private void ResetRecoil()
         {
             _currentRecoil = Vector2.zero;
             _targetRecoil = Vector2.zero;
+            _lastShotTime = float.NegativeInfinity;
+            _burstShotCount = 0;
 
             if (_recoilRoot != null)
             {

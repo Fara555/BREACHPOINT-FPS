@@ -150,9 +150,9 @@ MonoBehaviour:
   _flareScaleRange: {x: 1.05, y: 1.25}
   _flareColor: {r: 4.5, g: 0.72, b: 0.08, a: 1}
   _flashLight: {fileID: 5773041498490753847}
-  _lightDuration: 0.025
-  _lightIntensityRange: {x: 978, y: 1271}
-  _lightRange: 23.7
+  _lightDuration: 0.04
+  _lightIntensityRange: {x: 1250.4, y: 1829}
+  _lightRange: 52.7
   _lightColor: {r: 1, g: 0.48, b: 0.16, a: 1}
 --- !u!108 &5773041498490753847
 Light:
@@ -673,7 +673,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 827d294f3f9c4c24af68b7c4d1779415, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Breachpoint.Gameplay.Weapons.Effects.WeaponImpactSparkEffect
   _visualEffectAsset: {fileID: 8926484042661614526, guid: db1a879cbf1c4793aa2395ecde1764ba, type: 3}
   _poolSize: 12

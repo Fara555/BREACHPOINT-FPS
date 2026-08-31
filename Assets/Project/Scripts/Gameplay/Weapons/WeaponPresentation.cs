@@ -206,15 +206,29 @@ namespace Breachpoint.Gameplay.Weapons
                 _aimPose.localRotation,
                 _aimWeight);
 
+            float kickDistanceMultiplier = Mathf.Lerp(
+                1f,
+                _config.AimVisualKickDistanceMultiplier,
+                _aimWeight);
+
+            float kickPitchMultiplier = Mathf.Lerp(
+                1f,
+                _config.AimVisualKickPitchMultiplier,
+                _aimWeight);
+
             _visualRoot.localPosition =
                 posePosition +
                 Vector3.back *
-                (_config.VisualKickDistance * _currentKick);
+                (_config.VisualKickDistance *
+                 kickDistanceMultiplier *
+                 _currentKick);
 
             _visualRoot.localRotation =
                 poseRotation *
                 Quaternion.Euler(
-                    -_config.VisualKickPitch * _currentKick,
+                    -_config.VisualKickPitch *
+                    kickPitchMultiplier *
+                    _currentKick,
                     0f,
                     0f);
 

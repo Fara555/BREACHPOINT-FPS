@@ -48,19 +48,40 @@ namespace Breachpoint.Gameplay.Weapons
 
         [Header("Camera Recoil")]
         [SerializeField, Min(0f)]
-        private float _cameraRecoilPitch = 1.1f;
+        private float _cameraRecoilPitch = 0.45f;
 
         [SerializeField, Min(0f)]
-        private float _cameraRecoilYaw = 0.3f;
-
-        [SerializeField, Min(0.01f)]
-        private float _cameraRecoilSnappiness = 18f;
-
-        [SerializeField, Min(0.01f)]
-        private float _cameraRecoilReturnSpeed = 10f;
+        private float _cameraRecoilPitchVariation = 0.06f;
 
         [SerializeField, Min(0f)]
-        private float _maximumCameraRecoil = 8f;
+        private float _cameraRecoilYaw = 0.14f;
+
+        [SerializeField, Min(1f)]
+        private float _maximumBurstRecoilMultiplier = 1.35f;
+
+        [SerializeField, Min(1)]
+        private int _shotsToMaximumBurstRecoil = 10;
+
+        [SerializeField, Min(0f)]
+        private float _aimRecoilMultiplier = 0.8f;
+
+        [SerializeField, Min(0.01f)]
+        private float _cameraRecoilSnappiness = 24f;
+
+        [SerializeField, Min(0.01f)]
+        private float _cameraRecoilReturnSpeed = 6f;
+
+        [SerializeField, Min(0f)]
+        private float _cameraRecoilRecoveryDelay = 0.16f;
+
+        [SerializeField, Min(0f)]
+        private float _recoilBurstResetDelay = 0.25f;
+
+        [SerializeField, Min(0f)]
+        private float _maximumCameraRecoil = 10f;
+
+        [SerializeField, Min(0f)]
+        private float _maximumHorizontalCameraRecoil = 2.5f;
 
         [Header("Visual Recoil")]
         [SerializeField, Min(0f)]
@@ -75,6 +96,12 @@ namespace Breachpoint.Gameplay.Weapons
         [SerializeField, Min(0.01f)]
         private float _visualRecoilReturnSpeed = 14f;
 
+        [SerializeField, Range(0f, 1f)]
+        private float _aimVisualKickDistanceMultiplier = 0.35f;
+
+        [SerializeField, Range(0f, 1f)]
+        private float _aimVisualKickPitchMultiplier;
+
         public float Damage => _damage;
         public float Range => _range;
         public LayerMask HitMask => _hitMask;
@@ -87,14 +114,29 @@ namespace Breachpoint.Gameplay.Weapons
         public int StartingReserveAmmunition => _startingReserveAmmunition;
         public float ReloadDuration => _reloadDuration;
         public float CameraRecoilPitch => _cameraRecoilPitch;
+        public float CameraRecoilPitchVariation => _cameraRecoilPitchVariation;
         public float CameraRecoilYaw => _cameraRecoilYaw;
+        public float MaximumBurstRecoilMultiplier =>
+            _maximumBurstRecoilMultiplier;
+        public int ShotsToMaximumBurstRecoil =>
+            _shotsToMaximumBurstRecoil;
+        public float AimRecoilMultiplier => _aimRecoilMultiplier;
         public float CameraRecoilSnappiness => _cameraRecoilSnappiness;
         public float CameraRecoilReturnSpeed => _cameraRecoilReturnSpeed;
+        public float CameraRecoilRecoveryDelay =>
+            _cameraRecoilRecoveryDelay;
+        public float RecoilBurstResetDelay => _recoilBurstResetDelay;
         public float MaximumCameraRecoil => _maximumCameraRecoil;
+        public float MaximumHorizontalCameraRecoil =>
+            _maximumHorizontalCameraRecoil;
         public float VisualKickDistance => _visualKickDistance;
         public float VisualKickPitch => _visualKickPitch;
         public float VisualRecoilSnappiness => _visualRecoilSnappiness;
         public float VisualRecoilReturnSpeed => _visualRecoilReturnSpeed;
+        public float AimVisualKickDistanceMultiplier =>
+            _aimVisualKickDistanceMultiplier;
+        public float AimVisualKickPitchMultiplier =>
+            _aimVisualKickPitchMultiplier;
 
         private void OnValidate()
         {
