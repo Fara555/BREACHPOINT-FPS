@@ -32,6 +32,8 @@ Material:
     m_Floats:
     - _Dissolve: 0.18
     - _DissolveSoftness: 0.255
+    - _CameraFadeEnd: 1.35
+    - _CameraFadeStart: 0.55
     - _Emission: 1.35
     - _NoiseOffset: 0
     - _Opacity: 1

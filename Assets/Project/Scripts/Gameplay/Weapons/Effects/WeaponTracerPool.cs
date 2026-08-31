@@ -12,6 +12,9 @@ namespace Breachpoint.Gameplay.Weapons.Effects
         [SerializeField]
         private Material _airTrailMaterial;
 
+        [SerializeField]
+        private Camera _viewCamera;
+
         [SerializeField, Min(0.001f)]
         private float _width = 0.1f;
 
@@ -30,6 +33,9 @@ namespace Breachpoint.Gameplay.Weapons.Effects
 
         [SerializeField, Min(0f)]
         private float _muzzleOffset = 0.18f;
+
+        [SerializeField, Min(0f)]
+        private float _cameraTrimDistance = 0.8f;
 
         [Header("Pool")]
         [SerializeField, Min(1)]
@@ -142,6 +148,8 @@ namespace Breachpoint.Gameplay.Weapons.Effects
 
         private void UpdateTrail(TracerInstance instance)
         {
+            TrimTrailBehindCamera(instance);
+
             if (instance.HeadDistance < instance.Distance)
             {
                 instance.HeadDistance = Mathf.Min(
@@ -176,6 +184,43 @@ namespace Breachpoint.Gameplay.Weapons.Effects
 
             instance.IsActive = false;
             instance.Renderer.enabled = false;
+        }
+
+        private void TrimTrailBehindCamera(TracerInstance instance)
+        {
+            if (_viewCamera == null || _cameraTrimDistance <= 0f)
+            {
+                return;
+            }
+
+            Transform cameraTransform = _viewCamera.transform;
+            float directionAlongView = Vector3.Dot(
+                instance.Direction,
+                cameraTransform.forward);
+
+            if (directionAlongView <= 0.001f)
+            {
+                return;
+            }
+
+            Vector3 trimPlanePoint = cameraTransform.position +
+                                     cameraTransform.forward *
+                                     _cameraTrimDistance;
+            float distanceAlongTrail = Vector3.Dot(
+                trimPlanePoint - instance.Origin,
+                cameraTransform.forward) / directionAlongView;
+            float trimmedStart = Mathf.Clamp(
+                distanceAlongTrail,
+                instance.VisibleStart,
+                instance.HeadDistance);
+
+            if (trimmedStart <= instance.VisibleStart)
+            {
+                return;
+            }
+
+            instance.VisibleStart = trimmedStart;
+            SetPositions(instance);
         }
 
         private static void SetPositions(TracerInstance instance)

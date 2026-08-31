@@ -12,6 +12,8 @@ Shader "Breachpoint/VFX/Bullet Air Trail"
         _Emission("Emission", Range(0, 10)) = 1.35
         _Opacity("Opacity", Range(0, 1)) = 1
         _NoiseOffset("Noise Offset", Float) = 0
+        _CameraFadeStart("Camera Fade Start", Range(0, 5)) = 0.55
+        _CameraFadeEnd("Camera Fade End", Range(0.001, 5)) = 1.35
     }
 
     SubShader
@@ -55,6 +57,8 @@ Shader "Breachpoint/VFX/Bullet Air Trail"
                 float _Emission;
                 float _Opacity;
                 float _NoiseOffset;
+                float _CameraFadeStart;
+                float _CameraFadeEnd;
             CBUFFER_END
 
             struct Attributes
@@ -67,6 +71,7 @@ Shader "Breachpoint/VFX/Bullet Air Trail"
             struct Varyings
             {
                 float4 positionCS : SV_POSITION;
+                float3 positionAWS : TEXCOORD1;
                 float2 uv : TEXCOORD0;
                 float4 color : COLOR;
             };
@@ -75,6 +80,8 @@ Shader "Breachpoint/VFX/Bullet Air Trail"
             {
                 Varyings output;
                 output.positionCS = TransformObjectToHClip(input.positionOS);
+                output.positionAWS = GetAbsolutePositionWS(
+                    TransformObjectToWorld(input.positionOS));
                 output.uv = input.uv;
                 output.color = input.color;
                 return output;
@@ -106,8 +113,15 @@ Shader "Breachpoint/VFX/Bullet Air Trail"
                     _Dissolve + max(_DissolveSoftness, 0.001),
                     noise);
                 float vapor = saturate(dissolve * 0.74 + noise * 0.26);
+                float cameraDistance = distance(
+                    input.positionAWS,
+                    _WorldSpaceCameraPos);
+                float cameraFade = smoothstep(
+                    _CameraFadeStart,
+                    max(_CameraFadeEnd, _CameraFadeStart + 0.001),
+                    cameraDistance);
                 float alpha = vapor * softEdge * pathMask * input.color.a *
-                              _TrailColor.a * _Opacity;
+                              _TrailColor.a * _Opacity * cameraFade;
 
                 float3 color = _TrailColor.rgb * _Emission;
                 color *= lerp(0.58, 1.0, noise) * input.color.rgb;

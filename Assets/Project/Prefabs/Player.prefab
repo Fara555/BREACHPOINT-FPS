@@ -756,12 +756,14 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Breachpoint.Gameplay.Weapons.Effects.WeaponTracerPool
   _airTrailMaterial: {fileID: 2100000, guid: 093520791ebd4eb58be8e82503286605, type: 2}
+  _viewCamera: {fileID: 2226697213796460221}
   _width: 0.1
   _textureScale: 0.15
   _travelSpeed: 900
   _holdDuration: 0.055
   _fadeDuration: 0.28
   _muzzleOffset: 0.18
+  _cameraTrimDistance: 0.8
   _poolSize: 16
 --- !u!1 &6269528828741877645
 GameObject:
