@@ -21,6 +21,16 @@ namespace Breachpoint.Gameplay.Player.Input
         [SerializeField]
         private InputActionReference _crouchAction;
 
+        [Header("Combat")]
+        [SerializeField]
+        private InputActionReference _fireAction;
+
+        [SerializeField]
+        private InputActionReference _aimAction;
+
+        [SerializeField]
+        private InputActionReference _reloadAction;
+
         public Vector2 Move =>
             _moveAction != null
                 ? _moveAction.action.ReadValue<Vector2>()
@@ -51,6 +61,18 @@ namespace Breachpoint.Gameplay.Player.Input
             _jumpAction != null &&
             _jumpAction.action.WasReleasedThisFrame();
 
+        public bool IsFireHeld =>
+            _fireAction != null &&
+            _fireAction.action.IsPressed();
+
+        public bool IsAimHeld =>
+            _aimAction != null &&
+            _aimAction.action.IsPressed();
+
+        public bool WasReloadPressed =>
+            _reloadAction != null &&
+            _reloadAction.action.WasPressedThisFrame();
+
         private void OnEnable()
         {
             EnableAction(
@@ -67,6 +89,15 @@ namespace Breachpoint.Gameplay.Player.Input
 
             EnableAction(
                 _crouchAction);
+
+            EnableAction(
+                _fireAction);
+
+            EnableAction(
+                _aimAction);
+
+            EnableAction(
+                _reloadAction);
         }
 
         private void OnDisable()
@@ -85,6 +116,15 @@ namespace Breachpoint.Gameplay.Player.Input
 
             DisableAction(
                 _crouchAction);
+
+            DisableAction(
+                _fireAction);
+
+            DisableAction(
+                _aimAction);
+
+            DisableAction(
+                _reloadAction);
         }
 
         private static void EnableAction(

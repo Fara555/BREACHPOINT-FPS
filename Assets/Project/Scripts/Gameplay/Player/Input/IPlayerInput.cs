@@ -13,5 +13,9 @@ namespace Breachpoint.Gameplay.Player.Input
 
         bool WasJumpPressed { get; }
         bool WasJumpReleased { get; }
+
+        bool IsFireHeld { get; }
+        bool IsAimHeld { get; }
+        bool WasReloadPressed { get; }
     }
 }

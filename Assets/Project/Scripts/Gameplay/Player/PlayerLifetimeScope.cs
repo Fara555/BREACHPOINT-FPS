@@ -6,6 +6,7 @@ using Breachpoint.Gameplay.Player.Movement;
 using Breachpoint.Gameplay.Player.Movement.Jump;
 using Breachpoint.Gameplay.Player.Movement.Slide;
 using Breachpoint.Gameplay.Player.Movement.Stance;
+using Breachpoint.Gameplay.Weapons;
 using UnityEngine;
 using VContainer;
 using VContainer.Unity;
@@ -20,6 +21,9 @@ namespace Breachpoint.Gameplay.Player.Composition
 
         [SerializeField]
         private PlayerMovementAudioConfig _movementAudioConfig;
+
+        [SerializeField]
+        private WeaponConfig _weaponConfig;
 
         [Header("Player Components")]
         [SerializeField]
@@ -43,6 +47,19 @@ namespace Breachpoint.Gameplay.Player.Composition
         [SerializeField]
         private PlayerMovementAudio _movementAudio;
 
+        [Header("Weapon Components")]
+        [SerializeField]
+        private HitscanWeapon _weapon;
+
+        [SerializeField]
+        private PlayerWeaponController _weaponController;
+
+        [SerializeField]
+        private WeaponPresentation _weaponPresentation;
+
+        [SerializeField]
+        private PlayerCameraRecoil _cameraRecoil;
+
         protected override void Configure(
             IContainerBuilder builder)
         {
@@ -53,6 +70,12 @@ namespace Breachpoint.Gameplay.Player.Composition
 
             builder.RegisterInstance(
                 _movementAudioConfig);
+
+            builder.RegisterInstance(
+                _weaponConfig);
+
+            builder.Register<WeaponAmmo>(
+                Lifetime.Scoped);
 
             builder.Register<PlayerJumpController>(
                 Lifetime.Scoped);
@@ -84,6 +107,18 @@ namespace Breachpoint.Gameplay.Player.Composition
 
             builder.RegisterComponent(
                 _movementAudio);
+
+            builder.RegisterComponent(
+                _weapon);
+
+            builder.RegisterComponent(
+                _weaponController);
+
+            builder.RegisterComponent(
+                _weaponPresentation);
+
+            builder.RegisterComponent(
+                _cameraRecoil);
         }
 
         private void ValidateReferences()
@@ -99,6 +134,13 @@ namespace Breachpoint.Gameplay.Player.Composition
             {
                 Debug.LogError(
                     $"{nameof(PlayerLifetimeScope)} requires PlayerMovementAudioConfig.",
+                    this);
+            }
+
+            if (_weaponConfig == null)
+            {
+                Debug.LogError(
+                    $"{nameof(PlayerLifetimeScope)} requires WeaponConfig.",
                     this);
             }
 
@@ -148,6 +190,34 @@ namespace Breachpoint.Gameplay.Player.Composition
             {
                 Debug.LogError(
                     $"{nameof(PlayerLifetimeScope)} requires PlayerMovementAudio.",
+                    this);
+            }
+
+            if (_weapon == null)
+            {
+                Debug.LogError(
+                    $"{nameof(PlayerLifetimeScope)} requires HitscanWeapon.",
+                    this);
+            }
+
+            if (_weaponController == null)
+            {
+                Debug.LogError(
+                    $"{nameof(PlayerLifetimeScope)} requires PlayerWeaponController.",
+                    this);
+            }
+
+            if (_weaponPresentation == null)
+            {
+                Debug.LogError(
+                    $"{nameof(PlayerLifetimeScope)} requires WeaponPresentation.",
+                    this);
+            }
+
+            if (_cameraRecoil == null)
+            {
+                Debug.LogError(
+                    $"{nameof(PlayerLifetimeScope)} requires PlayerCameraRecoil.",
                     this);
             }
         }

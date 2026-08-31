@@ -107,3 +107,6 @@ InitTestScene*.unity*
 /[Aa]ssets/[Ii]nit[Tt]est[Ss]cene*.unity*
 
 .idea
+
+# Local Codex project instructions
+/AGENTS.md
