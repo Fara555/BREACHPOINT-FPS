@@ -5,7 +5,9 @@ using VContainer;
 
 namespace Breachpoint.Gameplay.Weapons
 {
-    public sealed class PlayerWeaponController : MonoBehaviour
+    public sealed class PlayerWeaponController :
+        MonoBehaviour,
+        IWeaponAimState
     {
         [Header("References")]
         [SerializeField]

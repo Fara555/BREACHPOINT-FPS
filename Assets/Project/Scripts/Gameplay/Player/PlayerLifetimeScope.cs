@@ -58,6 +58,9 @@ namespace Breachpoint.Gameplay.Player.Composition
         private WeaponPresentation _weaponPresentation;
 
         [SerializeField]
+        private WeaponMotion _weaponMotion;
+
+        [SerializeField]
         private PlayerCameraRecoil _cameraRecoil;
 
         protected override void Configure(
@@ -112,10 +115,15 @@ namespace Breachpoint.Gameplay.Player.Composition
                 _weapon);
 
             builder.RegisterComponent(
-                _weaponController);
+                    _weaponController)
+                .AsSelf()
+                .As<IWeaponAimState>();
 
             builder.RegisterComponent(
                 _weaponPresentation);
+
+            builder.RegisterComponent(
+                _weaponMotion);
 
             builder.RegisterComponent(
                 _cameraRecoil);
@@ -211,6 +219,13 @@ namespace Breachpoint.Gameplay.Player.Composition
             {
                 Debug.LogError(
                     $"{nameof(PlayerLifetimeScope)} requires WeaponPresentation.",
+                    this);
+            }
+
+            if (_weaponMotion == null)
+            {
+                Debug.LogError(
+                    $"{nameof(PlayerLifetimeScope)} requires WeaponMotion.",
                     this);
             }
 

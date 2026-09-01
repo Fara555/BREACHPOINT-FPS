@@ -139,7 +139,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 2ca8fd978bf2450d90be29a0d270fb29, type: 3}
-  m_Name: 
+  m_Name:
   m_EditorClassIdentifier: Assembly-CSharp::Breachpoint.Gameplay.Weapons.Effects.WeaponMuzzleFlash
   _sparksAsset: {fileID: 8926484042661614526, guid: f30c85a9d2364de3a9fd0bf152d9676c, type: 3}
   _flareMaterial: {fileID: 2100000, guid: f40d96bae3474ef4ba0e1c0263ea787d, type: 2}
@@ -586,6 +586,7 @@ GameObject:
   - component: {fileID: 8206070361035762322}
   - component: {fileID: 37300670519580805}
   - component: {fileID: 8485620012675807616}
+  - component: {fileID: 6181321097426608791}
   - component: {fileID: 845931172895310431}
   m_Layer: 7
   m_Name: Rifle
@@ -607,10 +608,42 @@ Transform:
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
+  - {fileID: 5274098361754209631}
+  m_Father: {fileID: 2951321527874703061}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &5274098361754209630
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 5274098361754209631}
+  m_Layer: 7
+  m_Name: MotionRoot
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &5274098361754209631
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5274098361754209630}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
   - {fileID: 3699562405301730131}
   - {fileID: 5997088546476337808}
   - {fileID: 7900037512686094426}
-  m_Father: {fileID: 2951321527874703061}
+  m_Father: {fileID: 1901540167306890442}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &8206070361035762322
 MonoBehaviour:
@@ -679,6 +712,23 @@ MonoBehaviour:
   _poolSize: 12
   _lifetime: 0.7
   _surfaceOffset: 0.012
+--- !u!114 &6181321097426608791
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4272675174950481901}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e3ea48a640364bc39b6851d53fc2b0e7, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Assembly-CSharp::Breachpoint.Gameplay.Weapons.WeaponMotion
+  _motionRoot: {fileID: 5274098361754209631}
+  _motionSpace: {fileID: 2951321527874703061}
+  _sprintRotationPivot: {fileID: 3699562405301730131}
+  _movement: {fileID: 2415716945523809651}
+  _config: {fileID: 11400000, guid: 4af62bf135a94ecda2af1b78a3600f2f, type: 2}
 --- !u!1 &4401560098943408258
 GameObject:
   m_ObjectHideFlags: 0
@@ -741,7 +791,7 @@ Transform:
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 1901540167306890442}
+  m_Father: {fileID: 5274098361754209631}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &6960315327124610816
 MonoBehaviour:
@@ -894,6 +944,7 @@ MonoBehaviour:
   _weapon: {fileID: 8206070361035762322}
   _weaponController: {fileID: 37300670519580805}
   _weaponPresentation: {fileID: 8485620012675807616}
+  _weaponMotion: {fileID: 6181321097426608791}
   _cameraRecoil: {fileID: 6236376525298086532}
 --- !u!114 &5048821311498428142
 MonoBehaviour:
@@ -1094,7 +1145,7 @@ Transform:
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 4540237922277914016}
-  m_Father: {fileID: 1901540167306890442}
+  m_Father: {fileID: 5274098361754209631}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &7882017564320783902
 GameObject:
@@ -1456,7 +1507,7 @@ PrefabInstance:
   serializedVersion: 2
   m_Modification:
     serializedVersion: 3
-    m_TransformParent: {fileID: 1901540167306890442}
+    m_TransformParent: {fileID: 5274098361754209631}
     m_Modifications:
     - target: {fileID: -8679921383154817045, guid: 238b5a6563f5d9846a6cb227f716cf49, type: 3}
       propertyPath: m_LocalPosition.x
