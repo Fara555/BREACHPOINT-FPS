@@ -40,9 +40,6 @@ namespace Breachpoint.Gameplay.Weapons
         [SerializeField, Min(1)]
         private int _magazineSize = 30;
 
-        [SerializeField, Min(0)]
-        private int _startingReserveAmmunition = 120;
-
         [SerializeField, Min(0.01f)]
         private float _reloadDuration = 2.1f;
 
@@ -111,7 +108,6 @@ namespace Breachpoint.Gameplay.Weapons
         public float AimTransitionSpeed => _aimTransitionSpeed;
         public float AimFieldOfViewMultiplier => _aimFieldOfViewMultiplier;
         public int MagazineSize => _magazineSize;
-        public int StartingReserveAmmunition => _startingReserveAmmunition;
         public float ReloadDuration => _reloadDuration;
         public float CameraRecoilPitch => _cameraRecoilPitch;
         public float CameraRecoilPitchVariation => _cameraRecoilPitchVariation;

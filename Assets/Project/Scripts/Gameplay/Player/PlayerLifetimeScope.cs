@@ -117,7 +117,8 @@ namespace Breachpoint.Gameplay.Player.Composition
             builder.RegisterComponent(
                     _weaponController)
                 .AsSelf()
-                .As<IWeaponAimState>();
+                .As<IWeaponAimState>()
+                .As<IWeaponActionState>();
 
             builder.RegisterComponent(
                 _weaponPresentation);

@@ -7,6 +7,8 @@ namespace Breachpoint.Gameplay.Weapons
 {
     public sealed class WeaponPresentation : MonoBehaviour
     {
+        private const float ReloadPoseReadyThreshold = 0.01f;
+
         [Header("References")]
         [SerializeField]
         private PlayerWeaponController _weaponController;
@@ -115,6 +117,7 @@ namespace Breachpoint.Gameplay.Weapons
         private void LateUpdate()
         {
             UpdateAimAndVisualRecoil();
+            ReportReloadPresentationReady();
         }
 
         private void HandleShotFired(WeaponShotResult result)
@@ -151,10 +154,27 @@ namespace Breachpoint.Gameplay.Weapons
 
         private void HandleReloadStarted(float duration)
         {
+            ResetPresentation();
+
             if (_audioService != null && _reloadCue != null)
             {
                 _audioService.Play(_reloadCue, _visualRoot);
             }
+        }
+
+        private void ReportReloadPresentationReady()
+        {
+            if (_weaponController == null)
+            {
+                return;
+            }
+
+            bool isReady =
+                _aimWeight <= ReloadPoseReadyThreshold &&
+                Mathf.Abs(_currentKick) <= ReloadPoseReadyThreshold &&
+                Mathf.Abs(_targetKick) <= ReloadPoseReadyThreshold;
+
+            _weaponController.ReportReloadPresentationReady(isReady);
         }
 
         private void UpdateAimAndVisualRecoil()

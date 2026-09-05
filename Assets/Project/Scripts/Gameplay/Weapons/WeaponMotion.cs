@@ -9,6 +9,7 @@ namespace Breachpoint.Gameplay.Weapons
     {
         private const float FullCycle = Mathf.PI * 2f;
         private const float MovementInputThreshold = 0.01f;
+        private const float ActionPoseReadyThreshold = 0.01f;
 
         [Header("References")]
         [SerializeField]
@@ -28,6 +29,7 @@ namespace Breachpoint.Gameplay.Weapons
 
         private IPlayerInput _input;
         private IWeaponAimState _aimState;
+        private IWeaponActionState _actionState;
 
         private Vector3 _baseLocalPosition;
         private Quaternion _baseLocalRotation;
@@ -56,10 +58,12 @@ namespace Breachpoint.Gameplay.Weapons
         [Inject]
         public void Construct(
             IPlayerInput input,
-            IWeaponAimState aimState)
+            IWeaponAimState aimState,
+            IWeaponActionState actionState)
         {
             _input = input;
             _aimState = aimState;
+            _actionState = actionState;
         }
 
         private void Awake()
@@ -100,6 +104,13 @@ namespace Breachpoint.Gameplay.Weapons
                 return;
             }
 
+            if (_aimState.IsReloading)
+            {
+                ResetMotion();
+                _actionState.ReportMotionReadyForAction(true);
+                return;
+            }
+
             UpdateAimWeight();
             UpdateSway();
             UpdateBob(
@@ -112,6 +123,9 @@ namespace Breachpoint.Gameplay.Weapons
             UpdateSprintPose(
                 out Vector3 sprintPosition,
                 out Vector3 sprintRotation);
+
+            _actionState.ReportMotionReadyForAction(
+                _sprintPoseWeight <= ActionPoseReadyThreshold);
             UpdateBreathing(
                 out Vector3 breathingPosition,
                 out Vector3 breathingRotation);
@@ -458,6 +472,7 @@ namespace Breachpoint.Gameplay.Weapons
                 MovementInputThreshold;
 
             bool mustExitSprintPose =
+                _actionState.IsActionRequested ||
                 _aimState.IsAiming ||
                 !_movement.IsSprintHeld ||
                 _movement.IsSliding ||
@@ -678,7 +693,8 @@ namespace Breachpoint.Gameplay.Weapons
                 _movement != null &&
                 _config != null &&
                 _input != null &&
-                _aimState != null;
+                _aimState != null &&
+                _actionState != null;
         }
 
         private float GetExponentialInterpolation(float speed)

@@ -1,0 +1,70 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c08ed6f57d6649da8036bc87afc4f605, type: 3}
+  m_Name: SR7_MotionConfig
+  m_EditorClassIdentifier: Assembly-CSharp::Breachpoint.Gameplay.Weapons.WeaponMotionConfig
+  _maximumLookDelta: 30
+  _swayPosition: {x: 0.0008, y: 0.0006}
+  _swayRotation: {x: 0.08, y: 0.1, z: 0.04}
+  _swaySnappiness: 16
+  _walkProfile:
+    _cyclesPerMeter: 0.2
+    _referenceSpeed: 5
+    _positionAmplitude: {x: 0.006, y: 0.004, z: 0}
+    _rotationAmplitude: {x: 0.15, y: 0.08, z: 0.35}
+  _sprintProfile:
+    _cyclesPerMeter: 0.2
+    _referenceSpeed: 8
+    _positionAmplitude: {x: 0.03, y: 0.0085, z: 0.003}
+    _rotationAmplitude: {x: 0.28, y: 0.15, z: 0.65}
+  _crouchProfile:
+    _cyclesPerMeter: 0.5
+    _referenceSpeed: 2.5
+    _positionAmplitude: {x: 0.008, y: 0.006, z: 0.003}
+    _rotationAmplitude: {x: 0.3, y: 0.18, z: 0.55}
+  _minimumBobSpeed: 0.3
+  _bobBlendInSpeed: 8
+  _bobBlendOutSpeed: 10
+  _bobSnappiness: 10
+  _maximumAcceleration: 30
+  _inertiaPosition: {x: 0.0004, y: 0, z: 0.008}
+  _inertiaRotation: {x: 0.02, y: 0.015, z: 0.04}
+  _velocityTrackingSpeed: 10
+  _inertiaSnappiness: 1.5
+  _jumpPositionImpulse: 0.14
+  _jumpPitchImpulse: 3
+  _minimumLandingSpeed: 3
+  _maximumLandingSpeed: 14
+  _minimumLandingPositionImpulse: 0.12
+  _maximumLandingPositionImpulse: 0.32
+  _minimumLandingPitchImpulse: 2.5
+  _maximumLandingPitchImpulse: 7
+  _impulseSpringStrength: 110
+  _impulseDamping: 17
+  _sprintPosition: {x: -0.42, y: -0.01, z: -0.22}
+  _sprintRotation: {x: 2, y: -55.1, z: -2}
+  _sprintPoseEnterSpeed: 10
+  _sprintPoseExitSpeed: 25
+  _minimumSprintPoseEnterSpeed: 3.5
+  _minimumSprintPoseExitSpeed: 2
+  _sprintPoseMovementGraceTime: 0.18
+  _breathingCyclesPerSecond: 0.17
+  _breathingPositionAmplitude: {x: 0.008, y: 0.004, z: 0.0008}
+  _breathingRotationAmplitude: {x: 0.09, y: 0.08, z: 0.012}
+  _breathingBlendInSpeed: 2.5
+  _breathingBlendOutSpeed: 8.59
+  _aimSwayMultiplier: 0.25
+  _aimBobMultiplier: 0.2
+  _aimInertiaMultiplier: 0.25
+  _aimImpulseMultiplier: 0.35
+  _aimBreathingMultiplier: 0.25
+  _aimBlendSpeed: 14

@@ -7,7 +7,8 @@ namespace Breachpoint.Gameplay.Weapons
 {
     public sealed class PlayerWeaponController :
         MonoBehaviour,
-        IWeaponAimState
+        IWeaponAimState,
+        IWeaponActionState
     {
         [Header("References")]
         [SerializeField]
@@ -19,17 +20,27 @@ namespace Breachpoint.Gameplay.Weapons
 
         private float _nextShotTime;
         private float _reloadCompletionTime;
+        private bool _reloadRequested;
+        private bool _fireRequested;
+        private bool _wasFireHeld;
+        private bool _isMotionReadyForAction = true;
+        private bool _isReloadPresentationReady = true;
 
-        public event Action<int, int> AmmunitionChanged;
+        public event Action<int> AmmunitionChanged;
         public event Action<float> ReloadStarted;
         public event Action ReloadCompleted;
         public event Action<WeaponShotResult> ShotFired;
         public event Action<bool> AimChanged;
 
         public int Magazine => _ammo?.Magazine ?? 0;
-        public int Reserve => _ammo?.Reserve ?? 0;
+        public int MagazineSize => _ammo?.MagazineSize ?? 0;
         public bool IsReloading { get; private set; }
         public bool IsAiming { get; private set; }
+        public bool IsActionRequested =>
+            IsReloading ||
+            _reloadRequested ||
+            _fireRequested ||
+            (_input != null && _input.IsFireHeld);
 
         [Inject]
         public void Construct(
@@ -68,6 +79,20 @@ namespace Breachpoint.Gameplay.Weapons
                 return;
             }
 
+            if (_input.WasReloadPressed && _ammo.CanReload)
+            {
+                QueueReload();
+            }
+
+            bool isFireHeld = _input.IsFireHeld;
+
+            if (isFireHeld && !_wasFireHeld)
+            {
+                _fireRequested = true;
+            }
+
+            _wasFireHeld = isFireHeld;
+
             UpdateAimState();
 
             if (IsReloading)
@@ -76,15 +101,28 @@ namespace Breachpoint.Gameplay.Weapons
                 return;
             }
 
-            if (_input.WasReloadPressed)
+            if (_reloadRequested)
             {
+                if (!_isMotionReadyForAction ||
+                    !_isReloadPresentationReady)
+                {
+                    return;
+                }
+
                 TryStartReload();
+                _reloadRequested = false;
                 return;
             }
 
-            if (_input.IsFireHeld)
+            if (_fireRequested || isFireHeld)
             {
+                if (!_isMotionReadyForAction)
+                {
+                    return;
+                }
+
                 TryFire();
+                _fireRequested = false;
             }
         }
 
@@ -96,6 +134,11 @@ namespace Breachpoint.Gameplay.Weapons
             }
 
             IsReloading = false;
+            _reloadRequested = false;
+            _fireRequested = false;
+            _wasFireHeld = false;
+            _isMotionReadyForAction = true;
+            _isReloadPresentationReady = true;
             SetAiming(false);
         }
 
@@ -108,7 +151,7 @@ namespace Breachpoint.Gameplay.Weapons
 
             if (!_ammo.TryConsumeRound())
             {
-                TryStartReload();
+                QueueReload();
                 return;
             }
 
@@ -130,6 +173,27 @@ namespace Breachpoint.Gameplay.Weapons
             _reloadCompletionTime = Time.time + _config.ReloadDuration;
 
             ReloadStarted?.Invoke(_config.ReloadDuration);
+        }
+
+        private void QueueReload()
+        {
+            if (!_ammo.CanReload)
+            {
+                return;
+            }
+
+            _reloadRequested = true;
+            _isReloadPresentationReady = false;
+        }
+
+        public void ReportMotionReadyForAction(bool isReady)
+        {
+            _isMotionReadyForAction = isReady;
+        }
+
+        public void ReportReloadPresentationReady(bool isReady)
+        {
+            _isReloadPresentationReady = isReady;
         }
 
         private void UpdateReload()
@@ -155,7 +219,8 @@ namespace Breachpoint.Gameplay.Weapons
         {
             bool shouldAim =
                 _input.IsAimHeld &&
-                !IsReloading;
+                !IsReloading &&
+                !_reloadRequested;
 
             SetAiming(shouldAim);
         }
@@ -178,9 +243,7 @@ namespace Breachpoint.Gameplay.Weapons
                 return;
             }
 
-            AmmunitionChanged?.Invoke(
-                _ammo.Magazine,
-                _ammo.Reserve);
+            AmmunitionChanged?.Invoke(_ammo.Magazine);
         }
 
         private bool CanProcessInput()

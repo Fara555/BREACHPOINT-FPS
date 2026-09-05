@@ -13,15 +13,13 @@ namespace Breachpoint.Gameplay.Weapons
 
             MagazineSize = config.MagazineSize;
             Magazine = MagazineSize;
-            Reserve = config.StartingReserveAmmunition;
         }
 
         public int MagazineSize { get; }
         public int Magazine { get; private set; }
-        public int Reserve { get; private set; }
 
         public bool HasLoadedRound => Magazine > 0;
-        public bool CanReload => Magazine < MagazineSize && Reserve > 0;
+        public bool CanReload => Magazine < MagazineSize;
 
         public bool TryConsumeRound()
         {
@@ -41,11 +39,7 @@ namespace Breachpoint.Gameplay.Weapons
                 return;
             }
 
-            int requestedRounds = MagazineSize - Magazine;
-            int loadedRounds = Math.Min(requestedRounds, Reserve);
-
-            Magazine += loadedRounds;
-            Reserve -= loadedRounds;
+            Magazine = MagazineSize;
         }
     }
 }
