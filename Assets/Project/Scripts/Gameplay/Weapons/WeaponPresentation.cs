@@ -31,7 +31,7 @@ namespace Breachpoint.Gameplay.Weapons
         private WeaponMuzzleFlash _muzzleFlashEffect;
 
         [SerializeField]
-        private WeaponTracerPool _tracerPool;
+        private WeaponProjectileTracerPool _tracerPool;
 
         [SerializeField]
         private WeaponImpactSparkEffect _impactSparkEffect;

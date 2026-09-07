@@ -1569,7 +1569,7 @@ GameObject:
   - component: {fileID: 7900037512686094426}
   - component: {fileID: 6960315327124610816}
   m_Layer: 0
-  m_Name: TracerPool
+  m_Name: ProjectileTracerPool
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -1601,16 +1601,12 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: b390550e2be04249b2e32de5dd0a530b, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::Breachpoint.Gameplay.Weapons.Effects.WeaponTracerPool
-  _airTrailMaterial: {fileID: 2100000, guid: 093520791ebd4eb58be8e82503286605, type: 2}
-  _viewCamera: {fileID: 2226697213796460221}
-  _width: 0.1
-  _textureScale: 0.15
-  _travelSpeed: 900
-  _holdDuration: 0.055
-  _fadeDuration: 0.28
-  _muzzleOffset: 0.18
-  _cameraTrimDistance: 0.8
+  m_EditorClassIdentifier: Assembly-CSharp::Breachpoint.Gameplay.Weapons.Effects.WeaponProjectileTracerPool
+  _tracerMaterial: {fileID: 2100000, guid: 093520791ebd4eb58be8e82503286605, type: 2}
+  _length: 0.85
+  _width: 0.035
+  _travelSpeed: 240
+  _spawnOffset: 0.12
   _poolSize: 16
 --- !u!1 &5274098361754209630
 GameObject:
