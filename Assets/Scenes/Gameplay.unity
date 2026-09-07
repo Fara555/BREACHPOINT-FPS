@@ -53064,17 +53064,6 @@ RectTransform:
   m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 0, y: 0}
   m_Pivot: {x: 0, y: 0}
---- !u!114 &1080599505 stripped
-MonoBehaviour:
-  m_CorrespondingSourceObject: {fileID: 37300670519580805, guid: 8001a233000142a4aa1ae1ffd4ba0d6a, type: 3}
-  m_PrefabInstance: {fileID: 4475932681565991273}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 9cc0ff0834164013b9bd528886a04b73, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::Breachpoint.Gameplay.Weapons.PlayerWeaponController
 --- !u!1 &1121085629
 GameObject:
   m_ObjectHideFlags: 0

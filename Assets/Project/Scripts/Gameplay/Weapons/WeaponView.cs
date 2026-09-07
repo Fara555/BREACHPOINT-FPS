@@ -13,8 +13,36 @@ namespace Breachpoint.Gameplay.Weapons
         [SerializeField]
         private WeaponViewAnimationSet _animations;
 
+        [Header("High Ready")]
+        [SerializeField]
+        private Vector3 _highReadyPositionOffset =
+            new Vector3(0f, 0.1f, -0.18f);
+
+        [SerializeField]
+        private Vector3 _highReadyRotationOffset =
+            new Vector3(-55f, 0f, 0f);
+
+        [SerializeField, Min(0f)]
+        private float _obstructionCheckDistance = 0.9f;
+
+        [SerializeField, Min(0f)]
+        private float _obstructionCastRadius = 0.12f;
+
+        [SerializeField, Min(0.01f)]
+        private float _obstructionBlendDistance = 0.4f;
+
         public Animator WeaponAnimator => _weaponAnimator;
         public WeaponViewAnimationSet Animations => _animations;
+        public Vector3 HighReadyPositionOffset =>
+            _highReadyPositionOffset;
+        public Vector3 HighReadyRotationOffset =>
+            _highReadyRotationOffset;
+        public float ObstructionCheckDistance =>
+            _obstructionCheckDistance;
+        public float ObstructionCastRadius =>
+            _obstructionCastRadius;
+        public float ObstructionBlendDistance =>
+            _obstructionBlendDistance;
 
         public void SetVisible(bool isVisible)
         {

@@ -14,6 +14,9 @@ namespace Breachpoint.Gameplay.Weapons
         [SerializeField]
         private HitscanWeapon _weapon;
 
+        [SerializeField]
+        private WeaponHighReady _highReady;
+
         private IPlayerInput _input;
         private WeaponConfig _config;
         private WeaponAmmo _ammo;
@@ -35,6 +38,8 @@ namespace Breachpoint.Gameplay.Weapons
         public int Magazine => _ammo?.Magazine ?? 0;
         public int MagazineSize => _ammo?.MagazineSize ?? 0;
         public bool IsReloading { get; private set; }
+        public bool IsReloadInProgress =>
+            IsReloading || _reloadRequested;
         public bool IsAiming { get; private set; }
         public bool IsActionRequested =>
             IsReloading ||
@@ -104,7 +109,8 @@ namespace Breachpoint.Gameplay.Weapons
             if (_reloadRequested)
             {
                 if (!_isMotionReadyForAction ||
-                    !_isReloadPresentationReady)
+                    !_isReloadPresentationReady ||
+                    (_highReady != null && !_highReady.IsAtRest))
                 {
                     return;
                 }
@@ -144,6 +150,11 @@ namespace Breachpoint.Gameplay.Weapons
 
         private void TryFire()
         {
+            if (_highReady != null && _highReady.IsBlockingFire)
+            {
+                return;
+            }
+
             if (Time.time < _nextShotTime)
             {
                 return;
@@ -261,6 +272,13 @@ namespace Breachpoint.Gameplay.Weapons
             {
                 Debug.LogError(
                     $"{nameof(PlayerWeaponController)} requires a HitscanWeapon reference.",
+                    this);
+            }
+
+            if (_highReady == null)
+            {
+                Debug.LogError(
+                    $"{nameof(PlayerWeaponController)} requires a WeaponHighReady reference.",
                     this);
             }
         }
