@@ -1,6 +1,7 @@
 using Breachpoint.Gameplay.Player.Input;
 using Breachpoint.Gameplay.Player.Movement;
 using UnityEngine;
+using UnityEngine.Serialization;
 using VContainer;
 
 namespace Breachpoint.Gameplay.Weapons
@@ -24,8 +25,12 @@ namespace Breachpoint.Gameplay.Weapons
         [SerializeField]
         private PlayerMovement _movement;
 
+        [FormerlySerializedAs("_config")]
         [SerializeField]
-        private WeaponMotionConfig _config;
+        private WeaponMotionConfig _defaultConfig;
+
+        [SerializeField]
+        private PlayerWeaponView _weaponView;
 
         private IPlayerInput _input;
         private IWeaponAimState _aimState;
@@ -55,6 +60,22 @@ namespace Breachpoint.Gameplay.Weapons
         private bool _hasTrackedVelocity;
         private bool _isSprintPoseActive;
 
+        private WeaponMotionConfig _config
+        {
+            get
+            {
+                WeaponMotionConfig viewConfig =
+                    _weaponView != null &&
+                    _weaponView.CurrentView != null
+                        ? _weaponView.CurrentView.MotionConfig
+                        : null;
+
+                return viewConfig != null
+                    ? viewConfig
+                    : _defaultConfig;
+            }
+        }
+
         [Inject]
         public void Construct(
             IPlayerInput input,
@@ -68,6 +89,11 @@ namespace Breachpoint.Gameplay.Weapons
 
         private void Awake()
         {
+            if (_weaponView == null)
+            {
+                _weaponView = GetComponent<PlayerWeaponView>();
+            }
+
             ValidateReferences();
 
             if (_motionRoot == null)
@@ -88,6 +114,11 @@ namespace Breachpoint.Gameplay.Weapons
 
         private void OnEnable()
         {
+            if (_weaponView != null)
+            {
+                _weaponView.ViewEquipped += HandleViewEquipped;
+            }
+
             if (_movement == null)
             {
                 return;
@@ -152,12 +183,22 @@ namespace Breachpoint.Gameplay.Weapons
 
         private void OnDisable()
         {
+            if (_weaponView != null)
+            {
+                _weaponView.ViewEquipped -= HandleViewEquipped;
+            }
+
             if (_movement != null)
             {
                 _movement.Jumped -= HandleJumped;
                 _movement.Landed -= HandleLanded;
             }
 
+            ResetMotion();
+        }
+
+        private void HandleViewEquipped(WeaponView view)
+        {
             ResetMotion();
         }
 

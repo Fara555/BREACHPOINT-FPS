@@ -1,6 +1,5 @@
 using Breachpoint.Gameplay.Weapons;
 using UnityEngine;
-using VContainer;
 
 namespace Breachpoint.Gameplay.Player.Camera
 {
@@ -13,19 +12,15 @@ namespace Breachpoint.Gameplay.Player.Camera
         [SerializeField]
         private PlayerWeaponController _weaponController;
 
-        private WeaponConfig _config;
+        private WeaponConfig Config => _weaponController != null
+            ? _weaponController.CurrentConfig
+            : null;
 
         private Quaternion _baseLocalRotation;
         private Vector2 _currentRecoil;
         private Vector2 _targetRecoil;
         private float _lastShotTime = float.NegativeInfinity;
         private int _burstShotCount;
-
-        [Inject]
-        public void Construct(WeaponConfig config)
-        {
-            _config = config;
-        }
 
         private void Awake()
         {
@@ -57,19 +52,21 @@ namespace Breachpoint.Gameplay.Player.Camera
 
         private void LateUpdate()
         {
-            if (_recoilRoot == null || _config == null)
+            WeaponConfig config = Config;
+
+            if (_recoilRoot == null || config == null)
             {
                 return;
             }
 
             float followWeight = 1f - Mathf.Exp(
-                -_config.CameraRecoilSnappiness * Time.deltaTime);
+                -config.CameraRecoilSnappiness * Time.deltaTime);
 
             if (Time.time - _lastShotTime >=
-                _config.CameraRecoilRecoveryDelay)
+                config.CameraRecoilRecoveryDelay)
             {
                 float returnWeight = 1f - Mathf.Exp(
-                    -_config.CameraRecoilReturnSpeed * Time.deltaTime);
+                    -config.CameraRecoilReturnSpeed * Time.deltaTime);
 
                 _targetRecoil = Vector2.Lerp(
                     _targetRecoil,
@@ -92,8 +89,14 @@ namespace Breachpoint.Gameplay.Player.Camera
 
         private void HandleShotFired(WeaponShotResult result)
         {
+            WeaponConfig config = Config;
+            if (config == null)
+            {
+                return;
+            }
+
             if (Time.time - _lastShotTime >=
-                _config.RecoilBurstResetDelay)
+                config.RecoilBurstResetDelay)
             {
                 _burstShotCount = 0;
             }
@@ -103,42 +106,42 @@ namespace Breachpoint.Gameplay.Player.Camera
 
             float burstProgress = Mathf.Clamp01(
                 (_burstShotCount - 1f) /
-                _config.ShotsToMaximumBurstRecoil);
+                config.ShotsToMaximumBurstRecoil);
 
             float burstMultiplier = Mathf.Lerp(
                 1f,
-                _config.MaximumBurstRecoilMultiplier,
+                config.MaximumBurstRecoilMultiplier,
                 burstProgress);
 
             float aimMultiplier =
                 _weaponController.IsAiming
-                    ? _config.AimRecoilMultiplier
+                    ? config.AimRecoilMultiplier
                     : 1f;
 
             float pitch = Random.Range(
-                _config.CameraRecoilPitch -
-                _config.CameraRecoilPitchVariation,
-                _config.CameraRecoilPitch +
-                _config.CameraRecoilPitchVariation);
+                config.CameraRecoilPitch -
+                config.CameraRecoilPitchVariation,
+                config.CameraRecoilPitch +
+                config.CameraRecoilPitchVariation);
 
             pitch = Mathf.Max(0f, pitch) *
                     burstMultiplier *
                     aimMultiplier;
 
             float yaw = Random.Range(
-                -_config.CameraRecoilYaw,
-                _config.CameraRecoilYaw) *
+                -config.CameraRecoilYaw,
+                config.CameraRecoilYaw) *
                 burstMultiplier *
                 aimMultiplier;
 
             _targetRecoil.x = Mathf.Min(
                 _targetRecoil.x + pitch,
-                _config.MaximumCameraRecoil);
+                config.MaximumCameraRecoil);
 
             _targetRecoil.y = Mathf.Clamp(
                 _targetRecoil.y + yaw,
-                -_config.MaximumHorizontalCameraRecoil,
-                _config.MaximumHorizontalCameraRecoil);
+                -config.MaximumHorizontalCameraRecoil,
+                config.MaximumHorizontalCameraRecoil);
         }
 
         private void ResetRecoil()

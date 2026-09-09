@@ -16,6 +16,9 @@ namespace Breachpoint.Gameplay.Weapons.Effects
         private PlayerWeaponController _weaponController;
 
         [SerializeField]
+        private PlayerWeaponView _weaponView;
+
+        [SerializeField]
         private VisualEffect[] _reloadEffects;
 
         [SerializeField]
@@ -128,6 +131,16 @@ namespace Breachpoint.Gameplay.Weapons.Effects
 
         private void HandleReloadStarted(float duration)
         {
+            if (_weaponView != null &&
+                _weaponView.CurrentView != null &&
+                !_weaponView.CurrentView.UseReloadEffects)
+            {
+                _isReloading = false;
+                EndReloadWindow();
+                StopEffectsImmediate();
+                return;
+            }
+
             _isReloading = true;
             _currentReloadDuration = Mathf.Max(0f, duration);
             EndReloadWindow();
@@ -303,6 +316,11 @@ namespace Breachpoint.Gameplay.Weapons.Effects
             if (_weaponController == null)
             {
                 _weaponController = GetComponent<PlayerWeaponController>();
+            }
+
+            if (_weaponView == null)
+            {
+                _weaponView = GetComponent<PlayerWeaponView>();
             }
         }
 

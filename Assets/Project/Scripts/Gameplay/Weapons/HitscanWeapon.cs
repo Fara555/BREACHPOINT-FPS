@@ -1,7 +1,6 @@
 using System;
 using Breachpoint.Gameplay.Combat;
 using UnityEngine;
-using VContainer;
 
 namespace Breachpoint.Gameplay.Weapons
 {
@@ -19,18 +18,37 @@ namespace Breachpoint.Gameplay.Weapons
         [SerializeField]
         private GameObject _damageSource;
 
-        private WeaponConfig _config;
+        [SerializeField]
+        private PlayerWeaponController _weaponController;
+
+        [SerializeField]
+        private PlayerWeaponView _weaponView;
+
+        private WeaponConfig Config => _weaponController != null
+            ? _weaponController.CurrentConfig
+            : null;
+
+        private Transform Muzzle =>
+            _weaponView != null &&
+            _weaponView.CurrentView != null &&
+            _weaponView.CurrentView.Muzzle != null
+                ? _weaponView.CurrentView.Muzzle
+                : _muzzle;
 
         public event Action<WeaponShotResult> ShotResolved;
 
-        [Inject]
-        public void Construct(WeaponConfig config)
-        {
-            _config = config;
-        }
-
         private void Awake()
         {
+            if (_weaponController == null)
+            {
+                _weaponController = GetComponent<PlayerWeaponController>();
+            }
+
+            if (_weaponView == null)
+            {
+                _weaponView = GetComponent<PlayerWeaponView>();
+            }
+
             ValidateReferences();
         }
 
@@ -48,11 +66,13 @@ namespace Breachpoint.Gameplay.Weapons
             Vector3 targetPoint = GetCameraTargetPoint(
                 cameraDirection);
 
-            Vector3 muzzleOrigin = _muzzle.position;
+            WeaponConfig config = Config;
+            Transform muzzle = Muzzle;
+            Vector3 muzzleOrigin = muzzle.position;
             Vector3 muzzleDirection = targetPoint - muzzleOrigin;
             float targetDistance = Mathf.Min(
                 muzzleDirection.magnitude,
-                _config.Range);
+                config.Range);
 
             if (targetDistance <= Mathf.Epsilon)
             {
@@ -62,14 +82,14 @@ namespace Breachpoint.Gameplay.Weapons
             muzzleDirection /= muzzleDirection.magnitude;
             float raycastDistance = Mathf.Min(
                 targetDistance + HitDistancePadding,
-                _config.Range);
+                config.Range);
 
             if (Physics.Raycast(
                     muzzleOrigin,
                     muzzleDirection,
                     out RaycastHit hit,
                     raycastDistance,
-                    _config.HitMask,
+                    config.HitMask,
                     QueryTriggerInteraction.Ignore))
             {
                 ApplyDamage(hit, muzzleDirection);
@@ -100,14 +120,14 @@ namespace Breachpoint.Gameplay.Weapons
                     origin,
                     direction,
                     out RaycastHit hit,
-                    _config.Range,
-                    _config.HitMask,
+                    Config.Range,
+                    Config.HitMask,
                     QueryTriggerInteraction.Ignore))
             {
                 return hit.point;
             }
 
-            return origin + direction * _config.Range;
+            return origin + direction * Config.Range;
         }
 
         private Vector3 ApplySpread(
@@ -115,8 +135,8 @@ namespace Breachpoint.Gameplay.Weapons
             bool isAiming)
         {
             float spreadAngle = isAiming
-                ? _config.AimSpreadAngle
-                : _config.HipSpreadAngle;
+                ? Config.AimSpreadAngle
+                : Config.HipSpreadAngle;
 
             if (spreadAngle <= 0f)
             {
@@ -151,7 +171,7 @@ namespace Breachpoint.Gameplay.Weapons
 
             damageable.TakeDamage(
                 new DamageInfo(
-                    _config.Damage,
+                    Config.Damage,
                     hit.point,
                     direction,
                     source));
@@ -160,9 +180,9 @@ namespace Breachpoint.Gameplay.Weapons
         private bool CanFire()
         {
             return
-                _config != null &&
+                Config != null &&
                 _aimCamera != null &&
-                _muzzle != null;
+                Muzzle != null;
         }
 
         private void ValidateReferences()
@@ -178,6 +198,13 @@ namespace Breachpoint.Gameplay.Weapons
             {
                 Debug.LogError(
                     $"{nameof(HitscanWeapon)} requires a Muzzle reference.",
+                    this);
+            }
+
+            if (_weaponController == null)
+            {
+                Debug.LogError(
+                    $"{nameof(HitscanWeapon)} requires a PlayerWeaponController reference.",
                     this);
             }
         }

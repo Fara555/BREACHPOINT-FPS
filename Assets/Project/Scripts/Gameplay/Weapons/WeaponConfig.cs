@@ -3,6 +3,12 @@ using UnityEngine.Serialization;
 
 namespace Breachpoint.Gameplay.Weapons
 {
+    public enum WeaponFireMode
+    {
+        Automatic,
+        SemiAutomatic
+    }
+
     [CreateAssetMenu(
         fileName = "WeaponConfig",
         menuName = "Breachpoint/Weapons/Weapon Config")]
@@ -19,6 +25,9 @@ namespace Breachpoint.Gameplay.Weapons
         private LayerMask _hitMask = ~0;
 
         [Header("Firing")]
+        [SerializeField]
+        private WeaponFireMode _fireMode;
+
         [SerializeField, Min(1f)]
         private float _roundsPerMinute = 600f;
 
@@ -102,6 +111,7 @@ namespace Breachpoint.Gameplay.Weapons
         public float Damage => _damage;
         public float Range => _range;
         public LayerMask HitMask => _hitMask;
+        public WeaponFireMode FireMode => _fireMode;
         public float SecondsPerShot => 60f / _roundsPerMinute;
         public float HipSpreadAngle => _hipSpreadAngle;
         public float AimSpreadAngle => _aimSpreadAngle;

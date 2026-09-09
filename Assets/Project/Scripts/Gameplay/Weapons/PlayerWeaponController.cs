@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Breachpoint.Gameplay.Player.Input;
 using UnityEngine;
 using VContainer;
@@ -17,9 +18,14 @@ namespace Breachpoint.Gameplay.Weapons
         [SerializeField]
         private WeaponHighReady _highReady;
 
+        [SerializeField]
+        private PlayerWeaponView _weaponView;
+
         private IPlayerInput _input;
         private WeaponConfig _config;
         private WeaponAmmo _ammo;
+        private WeaponConfig _defaultConfig;
+        private readonly Dictionary<WeaponView, WeaponAmmo> _ammunition = new();
 
         private float _nextShotTime;
         private float _reloadCompletionTime;
@@ -41,25 +47,35 @@ namespace Breachpoint.Gameplay.Weapons
         public bool IsReloadInProgress =>
             IsReloading || _reloadRequested;
         public bool IsAiming { get; private set; }
+        public WeaponConfig CurrentConfig => _config;
         public bool IsActionRequested =>
             IsReloading ||
             _reloadRequested ||
             _fireRequested ||
-            (_input != null && _input.IsFireHeld);
+            (IsAutomaticFire &&
+             _input != null &&
+             _input.IsFireHeld);
+
+        private bool IsAutomaticFire =>
+            _config != null &&
+            _config.FireMode == WeaponFireMode.Automatic;
 
         [Inject]
         public void Construct(
             IPlayerInput input,
-            WeaponConfig config,
-            WeaponAmmo ammo)
+            WeaponConfig config)
         {
             _input = input;
-            _config = config;
-            _ammo = ammo;
+            _defaultConfig = config;
         }
 
         private void Awake()
         {
+            if (_weaponView == null)
+            {
+                _weaponView = GetComponent<PlayerWeaponView>();
+            }
+
             ValidateReferences();
         }
 
@@ -69,10 +85,17 @@ namespace Breachpoint.Gameplay.Weapons
             {
                 _weapon.ShotResolved += HandleShotResolved;
             }
+
+            if (_weaponView != null)
+            {
+                _weaponView.ViewEquipped += HandleViewEquipped;
+                EquipView(_weaponView.CurrentView);
+            }
         }
 
         private void Start()
         {
+            EquipView(_weaponView != null ? _weaponView.CurrentView : null);
             ValidateDependencies();
             NotifyAmmunitionChanged();
         }
@@ -120,7 +143,8 @@ namespace Breachpoint.Gameplay.Weapons
                 return;
             }
 
-            if (_fireRequested || isFireHeld)
+            if (_fireRequested ||
+                (IsAutomaticFire && isFireHeld))
             {
                 if (!_isMotionReadyForAction)
                 {
@@ -137,6 +161,11 @@ namespace Breachpoint.Gameplay.Weapons
             if (_weapon != null)
             {
                 _weapon.ShotResolved -= HandleShotResolved;
+            }
+
+            if (_weaponView != null)
+            {
+                _weaponView.ViewEquipped -= HandleViewEquipped;
             }
 
             IsReloading = false;
@@ -226,6 +255,47 @@ namespace Breachpoint.Gameplay.Weapons
             ShotFired?.Invoke(result);
         }
 
+        private void HandleViewEquipped(WeaponView view)
+        {
+            EquipView(view);
+        }
+
+        private void EquipView(WeaponView view)
+        {
+            WeaponConfig nextConfig = view != null && view.Config != null
+                ? view.Config
+                : _defaultConfig;
+
+            if (nextConfig == null)
+            {
+                _config = null;
+                _ammo = null;
+                return;
+            }
+
+            if (view != null && _ammunition.TryGetValue(view, out WeaponAmmo ammo))
+            {
+                _ammo = ammo;
+            }
+            else
+            {
+                _ammo = new WeaponAmmo(nextConfig);
+
+                if (view != null)
+                {
+                    _ammunition.Add(view, _ammo);
+                }
+            }
+
+            _config = nextConfig;
+            IsReloading = false;
+            _reloadRequested = false;
+            _fireRequested = false;
+            _nextShotTime = 0f;
+            SetAiming(false);
+            NotifyAmmunitionChanged();
+        }
+
         private void UpdateAimState()
         {
             bool shouldAim =
@@ -279,6 +349,13 @@ namespace Breachpoint.Gameplay.Weapons
             {
                 Debug.LogError(
                     $"{nameof(PlayerWeaponController)} requires a WeaponHighReady reference.",
+                    this);
+            }
+
+            if (_weaponView == null)
+            {
+                Debug.LogError(
+                    $"{nameof(PlayerWeaponController)} requires a PlayerWeaponView reference.",
                     this);
             }
         }

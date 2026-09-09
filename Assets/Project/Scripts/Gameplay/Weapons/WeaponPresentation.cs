@@ -14,6 +14,9 @@ namespace Breachpoint.Gameplay.Weapons
         private PlayerWeaponController _weaponController;
 
         [SerializeField]
+        private PlayerWeaponView _weaponView;
+
+        [SerializeField]
         private Transform _visualRoot;
 
         [SerializeField]
@@ -47,7 +50,9 @@ namespace Breachpoint.Gameplay.Weapons
         private AudioCue _reloadCue;
 
         private IAudioService _audioService;
-        private WeaponConfig _config;
+        private WeaponConfig Config => _weaponController != null
+            ? _weaponController.CurrentConfig
+            : null;
 
         private Vector3 _hipLocalPosition;
         private Quaternion _hipLocalRotation;
@@ -58,15 +63,19 @@ namespace Breachpoint.Gameplay.Weapons
 
         [Inject]
         public void Construct(
-            IAudioService audioService,
-            WeaponConfig config)
+            IAudioService audioService)
         {
             _audioService = audioService;
-            _config = config;
         }
 
         private void Awake()
         {
+            if (_weaponView == null && _weaponController != null)
+            {
+                _weaponView =
+                    _weaponController.GetComponent<PlayerWeaponView>();
+            }
+
             ResolveOptionalEffects();
             ValidateReferences();
 
@@ -124,9 +133,15 @@ namespace Breachpoint.Gameplay.Weapons
         {
             _targetKick = 1f;
 
-            if (_muzzleFlashEffect != null)
+            WeaponView currentView = GetCurrentView();
+            WeaponMuzzleFlash muzzleFlash =
+                currentView != null && currentView.MuzzleFlashEffect != null
+                    ? currentView.MuzzleFlashEffect
+                    : _muzzleFlashEffect;
+
+            if (muzzleFlash != null)
             {
-                _muzzleFlashEffect.Play();
+                muzzleFlash.Play();
             }
 
             if (_tracerPool != null)
@@ -148,7 +163,7 @@ namespace Breachpoint.Gameplay.Weapons
 
             if (_audioService != null && _shotCue != null)
             {
-                _audioService.Play(_shotCue, _muzzle);
+                _audioService.Play(_shotCue, GetCurrentMuzzle());
             }
         }
 
@@ -160,6 +175,21 @@ namespace Breachpoint.Gameplay.Weapons
             {
                 _audioService.Play(_reloadCue, _visualRoot);
             }
+        }
+
+        private WeaponView GetCurrentView()
+        {
+            return _weaponView != null
+                ? _weaponView.CurrentView
+                : null;
+        }
+
+        private Transform GetCurrentMuzzle()
+        {
+            WeaponView currentView = GetCurrentView();
+            return currentView != null && currentView.Muzzle != null
+                ? currentView.Muzzle
+                : _muzzle;
         }
 
         private void ReportReloadPresentationReady()
@@ -179,9 +209,11 @@ namespace Breachpoint.Gameplay.Weapons
 
         private void UpdateAimAndVisualRecoil()
         {
+            WeaponConfig config = Config;
+
             if (_visualRoot == null ||
                 _aimPose == null ||
-                _config == null)
+                config == null)
             {
                 return;
             }
@@ -193,7 +225,7 @@ namespace Breachpoint.Gameplay.Weapons
                     : 0f;
 
             float aimWeight = 1f - Mathf.Exp(
-                -_config.AimTransitionSpeed * Time.deltaTime);
+                -config.AimTransitionSpeed * Time.deltaTime);
 
             _aimWeight = Mathf.Lerp(
                 _aimWeight,
@@ -201,10 +233,10 @@ namespace Breachpoint.Gameplay.Weapons
                 aimWeight);
 
             float returnWeight = 1f - Mathf.Exp(
-                -_config.VisualRecoilReturnSpeed * Time.deltaTime);
+                -config.VisualRecoilReturnSpeed * Time.deltaTime);
 
             float followWeight = 1f - Mathf.Exp(
-                -_config.VisualRecoilSnappiness * Time.deltaTime);
+                -config.VisualRecoilSnappiness * Time.deltaTime);
 
             _targetKick = Mathf.Lerp(
                 _targetKick,
@@ -216,37 +248,47 @@ namespace Breachpoint.Gameplay.Weapons
                 _targetKick,
                 followWeight);
 
+            WeaponView currentView = GetCurrentView();
+            Vector3 aimLocalPosition =
+                currentView != null && currentView.OverrideAimPose
+                    ? currentView.AimLocalPosition
+                    : _aimPose.localPosition;
+            Quaternion aimLocalRotation =
+                currentView != null && currentView.OverrideAimPose
+                    ? currentView.AimLocalRotation
+                    : _aimPose.localRotation;
+
             Vector3 posePosition = Vector3.Lerp(
                 _hipLocalPosition,
-                _aimPose.localPosition,
+                aimLocalPosition,
                 _aimWeight);
 
             Quaternion poseRotation = Quaternion.Slerp(
                 _hipLocalRotation,
-                _aimPose.localRotation,
+                aimLocalRotation,
                 _aimWeight);
 
             float kickDistanceMultiplier = Mathf.Lerp(
                 1f,
-                _config.AimVisualKickDistanceMultiplier,
+                config.AimVisualKickDistanceMultiplier,
                 _aimWeight);
 
             float kickPitchMultiplier = Mathf.Lerp(
                 1f,
-                _config.AimVisualKickPitchMultiplier,
+                config.AimVisualKickPitchMultiplier,
                 _aimWeight);
 
             _visualRoot.localPosition =
                 posePosition +
                 Vector3.back *
-                (_config.VisualKickDistance *
+                (config.VisualKickDistance *
                  kickDistanceMultiplier *
                  _currentKick);
 
             _visualRoot.localRotation =
                 poseRotation *
                 Quaternion.Euler(
-                    -_config.VisualKickPitch *
+                    -config.VisualKickPitch *
                     kickPitchMultiplier *
                     _currentKick,
                     0f,
@@ -256,7 +298,7 @@ namespace Breachpoint.Gameplay.Weapons
             {
                 float aimFieldOfView =
                     _hipFieldOfView *
-                    _config.AimFieldOfViewMultiplier;
+                    config.AimFieldOfViewMultiplier;
 
                 _aimCamera.fieldOfView = Mathf.Lerp(
                     _hipFieldOfView,

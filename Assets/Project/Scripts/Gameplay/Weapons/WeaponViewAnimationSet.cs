@@ -7,6 +7,10 @@ namespace Breachpoint.Gameplay.Weapons
         menuName = "Breachpoint/Weapons/View Animation Set")]
     public sealed class WeaponViewAnimationSet : ScriptableObject
     {
+        [Header("Hold")]
+        [SerializeField]
+        private AnimationClip _armsHold;
+
         [Header("Reload")]
         [SerializeField]
         private AnimationClip _armsReload;
@@ -14,6 +18,8 @@ namespace Breachpoint.Gameplay.Weapons
         [SerializeField]
         private AnimationClip _weaponReload;
 
+        public AnimationClip ArmsHold =>
+            _armsHold != null ? _armsHold : _armsReload;
         public AnimationClip ArmsReload => _armsReload;
         public AnimationClip WeaponReload => _weaponReload;
 

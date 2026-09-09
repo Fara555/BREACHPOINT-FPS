@@ -145,7 +145,7 @@ namespace Breachpoint.Gameplay.Weapons.Effects
                 instance.LeadingDistance,
                 instance.Distance);
             float trailingDistance = Mathf.Max(
-                _spawnOffset,
+                0f,
                 instance.LeadingDistance - _length);
 
             trailingDistance = Mathf.Min(trailingDistance, leadingDistance);

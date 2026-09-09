@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 using UnityEngine.Animations;
 using UnityEngine.Playables;
@@ -23,6 +24,7 @@ namespace Breachpoint.Gameplay.Weapons
         private int _startingViewIndex;
 
         private PlayableGraph _reloadGraph;
+        private PlayableGraph _holdGraph;
         private WeaponView _currentView;
         private Transform _weaponAnimatorRoot;
         private Vector3 _weaponAnimatorRootPosition;
@@ -31,6 +33,8 @@ namespace Breachpoint.Gameplay.Weapons
         private bool _hasWeaponAnimatorRootPose;
 
         public WeaponView CurrentView => _currentView;
+
+        public event Action<WeaponView> ViewEquipped;
 
         private void Awake()
         {
@@ -47,13 +51,16 @@ namespace Breachpoint.Gameplay.Weapons
 
         private void OnEnable()
         {
-            if (_weaponController == null)
+            if (_weaponController != null)
             {
-                return;
+                _weaponController.ReloadStarted += HandleReloadStarted;
+                _weaponController.ReloadCompleted += HandleReloadCompleted;
             }
 
-            _weaponController.ReloadStarted += HandleReloadStarted;
-            _weaponController.ReloadCompleted += HandleReloadCompleted;
+            if (_currentView != null && !_holdGraph.IsValid())
+            {
+                PlayHoldAnimation();
+            }
         }
 
         private void OnDisable()
@@ -64,7 +71,8 @@ namespace Breachpoint.Gameplay.Weapons
                 _weaponController.ReloadCompleted -= HandleReloadCompleted;
             }
 
-            StopReloadAnimation();
+            StopReloadAnimation(false);
+            StopHoldAnimation();
         }
 
         private void LateUpdate()
@@ -82,7 +90,8 @@ namespace Breachpoint.Gameplay.Weapons
                 return;
             }
 
-            StopReloadAnimation();
+            StopReloadAnimation(false);
+            StopHoldAnimation();
 
             if (_weaponViews != null)
             {
@@ -96,6 +105,22 @@ namespace Breachpoint.Gameplay.Weapons
             }
 
             _currentView = weaponView;
+            PlayHoldAnimation();
+            ViewEquipped?.Invoke(_currentView);
+        }
+
+        public bool Equip(int index)
+        {
+            if (_weaponViews == null ||
+                index < 0 ||
+                index >= _weaponViews.Length ||
+                _weaponViews[index] == null)
+            {
+                return false;
+            }
+
+            Equip(_weaponViews[index]);
+            return true;
         }
 
         private void EquipStartingView()
@@ -129,7 +154,8 @@ namespace Breachpoint.Gameplay.Weapons
                 return;
             }
 
-            StopReloadAnimation();
+            StopReloadAnimation(false);
+            StopHoldAnimation();
             CaptureWeaponAnimatorRootPose();
 
             _reloadGraph = PlayableGraph.Create(
@@ -188,7 +214,7 @@ namespace Breachpoint.Gameplay.Weapons
             output.SetSourcePlayable(clipPlayable);
         }
 
-        private void StopReloadAnimation()
+        private void StopReloadAnimation(bool restoreHoldAnimation = true)
         {
             if (_reloadGraph.IsValid())
             {
@@ -204,6 +230,61 @@ namespace Breachpoint.Gameplay.Weapons
 
             RestoreWeaponAnimatorRootPose();
             ClearWeaponAnimatorRootPose();
+
+            if (restoreHoldAnimation)
+            {
+                PlayHoldAnimation();
+            }
+        }
+
+        private void PlayHoldAnimation()
+        {
+            StopHoldAnimation();
+
+            AnimationClip holdClip =
+                _currentView != null &&
+                _currentView.Animations != null
+                    ? _currentView.Animations.ArmsHold
+                    : null;
+
+            if (_armsAnimator == null || holdClip == null)
+            {
+                return;
+            }
+
+            _holdGraph = PlayableGraph.Create(
+                $"{name} Hold Animation");
+            _holdGraph.SetTimeUpdateMode(
+                DirectorUpdateMode.GameTime);
+
+            AnimationClipPlayable clipPlayable =
+                AnimationClipPlayable.Create(
+                    _holdGraph,
+                    holdClip);
+
+            clipPlayable.SetTime(0d);
+            clipPlayable.SetSpeed(0d);
+
+            AnimationPlayableOutput output =
+                AnimationPlayableOutput.Create(
+                    _holdGraph,
+                    "Arms Hold",
+                    _armsAnimator);
+
+            output.SetSourcePlayable(clipPlayable);
+            _holdGraph.Play();
+            _holdGraph.Evaluate(0f);
+        }
+
+        private void StopHoldAnimation()
+        {
+            if (!_holdGraph.IsValid())
+            {
+                return;
+            }
+
+            _holdGraph.Destroy();
+            ResetAnimator(_armsAnimator);
         }
 
         private void CaptureWeaponAnimatorRootPose()
