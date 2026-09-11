@@ -18,7 +18,7 @@ MonoBehaviour:
     serializedVersion: 2
     m_Bits: 257
   _fireMode: 1
-  _roundsPerMinute: 360
+  _roundsPerMinute: 520
   _hipSpreadAngle: 0.65
   _aimSpreadAngle: 0.06
   _aimTransitionSpeed: 16

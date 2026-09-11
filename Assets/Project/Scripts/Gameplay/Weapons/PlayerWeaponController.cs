@@ -114,7 +114,9 @@ namespace Breachpoint.Gameplay.Weapons
 
             bool isFireHeld = _input.IsFireHeld;
 
-            if (isFireHeld && !_wasFireHeld)
+            if (isFireHeld &&
+                !_wasFireHeld &&
+                !IsReloadInProgress)
             {
                 _fireRequested = true;
             }
@@ -222,6 +224,7 @@ namespace Breachpoint.Gameplay.Weapons
                 return;
             }
 
+            _fireRequested = false;
             _reloadRequested = true;
             _isReloadPresentationReady = false;
         }
@@ -298,10 +301,15 @@ namespace Breachpoint.Gameplay.Weapons
 
         private void UpdateAimState()
         {
+            bool isHighReady =
+                _highReady != null &&
+                _highReady.IsInHighReady;
+
             bool shouldAim =
                 _input.IsAimHeld &&
                 !IsReloading &&
-                !_reloadRequested;
+                !_reloadRequested &&
+                !isHighReady;
 
             SetAiming(shouldAim);
         }

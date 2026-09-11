@@ -5,6 +5,8 @@ namespace Breachpoint.Gameplay.Weapons
     [DefaultExecutionOrder(-100)]
     public sealed class WeaponHighReady : MonoBehaviour
     {
+        private const float RestThreshold = 0.01f;
+
         [Header("References")]
         [SerializeField]
         private Transform _poseRoot;
@@ -39,7 +41,10 @@ namespace Breachpoint.Gameplay.Weapons
         private bool _hasDefaultPose;
 
         public float HighReadyWeight => _highReadyWeight;
-        public bool IsAtRest => _highReadyWeight <= 0.01f;
+        public bool IsAtRest => _highReadyWeight <= RestThreshold;
+        public bool IsInHighReady =>
+            _targetWeight > RestThreshold ||
+            !IsAtRest;
         public bool IsBlockingFire =>
             _targetWeight > _fireBlockThreshold;
 
