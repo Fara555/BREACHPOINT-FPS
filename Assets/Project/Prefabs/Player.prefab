@@ -101,7 +101,7 @@ GameObject:
   - component: {fileID: 467954869053806149}
   - component: {fileID: 3828805457895782922}
   - component: {fileID: 6731571681631326929}
-  m_Layer: 0
+  m_Layer: 7
   m_Name: VFX_ReloadChargeCore
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -413,7 +413,7 @@ Transform:
   m_LocalScale: {x: 0.4, y: 0.4, z: 0.4}
   m_ConstrainProportionsScale: 1
   m_Children: []
-  m_Father: {fileID: 4793535623833158859}
+  m_Father: {fileID: 4201874707864788195}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!33 &909000000000000042
 MeshFilter:
@@ -1642,7 +1642,7 @@ GameObject:
   - component: {fileID: 5602985419355097927}
   - component: {fileID: 6941289764902624606}
   - component: {fileID: 909000000000000060}
-  m_Layer: 0
+  m_Layer: 7
   m_Name: VFX_SP6_HandAura
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -2092,7 +2092,7 @@ GameObject:
   m_Component:
   - component: {fileID: 7900037512686094426}
   - component: {fileID: 6960315327124610816}
-  m_Layer: 0
+  m_Layer: 7
   m_Name: ProjectileTracerPool
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -2178,7 +2178,7 @@ GameObject:
   - component: {fileID: 5736807121735428874}
   - component: {fileID: 3379125233122072731}
   - component: {fileID: 2678184958864170067}
-  m_Layer: 0
+  m_Layer: 7
   m_Name: VFX_FistLightLeakBeam
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -2721,7 +2721,7 @@ GameObject:
   - component: {fileID: 2353875815138022815}
   - component: {fileID: 7923095573364636551}
   - component: {fileID: 7398836276344537219}
-  m_Layer: 0
+  m_Layer: 7
   m_Name: VFX_FistLightLeakBeam
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -2839,7 +2839,7 @@ GameObject:
   - component: {fileID: 3699278575375404700}
   - component: {fileID: 5139589255610146369}
   - component: {fileID: 2929517542524114}
-  m_Layer: 0
+  m_Layer: 7
   m_Name: VFX_FistLightLeakBeam
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -2989,7 +2989,7 @@ GameObject:
   - component: {fileID: 7189585954368451776}
   - component: {fileID: 7495826249605966531}
   - component: {fileID: 4471038197271707768}
-  m_Layer: 0
+  m_Layer: 7
   m_Name: VFX_FistLightLeakBeam
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -3362,7 +3362,7 @@ GameObject:
   - component: {fileID: 5944856295183734413}
   - component: {fileID: 261797739043201066}
   - component: {fileID: 5080605212312585830}
-  m_Layer: 0
+  m_Layer: 7
   m_Name: VFX_FistLightLeakBeam
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -3480,7 +3480,7 @@ GameObject:
   - component: {fileID: 89709718453828506}
   - component: {fileID: 5414803599676563182}
   - component: {fileID: 3117741243342980157}
-  m_Layer: 0
+  m_Layer: 7
   m_Name: VFX_ReloadChargeCore
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -3598,7 +3598,7 @@ GameObject:
   - component: {fileID: 1289869034767698398}
   - component: {fileID: 8366660596152922168}
   - component: {fileID: 8140438202212337298}
-  m_Layer: 0
+  m_Layer: 7
   m_Name: VFX_FistLightLeakBeam
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -4215,7 +4215,7 @@ GameObject:
   - component: {fileID: 670970042372352418}
   - component: {fileID: 78072338054508841}
   - component: {fileID: 5701812046814794471}
-  m_Layer: 0
+  m_Layer: 7
   m_Name: VFX_FistLightLeakBeam
   m_TagString: Untagged
   m_Icon: {fileID: 0}
