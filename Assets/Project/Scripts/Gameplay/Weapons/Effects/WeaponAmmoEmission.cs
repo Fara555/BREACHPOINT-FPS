@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Serialization;
@@ -22,6 +23,14 @@ namespace Breachpoint.Gameplay.Weapons.Effects
         [SerializeField]
         private Material _accentMaterial;
 
+        [Tooltip("Renderer name prefix used to discover ordered magazine charge segments.")]
+        [SerializeField]
+        private string _reloadSegmentNamePrefix = "Magazine_Charge_";
+
+        [Tooltip("Reverses the discovered numeric segment order when a weapon is authored bottom-to-top.")]
+        [SerializeField]
+        private bool _reverseReloadSegmentOrder;
+
         [Header("Transitions")]
         [Tooltip("Time used to smoothly reach the next ammunition level after a shot.")]
         [SerializeField, Min(0f)]
@@ -34,7 +43,8 @@ namespace Breachpoint.Gameplay.Weapons.Effects
             1f,
             1f);
 
-        private readonly List<EmissionTarget> _targets = new();
+        private readonly List<EmissionTarget> _weaponTargets = new();
+        private readonly List<EmissionSegment> _reloadSegments = new();
         private MaterialPropertyBlock _propertyBlock;
         private IWeaponReloadWindowSource _reloadWindowSource;
 
@@ -57,6 +67,18 @@ namespace Breachpoint.Gameplay.Weapons.Effects
 
             public Renderer Renderer { get; }
             public int MaterialIndex { get; }
+        }
+
+        private sealed class EmissionSegment
+        {
+            public EmissionSegment(EmissionTarget target, int order)
+            {
+                Target = target;
+                Order = order;
+            }
+
+            public EmissionTarget Target { get; }
+            public int Order { get; }
         }
 
         private void Awake()
@@ -199,35 +221,63 @@ namespace Breachpoint.Gameplay.Weapons.Effects
         private void ApplyLevel(float level)
         {
             _currentLevel = Mathf.Clamp01(level);
+
+            for (int i = 0; i < _weaponTargets.Count; i++)
+            {
+                ApplyEmission(_weaponTargets[i], _currentLevel);
+            }
+
+            int segmentCount = _reloadSegments.Count;
+
+            if (segmentCount == 0)
+            {
+                return;
+            }
+
+            float scaledLevel = _currentLevel * segmentCount;
+
+            for (int i = 0; i < segmentCount; i++)
+            {
+                // Each segment owns an equal part of the fill interval. This
+                // preserves a smooth transition while keeping the top-to-bottom
+                // charging sequence clearly readable.
+                float segmentLevel = Mathf.SmoothStep(
+                    0f,
+                    1f,
+                    Mathf.Clamp01(scaledLevel - i));
+
+                ApplyEmission(_reloadSegments[i].Target, segmentLevel);
+            }
+        }
+
+        private void ApplyEmission(EmissionTarget target, float level)
+        {
+            if (target.Renderer == null)
+            {
+                return;
+            }
+
+            float clampedLevel = Mathf.Clamp01(level);
             Vector4 emissionColor = new(
-                _fullEmissionColor.x * _currentLevel,
-                _fullEmissionColor.y * _currentLevel,
-                _fullEmissionColor.z * _currentLevel,
+                _fullEmissionColor.x * clampedLevel,
+                _fullEmissionColor.y * clampedLevel,
+                _fullEmissionColor.z * clampedLevel,
                 _fullEmissionColor.w);
 
-            for (int i = 0; i < _targets.Count; i++)
-            {
-                EmissionTarget target = _targets[i];
-
-                if (target.Renderer == null)
-                {
-                    continue;
-                }
-
-                _propertyBlock.Clear();
-                target.Renderer.GetPropertyBlock(
-                    _propertyBlock,
-                    target.MaterialIndex);
-                _propertyBlock.SetVector(EmissiveColorId, emissionColor);
-                target.Renderer.SetPropertyBlock(
-                    _propertyBlock,
-                    target.MaterialIndex);
-            }
+            _propertyBlock.Clear();
+            target.Renderer.GetPropertyBlock(
+                _propertyBlock,
+                target.MaterialIndex);
+            _propertyBlock.SetVector(EmissiveColorId, emissionColor);
+            target.Renderer.SetPropertyBlock(
+                _propertyBlock,
+                target.MaterialIndex);
         }
 
         private void SynchronizeImmediate()
         {
-            if (_weaponController == null || _targets.Count == 0)
+            if (_weaponController == null ||
+                (_weaponTargets.Count == 0 && _reloadSegments.Count == 0))
             {
                 return;
             }
@@ -239,7 +289,8 @@ namespace Breachpoint.Gameplay.Weapons.Effects
 
         private void CacheEmissionTargets()
         {
-            _targets.Clear();
+            _weaponTargets.Clear();
+            _reloadSegments.Clear();
 
             if (_accentMaterial == null)
             {
@@ -265,12 +316,60 @@ namespace Breachpoint.Gameplay.Weapons.Effects
                 {
                     if (materials[materialIndex] == _accentMaterial)
                     {
-                        _targets.Add(new EmissionTarget(
+                        EmissionTarget target = new(
                             renderer,
-                            materialIndex));
+                            materialIndex);
+
+                        if (TryGetReloadSegmentOrder(
+                            renderer.name,
+                            out int segmentOrder))
+                        {
+                            _reloadSegments.Add(new EmissionSegment(
+                                target,
+                                segmentOrder));
+                        }
+                        else
+                        {
+                            _weaponTargets.Add(target);
+                        }
                     }
                 }
             }
+
+            _reloadSegments.Sort(CompareSegments);
+
+            if (_reverseReloadSegmentOrder)
+            {
+                _reloadSegments.Reverse();
+            }
+        }
+
+        private bool TryGetReloadSegmentOrder(
+            string rendererName,
+            out int order)
+        {
+            order = 0;
+
+            if (string.IsNullOrWhiteSpace(_reloadSegmentNamePrefix) ||
+                string.IsNullOrEmpty(rendererName) ||
+                !rendererName.StartsWith(
+                    _reloadSegmentNamePrefix,
+                    StringComparison.Ordinal))
+            {
+                return false;
+            }
+
+            string orderText = rendererName.Substring(
+                _reloadSegmentNamePrefix.Length);
+
+            return int.TryParse(orderText, out order);
+        }
+
+        private static int CompareSegments(
+            EmissionSegment left,
+            EmissionSegment right)
+        {
+            return left.Order.CompareTo(right.Order);
         }
 
         private void Subscribe()
@@ -376,11 +475,21 @@ namespace Breachpoint.Gameplay.Weapons.Effects
                     this);
             }
 
-            if (_targets.Count == 0)
+            if (_weaponTargets.Count == 0 && _reloadSegments.Count == 0)
             {
                 Debug.LogError(
                     $"{nameof(WeaponAmmoEmission)} could not find " +
                     $"{_accentMaterial.name} on a child Renderer.",
+                    this);
+            }
+
+            if (!string.IsNullOrWhiteSpace(_reloadSegmentNamePrefix) &&
+                _reloadSegments.Count == 0)
+            {
+                Debug.LogWarning(
+                    $"{nameof(WeaponAmmoEmission)} could not find ordered " +
+                    $"reload segments using prefix " +
+                    $"'{_reloadSegmentNamePrefix}'.",
                     this);
             }
         }

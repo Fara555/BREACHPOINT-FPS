@@ -1,0 +1,46 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!21 &2100000
+Material:
+  serializedVersion: 8
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: M_Experimental_EnergyShell
+  m_Shader: {fileID: 4800000, guid: 523d05b554124136a0119bd98c7d5e01, type: 3}
+  m_Parent: {fileID: 0}
+  m_ModifiedSerializedProperties: 0
+  m_ValidKeywords: []
+  m_InvalidKeywords: []
+  m_LightmapFlags: 2
+  m_EnableInstancingVariants: 1
+  m_DoubleSidedGI: 1
+  m_CustomRenderQueue: 3040
+  stringTagMap:
+    RenderType: Transparent
+  disabledShaderPasses: []
+  m_LockedProperties: 
+  m_SavedProperties:
+    serializedVersion: 3
+    m_TexEnvs: []
+    m_Ints: []
+    m_Floats:
+    - _BaseOpacity: 0.011
+    - _Displacement: 0.036
+    - _Emission: 4.6
+    - _FilamentEmission: 6.75
+    - _FilamentOpacity: 0.514
+    - _FilamentThreshold: 0.961
+    - _NoiseScale: 4.61
+    - _NoiseSpeed: 2.93
+    - _PulseAmount: 0.14
+    - _PulseSpeed: 5.36
+    - _RimEmission: 0.37
+    - _RimOpacity: 0.76
+    - _RimPower: 2.01
+    - _Visibility: 1
+    m_Colors:
+    - _EnergyColor: {r: 0.025, g: 0.72, b: 4.2, a: 0.62}
+  m_BuildTextureStacks: []
+  m_AllowLocking: 1

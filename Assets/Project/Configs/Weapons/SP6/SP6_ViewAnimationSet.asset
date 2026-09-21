@@ -13,5 +13,5 @@ MonoBehaviour:
   m_Name: SP6_ViewAnimationSet
   m_EditorClassIdentifier: Assembly-CSharp::Breachpoint.Gameplay.Weapons.WeaponViewAnimationSet
   _armsHold: {fileID: -9001513297148091558, guid: 69dc92ab7fd86d54a9cd043eec4328cf, type: 3}
-  _armsReload: {fileID: -9001513297148091558, guid: 69dc92ab7fd86d54a9cd043eec4328cf, type: 3}
-  _weaponReload: {fileID: 7052978813689083616, guid: a71a0ac1332ba734da2f089df4263da1, type: 3}
+  _armsReload: {fileID: 7400000, guid: e5ea8e2cf7798764cb9a5f1ace7f9fb9, type: 2}
+  _weaponReload: {fileID: 7400000, guid: 8d679f0073ea5fb42bf65764a04d9cab, type: 2}

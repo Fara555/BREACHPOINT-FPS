@@ -1,4 +1,6 @@
+using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Rendering;
 using UnityEngine.Rendering.HighDefinition;
 
 namespace Breachpoint.Gameplay.Weapons
@@ -25,6 +27,21 @@ namespace Breachpoint.Gameplay.Weapons
 
         private int _originalCullingMask;
         private bool _isWorldCameraMaskApplied;
+        private readonly List<ShadowLightState> _shadowLights = new();
+
+        private readonly struct ShadowLightState
+        {
+            public readonly HDAdditionalLightData LightData;
+            public readonly ShadowUpdateMode UpdateMode;
+
+            public ShadowLightState(
+                HDAdditionalLightData lightData,
+                ShadowUpdateMode updateMode)
+            {
+                LightData = lightData;
+                UpdateMode = updateMode;
+            }
+        }
 
         private void OnEnable()
         {
@@ -40,6 +57,9 @@ namespace Breachpoint.Gameplay.Weapons
 
             ConfigureWeaponCamera();
             ApplyWorldCameraCullingMask();
+            ConfigureSharedShadowMaps();
+            RenderPipelineManager.beginCameraRendering +=
+                HandleBeginCameraRendering;
         }
 
         private void LateUpdate()
@@ -55,6 +75,9 @@ namespace Breachpoint.Gameplay.Weapons
 
         private void OnDisable()
         {
+            RenderPipelineManager.beginCameraRendering -=
+                HandleBeginCameraRendering;
+            RestoreShadowLightSettings();
             RestoreWorldCameraCullingMask();
 
             if (_weaponCamera != null)
@@ -112,6 +135,64 @@ namespace Breachpoint.Gameplay.Weapons
                 weaponCameraData.allowDynamicResolution =
                     worldCameraData.allowDynamicResolution;
             }
+        }
+
+        private void ConfigureSharedShadowMaps()
+        {
+            RestoreShadowLightSettings();
+
+            HDAdditionalLightData[] lightDataComponents =
+                FindObjectsByType<HDAdditionalLightData>(
+                    FindObjectsInactive.Exclude);
+
+            foreach (HDAdditionalLightData lightData in lightDataComponents)
+            {
+                Light light = lightData.GetComponent<Light>();
+                if (light == null ||
+                    !light.enabled ||
+                    light.shadows == LightShadows.None ||
+                    light.lightmapBakeType == LightmapBakeType.Baked ||
+                    (light.cullingMask & _weaponLayer.value) == 0)
+                {
+                    continue;
+                }
+
+                _shadowLights.Add(new ShadowLightState(
+                    lightData,
+                    lightData.shadowUpdateMode));
+                lightData.shadowUpdateMode = ShadowUpdateMode.OnDemand;
+            }
+        }
+
+        private void HandleBeginCameraRendering(
+            ScriptableRenderContext context,
+            Camera camera)
+        {
+            if (camera != _worldCamera)
+            {
+                return;
+            }
+
+            foreach (ShadowLightState state in _shadowLights)
+            {
+                if (state.LightData != null && state.LightData.isActiveAndEnabled)
+                {
+                    state.LightData.RequestShadowMapRendering();
+                }
+            }
+        }
+
+        private void RestoreShadowLightSettings()
+        {
+            foreach (ShadowLightState state in _shadowLights)
+            {
+                if (state.LightData != null)
+                {
+                    state.LightData.shadowUpdateMode = state.UpdateMode;
+                }
+            }
+
+            _shadowLights.Clear();
         }
 
         private void ApplyWorldCameraCullingMask()

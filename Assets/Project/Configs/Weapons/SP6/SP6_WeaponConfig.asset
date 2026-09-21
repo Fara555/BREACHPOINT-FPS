@@ -24,7 +24,7 @@ MonoBehaviour:
   _aimTransitionSpeed: 16
   _aimFieldOfViewMultiplier: 0.9
   _magazineSize: 12
-  _reloadDuration: 3
+  _reloadDuration: 3.4
   _cameraRecoilPitch: 1.05
   _cameraRecoilPitchVariation: 0.16
   _cameraRecoilYaw: 0.3
