@@ -1,0 +1,27 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f3467cbe2590466ca47baab97c5d2603, type: 3}
+  m_Name: Perception
+  m_EditorClassIdentifier: Assembly-CSharp::Breachpoint.Gameplay.AI.EnemyPerceptionConfig
+  <ViewRange>k__BackingField: 25
+  <ViewAngle>k__BackingField: 110
+  <Interval>k__BackingField: 0.2
+  <HearingRange>k__BackingField: 30
+  <MemoryDuration>k__BackingField: 5
+  <AlertRise>k__BackingField: 3
+  <AlertFall>k__BackingField: 0.4
+  <TargetMask>k__BackingField:
+    serializedVersion: 2
+    m_Bits: 320
+  <ObstructionMask>k__BackingField:
+    serializedVersion: 2
+    m_Bits: 4294967167

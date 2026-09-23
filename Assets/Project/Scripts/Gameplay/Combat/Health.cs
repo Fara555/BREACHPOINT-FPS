@@ -74,6 +74,13 @@ namespace Breachpoint.Gameplay.Combat
             IsDead = false;
         }
 
+        public void Configure(float maximumHealth, bool destroyOnDeath)
+        {
+            _maximumHealth = Mathf.Max(1f, maximumHealth);
+            _destroyOnDeath = destroyOnDeath;
+            ResetHealth();
+        }
+
         private void Die()
         {
             if (IsDead)

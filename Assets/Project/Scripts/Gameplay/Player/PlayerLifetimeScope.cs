@@ -68,6 +68,12 @@ namespace Breachpoint.Gameplay.Player.Composition
         {
             ValidateReferences();
 
+            var enemyBridge = GetComponent<Breachpoint.Gameplay.AI.PlayerEnemyBridge>();
+            if (enemyBridge != null)
+            {
+                builder.RegisterComponent(enemyBridge);
+            }
+
             builder.RegisterInstance(
                 _movementConfig);
 

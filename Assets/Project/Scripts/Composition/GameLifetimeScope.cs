@@ -16,6 +16,8 @@ namespace Breachpoint.Composition
         {
             ValidateReferences();
 
+            builder.Register<Breachpoint.Gameplay.AI.EnemyWorld>(Lifetime.Singleton);
+
             builder.RegisterComponent(
                     _audioService)
                 .As<IAudioService>();
