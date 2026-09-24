@@ -1,0 +1,116 @@
+{
+  "materials": [
+    {
+      "sourceName": "Adam_head_metal",
+      "sourcePath": "Assets/UnityTechnologies/Adam Character Pack/Adam/Materials/Adam_head_metal.mat",
+      "maskPath": "Assets/Project/Art/Character/Enemies/Adam/Textures/Adam_Head_sg_Mask.png",
+      "specularPath": "Assets/UnityTechnologies/Adam Character Pack/Adam/Textures/Adam_Head_sg.tif",
+      "occlusionPath": "Assets/UnityTechnologies/Adam Character Pack/Adam/Textures/Adam_Head_o.tif",
+      "originalAoWasSrgb": true
+    },
+    {
+      "sourceName": "Adam_BloodyHeadBracket",
+      "sourcePath": "Assets/UnityTechnologies/Adam Character Pack/Adam/Materials/Adam_BloodyHeadBracket.mat",
+      "maskPath": "Assets/Project/Art/Character/Enemies/Adam/Textures/Adam_BloodyHeadBracket_SG_Mask.png",
+      "specularPath": "Assets/UnityTechnologies/Adam Character Pack/Adam/Textures/Adam_BloodyHeadBracket_SG.tif",
+      "occlusionPath": "Assets/UnityTechnologies/Adam Character Pack/Adam/Textures/Adam_BloodyHeadBracket_o.tif",
+      "originalAoWasSrgb": true
+    },
+    {
+      "sourceName": "Adam_mask",
+      "sourcePath": "Assets/UnityTechnologies/Adam Character Pack/Adam/Materials/Adam_mask.mat",
+      "maskPath": "Assets/Project/Art/Character/Enemies/Adam/Textures/Adam_mask_intact_sg_Mask.png",
+      "specularPath": "Assets/UnityTechnologies/Adam Character Pack/Adam/Textures/Mask/Adam_mask_intact_sg.tif",
+      "occlusionPath": "Assets/UnityTechnologies/Adam Character Pack/Adam/Textures/Mask/Adam_mask_intact_o.tif",
+      "originalAoWasSrgb": true
+    },
+    {
+      "sourceName": "Adam_head_plastic",
+      "sourcePath": "Assets/UnityTechnologies/Adam Character Pack/Adam/Materials/Adam_head_plastic.mat",
+      "maskPath": "Assets/Project/Art/Character/Enemies/Adam/Textures/Adam_Head_sg_Mask.png",
+      "specularPath": "Assets/UnityTechnologies/Adam Character Pack/Adam/Textures/Adam_Head_sg.tif",
+      "occlusionPath": "Assets/UnityTechnologies/Adam Character Pack/Adam/Textures/Adam_Head_o.tif",
+      "originalAoWasSrgb": true
+    },
+    {
+      "sourceName": "Adam_Arms_metal",
+      "sourcePath": "Assets/UnityTechnologies/Adam Character Pack/Adam/Materials/Adam_Arms_metal.mat",
+      "maskPath": "Assets/Project/Art/Character/Enemies/Adam/Textures/Adam_Arms_sg_Mask.png",
+      "specularPath": "Assets/UnityTechnologies/Adam Character Pack/Adam/Textures/Adam_Arms_sg.tif",
+      "occlusionPath": "Assets/UnityTechnologies/Adam Character Pack/Adam/Textures/Adam_Arms_o.tif",
+      "originalAoWasSrgb": true
+    },
+    {
+      "sourceName": "Adam_Arms_rubber",
+      "sourcePath": "Assets/UnityTechnologies/Adam Character Pack/Adam/Materials/Adam_Arms_rubber.mat",
+      "maskPath": "Assets/Project/Art/Character/Enemies/Adam/Textures/Adam_Arms_sg_Mask.png",
+      "specularPath": "Assets/UnityTechnologies/Adam Character Pack/Adam/Textures/Adam_Arms_sg.tif",
+      "occlusionPath": "Assets/UnityTechnologies/Adam Character Pack/Adam/Textures/Adam_Arms_o.tif",
+      "originalAoWasSrgb": true
+    },
+    {
+      "sourceName": "Adam_Arms_plastic",
+      "sourcePath": "Assets/UnityTechnologies/Adam Character Pack/Adam/Materials/Adam_Arms_plastic.mat",
+      "maskPath": "Assets/Project/Art/Character/Enemies/Adam/Textures/Adam_Arms_sg_Mask.png",
+      "specularPath": "Assets/UnityTechnologies/Adam Character Pack/Adam/Textures/Adam_Arms_sg.tif",
+      "occlusionPath": "Assets/UnityTechnologies/Adam Character Pack/Adam/Textures/Adam_Arms_o.tif",
+      "originalAoWasSrgb": true
+    },
+    {
+      "sourceName": "Adam_head_rubber",
+      "sourcePath": "Assets/UnityTechnologies/Adam Character Pack/Adam/Materials/Adam_head_rubber.mat",
+      "maskPath": "Assets/Project/Art/Character/Enemies/Adam/Textures/Adam_Head_sg_Mask.png",
+      "specularPath": "Assets/UnityTechnologies/Adam Character Pack/Adam/Textures/Adam_Head_sg.tif",
+      "occlusionPath": "Assets/UnityTechnologies/Adam Character Pack/Adam/Textures/Adam_Head_o.tif",
+      "originalAoWasSrgb": true
+    },
+    {
+      "sourceName": "Adam_Legs_metal",
+      "sourcePath": "Assets/UnityTechnologies/Adam Character Pack/Adam/Materials/Adam_Legs_metal.mat",
+      "maskPath": "Assets/Project/Art/Character/Enemies/Adam/Textures/Adam_Legs_sg_Mask.png",
+      "specularPath": "Assets/UnityTechnologies/Adam Character Pack/Adam/Textures/Adam_Legs_sg.tif",
+      "occlusionPath": "Assets/UnityTechnologies/Adam Character Pack/Adam/Textures/Adam_Legs_o.tif",
+      "originalAoWasSrgb": true
+    },
+    {
+      "sourceName": "Adam_Legs_rubber",
+      "sourcePath": "Assets/UnityTechnologies/Adam Character Pack/Adam/Materials/Adam_Legs_rubber.mat",
+      "maskPath": "Assets/Project/Art/Character/Enemies/Adam/Textures/Adam_Legs_sg_Mask.png",
+      "specularPath": "Assets/UnityTechnologies/Adam Character Pack/Adam/Textures/Adam_Legs_sg.tif",
+      "occlusionPath": "Assets/UnityTechnologies/Adam Character Pack/Adam/Textures/Adam_Legs_o.tif",
+      "originalAoWasSrgb": true
+    },
+    {
+      "sourceName": "Adam_Legs_plastic",
+      "sourcePath": "Assets/UnityTechnologies/Adam Character Pack/Adam/Materials/Adam_Legs_plastic.mat",
+      "maskPath": "Assets/Project/Art/Character/Enemies/Adam/Textures/Adam_Legs_sg_Mask.png",
+      "specularPath": "Assets/UnityTechnologies/Adam Character Pack/Adam/Textures/Adam_Legs_sg.tif",
+      "occlusionPath": "Assets/UnityTechnologies/Adam Character Pack/Adam/Textures/Adam_Legs_o.tif",
+      "originalAoWasSrgb": true
+    },
+    {
+      "sourceName": "Adam_Torso_metal",
+      "sourcePath": "Assets/UnityTechnologies/Adam Character Pack/Adam/Materials/Adam_Torso_metal.mat",
+      "maskPath": "Assets/Project/Art/Character/Enemies/Adam/Textures/Adam_Torso_sg_Mask.png",
+      "specularPath": "Assets/UnityTechnologies/Adam Character Pack/Adam/Textures/Adam_Torso_sg.tif",
+      "occlusionPath": "Assets/UnityTechnologies/Adam Character Pack/Adam/Textures/LOD_Textures/Adam_LOD_02_Torso_o.tif",
+      "originalAoWasSrgb": true
+    },
+    {
+      "sourceName": "Adam_Torso_plastic",
+      "sourcePath": "Assets/UnityTechnologies/Adam Character Pack/Adam/Materials/Adam_Torso_plastic.mat",
+      "maskPath": "Assets/Project/Art/Character/Enemies/Adam/Textures/Adam_Torso_sg_Mask_LOD_AO.png",
+      "specularPath": "Assets/UnityTechnologies/Adam Character Pack/Adam/Textures/Adam_Torso_sg.tif",
+      "occlusionPath": "Assets/UnityTechnologies/Adam Character Pack/Adam/Textures/Adam_Torso_o.tif",
+      "originalAoWasSrgb": true
+    },
+    {
+      "sourceName": "Adam_Torso_rubber",
+      "sourcePath": "Assets/UnityTechnologies/Adam Character Pack/Adam/Materials/Adam_Torso_rubber.mat",
+      "maskPath": "Assets/Project/Art/Character/Enemies/Adam/Textures/Adam_Torso_sg_Mask_LOD_AO.png",
+      "specularPath": "Assets/UnityTechnologies/Adam Character Pack/Adam/Textures/Adam_Torso_sg.tif",
+      "occlusionPath": "Assets/UnityTechnologies/Adam Character Pack/Adam/Textures/Adam_Torso_o.tif",
+      "originalAoWasSrgb": true
+    }
+  ]
+}

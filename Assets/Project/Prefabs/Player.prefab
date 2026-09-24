@@ -1999,9 +1999,9 @@ MonoBehaviour:
   _chargeLights:
   - {fileID: 1810844099558198202}
   _reloadWindowNormalizedDuration: 0.18137255
-  _peakLightIntensity: 4000000
+  _peakLightIntensity: 3000000
   _handGlowLightColor: {r: 0.02352941, g: 0.5266825, b: 1, a: 1}
-  _handGlowPeakLightIntensity: 4000000
+  _handGlowPeakLightIntensity: 100000
   _lightFadeInDuration: 0.18
   _lightFadeOutDuration: 0.2
   _lightFadeCurve:
