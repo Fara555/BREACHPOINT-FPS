@@ -16,6 +16,9 @@ namespace Breachpoint.Gameplay.AI
         private bool _requested;
         public NavigationResult Result { get; private set; }
         public Vector3 Velocity => Ready ? _agent.velocity : Vector3.zero;
+        public Vector3 DesiredVelocity => Ready ? _agent.desiredVelocity : Vector3.zero;
+        public float DesiredSpeed => Ready ? _agent.speed : 0f;
+        public event System.Action<Vector3> FacingRequested;
         public Vector3 Destination { get; private set; }
         public bool Ready => _agent != null && _agent.enabled && _agent.isOnNavMesh;
         public bool Failed => Result == NavigationResult.Unavailable || Result == NavigationResult.Invalid || Result == NavigationResult.Partial || Result == NavigationResult.Stuck;
@@ -61,14 +64,17 @@ namespace Breachpoint.Gameplay.AI
         }
         public void Stop()
         {
-            if (Ready) { _agent.isStopped = true; _agent.ResetPath(); _agent.velocity = Vector3.zero; }
+            if (Ready) { _agent.ResetPath(); _agent.velocity = Vector3.zero; _agent.isStopped = true; }
             _requested = false; _nextRepath = 0f;
         }
         public void Face(Vector3 point, float deltaTime)
         {
             Vector3 direction = point - transform.position; direction.y = 0;
             if (direction.sqrMagnitude > 0.001f)
+            {
+                FacingRequested?.Invoke(direction);
                 transform.rotation = Quaternion.RotateTowards(transform.rotation, Quaternion.LookRotation(direction), _config.TurnSpeed * deltaTime);
+            }
         }
         private void OnDisable() => Stop();
     }

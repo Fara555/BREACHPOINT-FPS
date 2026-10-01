@@ -31,7 +31,7 @@ Transform:
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 598170878316048014}
+  m_Father: {fileID: 7554363233203218670}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!198 &6488969797716699205
 ParticleSystem:
@@ -9841,6 +9841,7 @@ GameObject:
   - component: {fileID: 7568434490424416410}
   - component: {fileID: 8139207889550222643}
   - component: {fileID: 7730603476675641372}
+  - component: {fileID: 5733180673363011792}
   m_Layer: 8
   m_Name: Rifleman
   m_TagString: Untagged
@@ -9974,7 +9975,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Breachpoint.Gameplay.AI.EnemyActor
   <Eyes>k__BackingField: {fileID: 7452443303396700002}
-  <Muzzle>k__BackingField: {fileID: 598170878316048014}
+  <Muzzle>k__BackingField: {fileID: 7554363233203218670}
   <Route>k__BackingField: {fileID: 0}
 --- !u!114 &503798234126083940
 MonoBehaviour:
@@ -10030,10 +10031,22 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Breachpoint.Gameplay.AI.EnemyAnimationBridge
   _animator: {fileID: 3568518880274429610}
-  _speedParameter: Speed
-  _deadParameter: Dead
-  _reloadParameter: Reloading
-  _attackParameter: Attack
+  _aimTarget: {fileID: 3264626715415445388}
+  _config:
+    <FloatDamping>k__BackingField: 0.12
+    <StationarySpeed>k__BackingField: 0.08
+    <WalkThreshold>k__BackingField: 0.33
+    <RunThreshold>k__BackingField: 0.66
+    <SprintThreshold>k__BackingField: 1
+    <SprintSpeedRatio>k__BackingField: 1.5
+    <Turn90Angle>k__BackingField: 55
+    <Turn180Angle>k__BackingField: 135
+    <TurnCooldown>k__BackingField: 1.2
+    <RunEnterRatio>k__BackingField: 0.7
+    <ModeBlendDuration>k__BackingField: 0.15
+    <AimSmoothing>k__BackingField: 12
+    <RestAimDistance>k__BackingField: 8
+    <FireHoldDuration>k__BackingField: 0.18
 --- !u!114 &7568434490424416410
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -10161,6 +10174,23 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: fbe7ecf7a9c846658e74f985096c6831, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Breachpoint.Gameplay.AI.EnemyDebugView
+--- !u!114 &5733180673363011792
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3550899458896878222}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 355cd70f40bcf17449767e885fa77cce, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Breachpoint.Gameplay.AI.EnemyRagdollPresenter
+  _animator: {fileID: 3568518880274429610}
+  _rigBuilder: {fileID: 6379209240848725738}
+  _skeletonRoot: {fileID: 3568518880284301632}
+  _takeoverDelay: 1
+  _momentumScale: 1
 --- !u!1 &4064107889328024927
 GameObject:
   m_ObjectHideFlags: 0
@@ -10189,8 +10219,7 @@ Transform:
   m_LocalPosition: {x: 0.24, y: 1.35, z: 0.85}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
-  m_Children:
-  - {fileID: 2545213045683946941}
+  m_Children: []
   m_Father: {fileID: 2276583252327634517}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &8509977162399500894
@@ -10419,9 +10448,16 @@ PrefabInstance:
       propertyPath: m_Name
       value: PF_Enemy_Adam
       objectReference: {fileID: 0}
+    - target: {fileID: 7282059218961080636, guid: 4bd6dfb50ab6131468b7dc6820bf6a97, type: 3}
+      propertyPath: m_WarningMessage
+      value: 
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
-    m_AddedGameObjects: []
+    m_AddedGameObjects:
+    - targetCorrespondingSourceObject: {fileID: 4349494350227046264, guid: 4bd6dfb50ab6131468b7dc6820bf6a97, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 2545213045683946941}
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 4bd6dfb50ab6131468b7dc6820bf6a97, type: 3}
 --- !u!4 &1263629333902159380 stripped
@@ -10429,8 +10465,34 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 4973011291896609154, guid: 4bd6dfb50ab6131468b7dc6820bf6a97, type: 3}
   m_PrefabInstance: {fileID: 6091962117160736662}
   m_PrefabAsset: {fileID: 0}
+--- !u!4 &3264626715415445388 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: 8774340248363001882, guid: 4bd6dfb50ab6131468b7dc6820bf6a97, type: 3}
+  m_PrefabInstance: {fileID: 6091962117160736662}
+  m_PrefabAsset: {fileID: 0}
 --- !u!95 &3568518880274429610 stripped
 Animator:
   m_CorrespondingSourceObject: {fileID: 7282059218961080636, guid: 4bd6dfb50ab6131468b7dc6820bf6a97, type: 3}
+  m_PrefabInstance: {fileID: 6091962117160736662}
+  m_PrefabAsset: {fileID: 0}
+--- !u!4 &3568518880284301632 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: 7282059218954112726, guid: 4bd6dfb50ab6131468b7dc6820bf6a97, type: 3}
+  m_PrefabInstance: {fileID: 6091962117160736662}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &6379209240848725738 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 868489139416064380, guid: 4bd6dfb50ab6131468b7dc6820bf6a97, type: 3}
+  m_PrefabInstance: {fileID: 6091962117160736662}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fff0960ef4ea6e04eac66b4a7fd2189d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Unity.Animation.Rigging::UnityEngine.Animations.Rigging.RigBuilder
+--- !u!4 &7554363233203218670 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: 4349494350227046264, guid: 4bd6dfb50ab6131468b7dc6820bf6a97, type: 3}
   m_PrefabInstance: {fileID: 6091962117160736662}
   m_PrefabAsset: {fileID: 0}

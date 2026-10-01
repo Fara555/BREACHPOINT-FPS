@@ -552,7 +552,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 4270302461127701188, guid: 0f3f257b807c2874e9204c8e4761c2d3, type: 3}
       propertyPath: m_IsActive
-      value: 1
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 6113742288672404147, guid: 0f3f257b807c2874e9204c8e4761c2d3, type: 3}
       propertyPath: m_LocalPosition.x
@@ -703,6 +703,20 @@ PrefabInstance:
     - target: {fileID: 3550899458896878222, guid: 78a382066f61e2546956c7712538ff19, type: 3}
       propertyPath: m_Name
       value: Rifleman
+      objectReference: {fileID: 0}
+    - target: {fileID: 3550899458896878222, guid: 78a382066f61e2546956c7712538ff19, type: 3}
+      propertyPath: m_IsActive
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 3568518880274429610, guid: 78a382066f61e2546956c7712538ff19, type: 3}
+      propertyPath: m_WarningMessage
+      value: "\nBinding warning: Some generic clip(s) animate transforms that are
+        already bound by a Humanoid avatar. These transforms can only be changed
+        by Humanoid clips.\n\tTransform 'Bip01 L UpperArm'\n\tTransform 'Bip01 L
+        Forearm'\n\tTransform 'Bip01 L Hand'\n\tTransform 'Bip01 Spine1'\n\tTransform
+        'Bip01 Pelvis'\n\tTransform 'Bip01 Spine'\n\tTransform 'Bip01 L UpperArm'\n\tTransform
+        'Bip01 L Forearm'\n\tTransform 'Bip01 L Hand'\n\tTransform 'Bip01 Spine1'\n\tand
+        more ..."
       objectReference: {fileID: 0}
     - target: {fileID: 5725506847694432544, guid: 78a382066f61e2546956c7712538ff19, type: 3}
       propertyPath: <Route>k__BackingField
