@@ -7,6 +7,7 @@ namespace Breachpoint.Gameplay.AI
         public EnemyBlackboard Memory { get; }
         public EnemyNavigation Navigation => Actor.Navigation;
         public EnemyCombat Combat { get; set; }
+        public EnemyTacticalController Tactics { get; set; }
         public float Now { get; set; }
         public EnemyContext(EnemyActor actor, EnemyArchetypeConfig config, EnemyBlackboard memory)
         { Actor = actor; Config = config; Memory = memory; }

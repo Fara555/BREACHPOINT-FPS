@@ -8,6 +8,7 @@ namespace Breachpoint.Gameplay.AI
         private readonly EnemyContext _context;
         private readonly EnemyWorld _world;
         private readonly EnemyPhysics _physics = new EnemyPhysics();
+        public int CheckCount { get; private set; }
         private float _nextCheck;
         private bool _listening;
         public EnemyPerception(EnemyContext context, EnemyWorld world) { _context = context; _world = world; }
@@ -22,7 +23,7 @@ namespace Breachpoint.Gameplay.AI
         {
             if (now < _nextCheck) return;
             EnemyPerceptionConfig config = _context.Config.Perception;
-            _nextCheck = now + config.Interval;
+            _nextCheck = now + config.Interval; CheckCount++;
             EnemyBlackboard memory = _context.Memory;
             memory.Visible = false;
             PerceptionTarget selected = null;
@@ -42,7 +43,7 @@ namespace Breachpoint.Gameplay.AI
             if (selected != null)
             {
                 memory.Target = selected; memory.Visible = true; memory.HasContact = true;
-                memory.LastKnownPosition = selected.transform.position; memory.LastSeenTime = now;
+                memory.LastKnownPosition = selected.transform.position; memory.KnownAimPosition = selected.AimPosition; memory.LastSeenTime = now;
                 memory.Alert = Mathf.Min(1f, memory.Alert + config.AlertRise * config.Interval);
             }
             else

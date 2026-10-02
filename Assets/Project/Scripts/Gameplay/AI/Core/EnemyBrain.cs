@@ -16,6 +16,8 @@ namespace Breachpoint.Gameplay.AI
         private float _lastTick;
         public EnemyStateMachine States { get; private set; }
         public EnemyBlackboard Memory => _context?.Memory;
+        public int PerceptionCheckCount => _perception != null ? _perception.CheckCount : 0;
+        public EnemyTacticalController Tactics => _context?.Tactics;
         public EnemyCombat Combat => _context?.Combat;
         public EnemyArchetypeConfig Config => _context?.Config;
         public event Action ResetCompleted;
@@ -34,13 +36,13 @@ namespace Breachpoint.Gameplay.AI
         public void ResetForSpawn()
         {
             if (_context == null) return;
-            Unsubscribe(); States.Reset(); Memory.Reset(); Combat.Reset();
+            Unsubscribe(); Tactics?.Suspend(); States.Reset(); Memory.Reset(); Combat.Reset();
             _context.Actor.Health.ResetHealth();
             _context.Navigation.ResetAt(transform.position);
             _context.Now = Time.time; _lastTick = Time.time;
             _nextTick = Time.time + UnityEngine.Random.value * Config.Decision.TickInterval;
             _context.Actor.Health.Died += Die; _context.Actor.Health.DamageReceived += ReceiveDamage; _subscribed = true;
-            _perception.Start(Time.time);
+            _perception.Start(Time.time); Tactics?.Reset(enabled);
             States.Change(_policy.Evaluate(_context, States, out string reason), reason);
             ResetCompleted?.Invoke();
         }
@@ -52,6 +54,7 @@ namespace Breachpoint.Gameplay.AI
             if (Time.time < _nextTick) return;
             float dt = Time.time - _lastTick; _lastTick = Time.time;
             _nextTick = Time.time + Config.Decision.TickInterval;
+            Tactics?.Observe(Time.time);
             States.Change(_policy.Evaluate(_context, States, out string reason), reason);
             States.Tick(dt);
         }
@@ -68,11 +71,11 @@ namespace Breachpoint.Gameplay.AI
             PerceptionTarget source = damage.Source.GetComponentInParent<PerceptionTarget>();
             if (source == null || !source.IsAlive || !Factions.AreHostile(Config.Faction, source.Faction)) return;
             Memory.Target = source; Memory.LastKnownPosition = source.transform.position;
-            Memory.LastSeenTime = Time.time; Memory.HasContact = true; Memory.Alert = 1f;
+            Memory.KnownAimPosition = source.AimPosition; Memory.LastSeenTime = Time.time; Memory.HasContact = true; Memory.Alert = 1f;
         }
         private void Die()
         {
-            _context.Now = Time.time; _perception.Stop();
+            _context.Now = Time.time; _perception.Stop(); Tactics?.Suspend();
             States.Change(EnemyStateId.Dead, "health depleted");
         }
         private void Unsubscribe()
@@ -80,7 +83,8 @@ namespace Breachpoint.Gameplay.AI
             if (!_subscribed) return;
             _context.Actor.Health.Died -= Die; _context.Actor.Health.DamageReceived -= ReceiveDamage; _subscribed = false;
         }
+        private void OnDestroy() => Tactics?.Dispose();
         private void OnDisable()
-        { Unsubscribe(); _perception?.Stop(); _context?.Combat.Stop(); _context?.Navigation.Stop(); }
+        { Unsubscribe(); Tactics?.Suspend(); _perception?.Stop(); _context?.Combat.Stop(); _context?.Navigation.StopAndClearFacing(); }
     }
 }

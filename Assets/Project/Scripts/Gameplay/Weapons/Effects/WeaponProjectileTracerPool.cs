@@ -33,6 +33,23 @@ namespace Breachpoint.Gameplay.Weapons.Effects
             BuildPool();
         }
 
+        private void OnDisable()
+        {
+            Clear();
+        }
+
+        public void Clear()
+        {
+            _nextIndex = 0;
+            if (_instances == null) return;
+
+            foreach (ProjectileTracerInstance instance in _instances)
+            {
+                instance.IsActive = false;
+                instance.Renderer.enabled = false;
+            }
+        }
+
         private void Update()
         {
             if (_instances == null)

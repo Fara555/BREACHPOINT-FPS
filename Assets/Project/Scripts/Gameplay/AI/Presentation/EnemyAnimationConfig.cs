@@ -15,8 +15,9 @@ namespace Breachpoint.Gameplay.AI
         [field: SerializeField, Range(1f, 180f)] public float Turn90Angle { get; private set; } = 55f;
         [field: SerializeField, Range(1f, 180f)] public float Turn180Angle { get; private set; } = 135f;
         [field: SerializeField, Min(0f)] public float TurnCooldown { get; private set; } = 1.2f;
-        [field: SerializeField, Range(0f, 1f)] public float RunEnterRatio { get; private set; } = 0.7f;
-        [field: SerializeField, Min(0f)] public float ModeBlendDuration { get; private set; } = 0.15f;
+        [field: SerializeField] public Vector4 SteadyTurnDurations { get; private set; } = new Vector4(1.466667f, 1.7f, 1.866667f, 1.966667f);
+        [field: SerializeField] public Vector4 CombatTurnDurations { get; private set; } = new Vector4(1f, 1f, 1.733333f, 1.8f);
+        [field: SerializeField] public Vector4 CrouchTurnDurations { get; private set; } = new Vector4(1.266667f, 1.233333f, 1.433333f, 1.233333f);
         [field: SerializeField, Min(0f)] public float AimSmoothing { get; private set; } = 12f;
         [field: SerializeField, Min(0.1f)] public float RestAimDistance { get; private set; } = 8f;
         [field: SerializeField, Min(0f)] public float FireHoldDuration { get; private set; } = 0.18f;

@@ -14,7 +14,7 @@ namespace Breachpoint.Gameplay.AI
     {
         public IdleState(EnemyContext c) : base(c) { }
         public override EnemyStateId Id => EnemyStateId.Idle;
-        public override void Enter() { base.Enter(); C.Navigation.Stop(); }
+        public override void Enter() { base.Enter(); C.Tactics?.Pause(); C.Navigation.Stop(); }
         public override void Tick(float dt) { }
     }
     public sealed class PatrolState : EnemyState
@@ -22,7 +22,7 @@ namespace Breachpoint.Gameplay.AI
         private float _waitUntil;
         public PatrolState(EnemyContext c) : base(c) { }
         public override EnemyStateId Id => EnemyStateId.Patrol;
-        public override void Enter() { base.Enter(); _waitUntil = 0f; }
+        public override void Enter() { base.Enter(); C.Tactics?.Pause(); _waitUntil = 0f; }
         public override void Tick(float dt)
         {
             if (C.Now < _waitUntil || C.Actor.Route == null) return;
@@ -37,6 +37,7 @@ namespace Breachpoint.Gameplay.AI
     {
         public InvestigateState(EnemyContext c) : base(c) { }
         public override EnemyStateId Id => EnemyStateId.Investigate;
+        public override void Enter() { base.Enter(); C.Tactics?.Pause(); }
         public override void Tick(float dt)
         {
             C.Navigation.MoveTo(C.Memory.NoisePosition, false, C.Now);
@@ -47,7 +48,8 @@ namespace Breachpoint.Gameplay.AI
     {
         public ChaseState(EnemyContext c) : base(c) { }
         public override EnemyStateId Id => EnemyStateId.Chase;
-        public override void Tick(float dt) => C.Navigation.MoveTo(C.Memory.LastKnownPosition, true, C.Now);
+        public override void Tick(float dt)
+        { if (C.Tactics != null) C.Tactics.Tick(dt); else C.Navigation.MoveTo(C.Memory.LastKnownPosition, true, C.Now); }
     }
     public sealed class SearchState : EnemyState
     {
@@ -55,11 +57,14 @@ namespace Breachpoint.Gameplay.AI
         public override EnemyStateId Id => EnemyStateId.Search;
         public override void Tick(float dt)
         {
-            C.Navigation.MoveTo(C.Memory.LastKnownPosition, false, C.Now);
-            if (C.Navigation.Arrived || C.Navigation.Failed)
-                C.Navigation.Face(C.Actor.transform.position + Quaternion.Euler(0, (C.Now - C.Memory.StateEnteredAt) * 70f, 0) * Vector3.forward, dt);
+            if (C.Tactics != null) C.Tactics.Tick(dt);
+            else
+            {
+                C.Navigation.MoveTo(C.Memory.LastKnownPosition, false, C.Now);
+                if (C.Navigation.Arrived || C.Navigation.Failed) C.Navigation.Face(C.Actor.transform.position + Quaternion.Euler(0, (C.Now - C.Memory.StateEnteredAt) * 70f, 0) * Vector3.forward, dt);
+            }
             if (C.Now - C.Memory.StateEnteredAt >= C.Config.Decision.SearchDuration)
-            { C.Memory.HasContact = C.Memory.HasNoise = false; C.Memory.Target = null; C.Memory.Alert = 0f; }
+            { C.Memory.HasContact = C.Memory.HasNoise = false; C.Memory.Target = null; C.Memory.Alert = 0f; C.Tactics?.Pause(); }
         }
     }
     public sealed class CombatState : EnemyState
@@ -68,6 +73,7 @@ namespace Breachpoint.Gameplay.AI
         public override EnemyStateId Id => EnemyStateId.Combat;
         public override void Tick(float dt)
         {
+            if (C.Tactics != null) { C.Tactics.Tick(dt); return; }
             PerceptionTarget target = C.Memory.Target;
             if (target == null || !target.IsAlive || !C.Memory.Visible) { C.Combat.Stop(); return; }
             Vector3 offset = C.Actor.transform.position - target.transform.position;
@@ -84,20 +90,20 @@ namespace Breachpoint.Gameplay.AI
             if (Vector3.Angle(C.Actor.transform.forward, facing) < 15f)
                 C.Combat.Attack(target, C.Now);
         }
-        public override void Exit() { base.Exit(); C.Combat.Stop(); }
+        public override void Exit() { base.Exit(); if (C.Tactics != null) C.Combat.PauseAim(); else C.Combat.Stop(); }
     }
     public sealed class StunnedState : EnemyState
     {
         public StunnedState(EnemyContext c) : base(c) { }
         public override EnemyStateId Id => EnemyStateId.Stunned;
-        public override void Enter() { base.Enter(); C.Navigation.Stop(); C.Combat.Stop(); }
+        public override void Enter() { base.Enter(); C.Tactics?.Pause(); C.Navigation.StopAndClearFacing(); C.Combat.Stop(); }
         public override void Tick(float dt) { }
     }
     public sealed class DeadState : EnemyState
     {
         public DeadState(EnemyContext c) : base(c) { }
         public override EnemyStateId Id => EnemyStateId.Dead;
-        public override void Enter() { base.Enter(); C.Navigation.Stop(); C.Combat.Stop(); C.Memory.Target = null; C.Memory.Visible = false; }
+        public override void Enter() { base.Enter(); C.Tactics?.Pause(); C.Navigation.StopAndClearFacing(); C.Combat.Stop(); C.Memory.Target = null; C.Memory.Visible = false; }
         public override void Tick(float dt) { }
     }
 }

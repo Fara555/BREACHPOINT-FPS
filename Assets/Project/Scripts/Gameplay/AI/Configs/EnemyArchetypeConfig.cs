@@ -11,7 +11,8 @@ namespace Breachpoint.Gameplay.AI
         [field: SerializeField] public EnemyPerceptionConfig Perception { get; private set; }
         [field: SerializeField] public EnemyCombatConfig Combat { get; private set; }
         [field: SerializeField] public EnemyDecisionConfig Decision { get; private set; }
-        public bool IsValid => !string.IsNullOrWhiteSpace(Id) && Movement != null && Perception != null && Combat != null && Decision != null;
+        [field: SerializeField] public EnemyTacticalConfig Tactics { get; private set; }
+        public bool IsValid => !string.IsNullOrWhiteSpace(Id) && Movement != null && Perception != null && Combat != null && Decision != null && (Tactics == null || Tactics.Cover != null && Tactics.Squad != null);
         private void OnValidate() => MaximumHealth = Mathf.Max(1f, MaximumHealth);
     }
 }

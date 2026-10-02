@@ -25,6 +25,8 @@ namespace Breachpoint.Gameplay.AI
                 weapon.Initialize(actor, _archetype.Combat);
                 var context = new EnemyContext(actor, _archetype, resolver.Resolve<EnemyBlackboard>());
                 context.Combat = new EnemyCombat(context, weapon, resolver.Resolve<EnemyWorld>());
+                if (_archetype.Tactics != null && weapon.UsesAmmunition)
+                    context.Tactics = new EnemyTacticalController(context, _archetype.Tactics, resolver.Resolve<EnemyCoverService>(), resolver.Resolve<EnemySquadService>());
                 return context;
             }, Lifetime.Scoped);
             builder.Register<EnemyPerception>(Lifetime.Scoped);

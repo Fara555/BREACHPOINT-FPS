@@ -141,28 +141,10 @@ namespace Breachpoint.Editor.Enemies
             var animation = root.AddComponent<EnemyAnimationBridge>(); Set(animation, "_animator", animator);
             var vfx = root.AddComponent<EnemyVfxPresenter>(); var audio = root.AddComponent<AudioSource>();
             audio.spatialBlend = 1f; audio.playOnAwake = false; Set(vfx, "_audioSource", audio);
-            ParticleSystem flash = Effect("MuzzleFlash", muzzle, new Color(1f, 0.7f, 0.1f), 0.07f, 0.1f, glow);
-            ParticleSystem hit = Effect("Hit", root.transform, new Color(1f, 0.3f, 0.08f), 0.07f, 0.25f, glow);
-            Set(vfx, "_hitEffect", hit);
-            if (!melee)
-            {
-                Set(vfx, "_muzzleFlash", flash);
-                var line = new GameObject("Tracer"); line.transform.SetParent(root.transform, false);
-                var tracer = line.AddComponent<LineRenderer>(); tracer.sharedMaterial = glow; tracer.widthMultiplier = 0.015f;
-                tracer.useWorldSpace = true; tracer.enabled = false; tracer.positionCount = 2; Set(vfx, "_tracer", tracer);
-            }
+            EnemyWeaponEffectsSetup.Configure(root);
             root.AddComponent<EnemyDebugView>();
             root.SetActive(true);
             GameObject prefab = PrefabUtility.SaveAsPrefabAsset(root, path); Object.DestroyImmediate(root); return prefab;
-        }
-        private static ParticleSystem Effect(string name, Transform parent, Color color, float size, float lifetime, Material material)
-        {
-            Transform child = Pivot(name, parent, Vector3.zero); var effect = child.gameObject.AddComponent<ParticleSystem>();
-            effect.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
-            var main = effect.main; main.loop = false; main.playOnAwake = false; main.duration = 0.15f;
-            main.startLifetime = lifetime; main.startSpeed = 2f; main.startSize = size; main.startColor = color; main.maxParticles = 24;
-            var emission = effect.emission; emission.rateOverTime = 0; emission.SetBursts(new[] { new ParticleSystem.Burst(0, 10) });
-            effect.GetComponent<ParticleSystemRenderer>().sharedMaterial = material; return effect;
         }
         private static AnimatorController AnimationController()
         {

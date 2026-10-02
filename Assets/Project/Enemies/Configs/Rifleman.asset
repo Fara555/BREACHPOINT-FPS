@@ -19,3 +19,4 @@ MonoBehaviour:
   <Perception>k__BackingField: {fileID: 11400000, guid: cd00fc4aef6b4c3489df64a555a3f01d, type: 2}
   <Combat>k__BackingField: {fileID: 11400000, guid: a5a21bac3fc13d844a4e98e22ac9a423, type: 2}
   <Decision>k__BackingField: {fileID: 11400000, guid: 1a43af9822fd0404582e3baa91df9525, type: 2}
+  <Tactics>k__BackingField: {fileID: 11400000, guid: c29075d765b538b4fb31c7a12b346dc6, type: 2}

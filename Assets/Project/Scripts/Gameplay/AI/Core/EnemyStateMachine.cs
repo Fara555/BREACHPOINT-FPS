@@ -23,6 +23,7 @@ namespace Breachpoint.Gameplay.AI
         private bool _deathRequested;
         private readonly Queue<string> _history = new Queue<string>(16);
         public EnemyStateId Current => _current?.Id ?? EnemyStateId.Idle;
+        public EnemyStateId Previous { get; private set; }
         public bool HasState => _current != null;
         public string LastReason { get; private set; }
         public IReadOnlyCollection<string> History => _history;
@@ -47,7 +48,7 @@ namespace Breachpoint.Gameplay.AI
             try
             {
                 _current?.Exit();
-                _current = next;
+                Previous = Current; _current = next;
                 LastReason = reason;
                 if (_history.Count == 16) _history.Dequeue();
                 _history.Enqueue(id + ": " + reason);
@@ -68,7 +69,7 @@ namespace Breachpoint.Gameplay.AI
         {
             if (_transitioning) throw new InvalidOperationException("Cannot reset during a state transition.");
             _current?.Exit();
-            _current = null;
+            _current = null; Previous = EnemyStateId.Idle;
             LastReason = null;
             _deathRequested = false;
             _history.Clear();

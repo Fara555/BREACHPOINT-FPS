@@ -44,6 +44,9 @@ namespace Breachpoint.Editor.Enemies
                 else if (command == "death") ValidateStage(40);
                 else if (command == "regression") ValidateStage(50);
                 else if (command == "assets") ValidateWiring();
+                else if (command == "vfx-audit") EnemyWeaponEffectsSetup.Audit();
+                else if (command == "vfx-setup") EnemyWeaponEffectsSetup.MigratePrefabs();
+                else if (command == "vfx-test") ValidateStage(60);
                 else throw new InvalidOperationException("Unknown presentation command: " + command);
                 File.WriteAllText(EvidencePath + "/status.txt", command + ": PASS\n" + DateTime.UtcNow.ToString("O"));
             }
@@ -76,7 +79,7 @@ namespace Breachpoint.Editor.Enemies
                 actor.FindProperty("<Muzzle>k__BackingField").objectReferenceValue = muzzle;
                 actor.ApplyModifiedPropertiesWithoutUndo();
                 var vfx = new SerializedObject(root.GetComponent<EnemyVfxPresenter>());
-                var flash = vfx.FindProperty("_muzzleFlash").objectReferenceValue as ParticleSystem;
+                var flash = vfx.FindProperty("_muzzleFlashEffect").objectReferenceValue as Breachpoint.Gameplay.Weapons.Effects.WeaponMuzzleFlash;
                 if (flash != null)
                 {
                     flash.transform.SetParent(muzzle, false);

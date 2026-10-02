@@ -1,0 +1,32 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c7b0e76da8952764cab1011b7ac27f77, type: 3}
+  m_Name: RiflemanTactics
+  m_EditorClassIdentifier: Assembly-CSharp::Breachpoint.Gameplay.AI.EnemyTacticalConfig
+  <CommittedCoverBonus>k__BackingField: 85
+  <CoverPreferenceBonus>k__BackingField: 50
+  <AdvanceScore>k__BackingField: 120
+  <BlockedCoverRepositionScore>k__BackingField: 110
+  <DecisionInterval>k__BackingField: 0.6
+  <MinimumIntentDuration>k__BackingField: 2
+  <ImprovementThreshold>k__BackingField: 8
+  <PreferredSpacing>k__BackingField: 2
+  <FlankDistance>k__BackingField: 8
+  <MaximumTravel>k__BackingField: 18
+  <RepositionAfter>k__BackingField: 10
+  <SuppressionDuration>k__BackingField: 2
+  <RecentSuppressionMemory>k__BackingField: 1
+  <PositionTimeout>k__BackingField: 8
+  <CandidateBudget>k__BackingField: 4
+  <ReloadAmmoFraction>k__BackingField: 0.25
+  <Cover>k__BackingField: {fileID: 11400000, guid: 5a2bc83167b20184f8369aff6dc01d21, type: 2}
+  <Squad>k__BackingField: {fileID: 11400000, guid: 69bf962d0c651dd4b8928f669a96d69d, type: 2}

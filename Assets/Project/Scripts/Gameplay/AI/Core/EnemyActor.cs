@@ -9,6 +9,8 @@ namespace Breachpoint.Gameplay.AI
         [field: SerializeField] public Transform Eyes { get; private set; }
         [field: SerializeField] public Transform Muzzle { get; private set; }
         [field: SerializeField] public PatrolRoute Route { get; set; }
+        [field: SerializeField] public string SquadId { get; private set; } = "EnemyArena";
+        public void ConfigureSquad(string squadId) => SquadId = squadId ?? string.Empty;
         public Health Health { get; private set; }
         public PerceptionTarget Target { get; private set; }
         public EnemyNavigation Navigation { get; private set; }

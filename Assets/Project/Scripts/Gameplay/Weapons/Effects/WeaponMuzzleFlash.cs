@@ -63,8 +63,18 @@ namespace Breachpoint.Gameplay.Weapons.Effects
 
         private void OnDisable()
         {
+            Clear();
+        }
+
+        public void Clear()
+        {
             SetFlareVisible(false);
-            _sparks?.Stop();
+            if (_sparks != null)
+            {
+                // Reinitialization also removes particles emitted before a pooled reset.
+                _sparks.Reinit();
+                _sparks.Stop();
+            }
             _sparksSpawnerActive = false;
             DisableLight();
         }
