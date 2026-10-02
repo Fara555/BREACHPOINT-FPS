@@ -16,6 +16,8 @@ namespace Breachpoint.Editor.Enemies
         private readonly List<Object> _configs = new List<Object>();
         private readonly List<EnemyCoverPoint> _points = new List<EnemyCoverPoint>();
         private readonly Action[] _fireHandlers;
+        private readonly EnemyCoverPoint[] _shotCover;
+        public bool ReturnedProtectedAfterShot { get; private set; }
         public GameObject Root { get; }
         public EnemyBrain[] Brains { get; }
         public EnemyActor[] Actors { get; }
@@ -38,6 +40,7 @@ namespace Breachpoint.Editor.Enemies
         {
             Root = new GameObject("Runtime tactical scenario " + id); Root.SetActive(false);
             Brains = new EnemyBrain[count]; Actors = new EnemyActor[count]; Contexts = new EnemyContext[count]; _fireHandlers = new Action[count];
+            _shotCover = new EnemyCoverPoint[count];
             var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(AdamPresentationIntegration.RiflemanPath);
             var archetype = Object.Instantiate(prefab.GetComponent<EnemyLifetimeScope>().Archetype); _configs.Add(archetype);
             var tactics = Object.Instantiate(archetype.Tactics); _configs.Add(tactics);
@@ -78,6 +81,7 @@ namespace Breachpoint.Editor.Enemies
             Shots++; var tactics = Brains[index].Tactics;
             if (tactics.CurrentCover != null && tactics.CoverPhase == EnemyCoverActionPhase.Protected) ProtectedShot = true;
             CoverExposedShot |= tactics.CurrentCover != null && tactics.CoverPhase == EnemyCoverActionPhase.Exposed;
+            if (tactics.CurrentCover != null && tactics.CoverPhase == EnemyCoverActionPhase.Exposed) _shotCover[index] = tactics.CurrentCover;
             for (int i = 0; i < Brains.Length; i++)
                 if (i != index && Brains[i].Tactics.Member != null && Brains[i].Tactics.Member.Mover && Actors[i].Navigation.Velocity.sqrMagnitude > 0.1f && tactics.Member != null && tactics.Member.Shooter) PressureMovementOverlap = true;
         }
@@ -94,6 +98,8 @@ namespace Breachpoint.Editor.Enemies
                 SawProtectedLow |= tactics.CurrentCover != null && tactics.CurrentCover.Kind == EnemyCoverKind.Low && tactics.CoverPhase == EnemyCoverActionPhase.Protected && brain.GetComponent<EnemyStance>().IsCrouching;
                 SawProtectedHigh |= tactics.CurrentCover != null && tactics.CurrentCover.Kind == EnemyCoverKind.High && tactics.CoverPhase == EnemyCoverActionPhase.Protected;
                 SawExposed |= tactics.CurrentCover != null && tactics.CoverPhase == EnemyCoverActionPhase.Exposed;
+                int index = Array.IndexOf(Brains, brain);
+                ReturnedProtectedAfterShot |= _shotCover[index] != null && tactics.CurrentCover == _shotCover[index] && tactics.CoverPhase == EnemyCoverActionPhase.Protected && Vector3.Distance(brain.transform.position, tactics.CurrentCover.ProtectedPosition) <= .8f && (tactics.CurrentCover.Kind == EnemyCoverKind.High || brain.GetComponent<EnemyStance>().IsCrouching);
             }
         }
         public EnemyCoverPoint AddCover(EnemyCoverKind kind, float x, float z)

@@ -696,6 +696,10 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
+    - target: {fileID: 1199990314832742879, guid: 78a382066f61e2546956c7712538ff19, type: 3}
+      propertyPath: m_IsActive
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 2276583252327634517, guid: 78a382066f61e2546956c7712538ff19, type: 3}
       propertyPath: m_LocalPosition.x
       value: -8
@@ -758,6 +762,10 @@ PrefabInstance:
       propertyPath: <Route>k__BackingField
       value: 
       objectReference: {fileID: 672818040}
+    - target: {fileID: 6379209240848725738, guid: 78a382066f61e2546956c7712538ff19, type: 3}
+      propertyPath: m_RigLayers.Array.data[0].m_Active
+      value: 0
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -949,6 +957,7 @@ GameObject:
   - component: {fileID: 1067895514}
   - component: {fileID: 1067895513}
   - component: {fileID: 1067895512}
+  - component: {fileID: 1067895516}
   m_Layer: 0
   m_Name: Arena floor
   m_TagString: Untagged
@@ -1049,6 +1058,28 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!95 &1067895516
+Animator:
+  serializedVersion: 7
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1067895511}
+  m_Enabled: 1
+  m_Avatar: {fileID: 0}
+  m_Controller: {fileID: 9100000, guid: f445f6d3c26909c4085b089f593bf9f6, type: 2}
+  m_CullingMode: 0
+  m_UpdateMode: 0
+  m_ApplyRootMotion: 0
+  m_LinearVelocityBlending: 0
+  m_StabilizeFeet: 0
+  m_AnimatePhysics: 0
+  m_WarningMessage: 
+  m_HasTransformHierarchy: 1
+  m_AllowConstantClipSamplingOptimization: 1
+  m_KeepAnimatorStateOnDisable: 0
+  m_WriteDefaultValuesOnDisable: 0
 --- !u!1 &1265395254
 GameObject:
   m_ObjectHideFlags: 0

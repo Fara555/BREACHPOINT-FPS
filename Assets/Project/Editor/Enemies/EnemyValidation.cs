@@ -14,94 +14,15 @@ using Object = UnityEngine.Object;
 
 namespace Breachpoint.Editor.Enemies
 {
-    [InitializeOnLoad]
+    // Original behavioral checks, dispatched through the scene-preserving validation runner.
     public static class EnemyValidation
     {
-        private const string RunningKey = "Breachpoint.EnemyValidation.Running";
-        private const string BatchKey = "Breachpoint.EnemyValidation.Batch";
-        private static IEnumerator _routine;
-        private static readonly List<string> Results = new List<string>();
-        private static double _deadline;
+        private const string EnemyAssetRoot = "Assets/Project/Enemies";
         private static bool _failed;
+        private static readonly List<string> Results = new List<string>();
         private static string ReportPath => Path.GetFullPath("Logs/EnemyValidation.txt");
-        static EnemyValidation()
-        {
-            EditorApplication.playModeStateChanged += ModeChanged;
-            if (SessionState.GetBool(RunningKey, false) && EditorApplication.isPlaying)
-                EditorApplication.delayCall += StartRuntime;
-        }
-        public static void RunBatch()
-        {
-            SessionState.SetBool(BatchKey, true);
-            Run();
-        }
-        [MenuItem("Breachpoint/Enemies/Run validation")]
-        public static void Run()
-        {
-            if (EditorApplication.isPlaying) throw new InvalidOperationException("Exit Play Mode before validation.");
-            if (!Application.isBatchMode && !EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo()) return;
-            Directory.CreateDirectory("Logs"); File.WriteAllText(ReportPath, "Enemy validation: " + DateTime.UtcNow.ToString("O") + "\n");
-            Results.Clear(); _failed = false;
-            try
-            {
-                StateMachineTests();
-                EnemyAssetBuilder.CreateAssets();
-                ValidatePrefabs();
-                EditorSceneManager.OpenScene(EnemyAssetBuilder.ScenePath);
-                SessionState.SetBool(RunningKey, true);
-                EditorApplication.isPlaying = true;
-            }
-            catch (Exception exception) { Fail(exception); Finish(); }
-        }
-        private static void ModeChanged(PlayModeStateChange mode)
-        {
-            if (mode == PlayModeStateChange.EnteredPlayMode && SessionState.GetBool(RunningKey, false)) StartRuntime();
-            if (mode == PlayModeStateChange.EnteredEditMode && SessionState.GetBool(BatchKey, false))
-            {
-                SessionState.SetBool(BatchKey, false);
-                if (!File.ReadAllText(ReportPath).Contains("FAIL"))
-                {
-                    try
-                    {
-                        typeof(EnemyValidation).Assembly.GetType("Breachpoint.Editor.Enemies.EnemyGameplaySetup")?
-                            .GetMethod("AddPlayerToArena")?.Invoke(null, null);
-                    }
-                    catch (Exception exception) { Fail(exception); }
-                }
-                EditorApplication.Exit(File.ReadAllText(ReportPath).Contains("FAIL") ? 1 : 0);
-            }
-        }
-        private static void StartRuntime()
-        {
-            if (_routine != null) return;
-            Application.logMessageReceived += Log;
-            _routine = RuntimeTests(); _deadline = EditorApplication.timeSinceStartup + 100;
-            EditorApplication.update += Tick;
-        }
-        private static void Tick()
-        {
-            if (!EditorApplication.isPlaying) return;
-            try
-            {
-                if (EditorApplication.timeSinceStartup > _deadline) throw new TimeoutException("Runtime test deadline exceeded.");
-                if (!_routine.MoveNext()) Finish();
-            }
-            catch (Exception exception) { Fail(exception); Finish(); }
-        }
-        private static void Log(string message, string stack, LogType type)
-        {
-            if (type == LogType.Error || type == LogType.Exception || type == LogType.Assert)
-            { _failed = true; File.AppendAllText(ReportPath, "FAIL Console: " + message + "\n" + stack + "\n"); }
-        }
-        private static void Finish()
-        {
-            EditorApplication.update -= Tick; Application.logMessageReceived -= Log; _routine = null;
-            SessionState.SetBool(RunningKey, false);
-            File.AppendAllText(ReportPath, _failed ? "RESULT: FAIL\n" : "RESULT: PASS\n");
-            if (EditorApplication.isPlaying) EditorApplication.isPlaying = false;
-            else if (SessionState.GetBool(BatchKey, false)) { SessionState.SetBool(BatchKey, false); EditorApplication.Exit(_failed ? 1 : 0); }
-        }
-        private static void Fail(Exception exception) { _failed = true; File.AppendAllText(ReportPath, "FAIL " + exception + "\n"); Debug.LogException(exception); }
+        [MenuItem("Breachpoint/Enemies/AI Test / Tactical Debug/Run gameplay regressions")]
+        public static void Run() => AdamPresentationIntegration.ValidateStage(50);
         private static void Check(bool condition, string description)
         {
             if (!condition) throw new InvalidOperationException(description);
@@ -144,7 +65,7 @@ namespace Breachpoint.Editor.Enemies
         {
             foreach (string name in new[] { "Rifleman", "Melee" })
             {
-                GameObject prefab = AssetDatabase.LoadAssetAtPath<GameObject>(EnemyAssetBuilder.Root + "/Prefabs/" + name + ".prefab");
+                GameObject prefab = AssetDatabase.LoadAssetAtPath<GameObject>(EnemyAssetRoot + "/Prefabs/" + name + ".prefab");
                 Check(prefab != null && prefab.GetComponent<EnemyLifetimeScope>().Archetype.IsValid && prefab.GetComponent<IEnemyWeapon>() != null &&
                     prefab.GetComponent<EnemyActor>().Eyes != null && prefab.GetComponent<EnemyActor>().Muzzle != null, name + " prefab wiring and config references");
                 foreach (Transform child in prefab.GetComponentsInChildren<Transform>(true))
@@ -256,7 +177,7 @@ namespace Breachpoint.Editor.Enemies
             var so = new SerializedObject(spawner);
             so.FindProperty("_parentScope").objectReferenceValue = root;
             var prefabs = so.FindProperty("_prefabs"); prefabs.arraySize = 1;
-            prefabs.GetArrayElementAtIndex(0).objectReferenceValue = AssetDatabase.LoadAssetAtPath<GameObject>(EnemyAssetBuilder.Root + "/Prefabs/Rifleman.prefab").GetComponent<EnemyLifetimeScope>();
+            prefabs.GetArrayElementAtIndex(0).objectReferenceValue = AssetDatabase.LoadAssetAtPath<GameObject>(EnemyAssetRoot + "/Prefabs/Rifleman.prefab").GetComponent<EnemyLifetimeScope>();
             var points = so.FindProperty("_spawnPoints"); points.arraySize = 1; points.GetArrayElementAtIndex(0).objectReferenceValue = point.transform;
             so.FindProperty("_maximumAlive").intValue = 1; so.FindProperty("_totalToSpawn").intValue = 3;
             so.FindProperty("_spawnInterval").floatValue = 0.1f; so.FindProperty("_corpseDuration").floatValue = 0.1f; so.ApplyModifiedPropertiesWithoutUndo();
@@ -287,7 +208,7 @@ namespace Breachpoint.Editor.Enemies
         }
         private static EnemyBrain Spawn(LifetimeScope parent, string name, Vector3 position)
         {
-            var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(EnemyAssetBuilder.Root + "/Prefabs/" + name + ".prefab");
+            var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(EnemyAssetRoot + "/Prefabs/" + name + ".prefab");
             GameObject instance;
             using (LifetimeScope.EnqueueParent(parent)) instance = Object.Instantiate(prefab, position, Quaternion.identity);
             return instance.GetComponent<EnemyBrain>();

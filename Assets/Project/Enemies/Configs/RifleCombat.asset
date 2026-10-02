@@ -20,7 +20,7 @@ MonoBehaviour:
   <BurstLength>k__BackingField: 3
   <BurstPause>k__BackingField: 0.7
   <MagazineSize>k__BackingField: 18
-  <ReloadDuration>k__BackingField: 2
+  <ReloadDuration>k__BackingField: 3.3
   <Damage>k__BackingField: 8
   <SpreadAngle>k__BackingField: 2
   <MovingSpreadMultiplier>k__BackingField: 2

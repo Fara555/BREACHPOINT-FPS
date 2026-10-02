@@ -4,6 +4,18 @@ namespace Breachpoint.Gameplay.AI
 {
     public static class EnemyAnimationMath
     {
+        public static float StrideSpeed(float speed, float naturalSpeed, EnemyAnimationConfig config)
+        {
+            if (speed <= config.StationarySpeed) return 1f;
+            return Mathf.Clamp(speed / Mathf.Max(0.01f, naturalSpeed), config.StridePlaybackLimits.x, config.StridePlaybackLimits.y);
+        }
+
+        public static float NaturalCombatSpeed(float blend, EnemyAnimationConfig config)
+        {
+            if (blend <= config.WalkThreshold) return config.CombatNaturalSpeeds.x;
+            if (blend <= config.RunThreshold) return Mathf.Lerp(config.CombatNaturalSpeeds.x, config.CombatNaturalSpeeds.y, Mathf.InverseLerp(config.WalkThreshold, config.RunThreshold, blend));
+            return Mathf.Lerp(config.CombatNaturalSpeeds.y, config.CombatNaturalSpeeds.z, Mathf.InverseLerp(config.RunThreshold, config.SprintThreshold, blend));
+        }
         public static float MoveSpeed(float speed, float walkSpeed, float runSpeed, EnemyAnimationConfig config)
         {
             if (speed <= config.StationarySpeed) return 0f;

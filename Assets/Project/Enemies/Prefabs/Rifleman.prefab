@@ -247,7 +247,31 @@ MonoBehaviour:
   _animator: {fileID: 3568518880274429610}
   _aimTarget: {fileID: 3264626715415445388}
   _config:
-    <FloatDamping>k__BackingField: 0.12
+    <FloatDamping>k__BackingField: 0.18
+    <SteadyNaturalSpeed>k__BackingField: 1.12
+    <CombatNaturalSpeeds>k__BackingField: {x: 1.74, y: 4.26, z: 6.06}
+    <CrouchNaturalSpeed>k__BackingField: 1.62
+    <StridePlaybackLimits>k__BackingField: {x: 0.75, y: 1.15}
+    <SteadyStartSpeed>k__BackingField: 1
+    <SteadyStopSpeed>k__BackingField: 1
+    <StancePlaybackSpeed>k__BackingField: 1
+    <LocomotionBlend>k__BackingField: 0.2
+    <StanceBlend>k__BackingField: 0.14
+    <ReadinessBlend>k__BackingField: 0.2
+    <TurnBlendIn>k__BackingField: 0.12
+    <TurnBlendOut>k__BackingField: 0.18
+    <ActionBlendIn>k__BackingField: 0.1
+    <ActionBlendOut>k__BackingField: 0.18
+    <HitBlendIn>k__BackingField: 0.06
+    <ActionLayerBlend>k__BackingField: 0.16
+    <IkBlend>k__BackingField: 0.22
+    <AimBlend>k__BackingField: 0.2
+    <ElbowFromChest>k__BackingField: {x: -0.3, y: -0.27, z: -0.16}
+    <CrouchElbowFromChest>k__BackingField: {x: -0.32, y: -0.24, z: -0.18}
+    <HintBlend>k__BackingField: 0.12
+    <TurnStableTime>k__BackingField: 0.08
+    <TurnHysteresis>k__BackingField: 8
+    <StationaryTurnSpeed>k__BackingField: 90
     <StationarySpeed>k__BackingField: 0.08
     <WalkThreshold>k__BackingField: 0.33
     <RunThreshold>k__BackingField: 0.66
@@ -255,7 +279,7 @@ MonoBehaviour:
     <SprintSpeedRatio>k__BackingField: 1.5
     <Turn90Angle>k__BackingField: 55
     <Turn180Angle>k__BackingField: 135
-    <TurnCooldown>k__BackingField: 1.2
+    <TurnCooldown>k__BackingField: 0.35
     <SteadyTurnDurations>k__BackingField: {x: 1.466667, y: 1.7, z: 1.866667, w: 1.966667}
     <CombatTurnDurations>k__BackingField: {x: 1, y: 1, z: 1.733333, w: 1.8}
     <CrouchTurnDurations>k__BackingField: {x: 1.266667, y: 1.233333, z: 1.433333, w: 1.233333}

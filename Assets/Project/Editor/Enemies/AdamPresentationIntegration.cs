@@ -35,17 +35,10 @@ namespace Breachpoint.Editor.Enemies
             {
                 if (command == "audit") Audit();
                 else if (command == "refresh") AssetDatabase.Refresh();
-                else if (command == "setup") Setup();
-                else if (command == "ragdoll") SetupRagdoll();
                 else if (command == "math") ValidateMath();
-                else if (command == "stage2") ValidateStage(2);
-                else if (command == "stage3") ValidateStage(3);
-                else if (command == "stage4") ValidateStage(4);
-                else if (command == "death") ValidateStage(40);
                 else if (command == "regression") ValidateStage(50);
                 else if (command == "assets") ValidateWiring();
                 else if (command == "vfx-audit") EnemyWeaponEffectsSetup.Audit();
-                else if (command == "vfx-setup") EnemyWeaponEffectsSetup.MigratePrefabs();
                 else if (command == "vfx-test") ValidateStage(60);
                 else throw new InvalidOperationException("Unknown presentation command: " + command);
                 File.WriteAllText(EvidencePath + "/status.txt", command + ": PASS\n" + DateTime.UtcNow.ToString("O"));
@@ -55,40 +48,6 @@ namespace Breachpoint.Editor.Enemies
                 File.WriteAllText(EvidencePath + "/status.txt", command + ": FAIL\n" + exception);
                 Debug.LogException(exception);
             }
-        }
-
-        [MenuItem("Breachpoint/Enemies/Adam presentation/Wire existing Rifleman")]
-        public static void Setup()
-        {
-            if (EditorApplication.isPlayingOrWillChangePlaymode) throw new InvalidOperationException("Exit Play Mode before wiring assets.");
-            GameObject root = PrefabUtility.LoadPrefabContents(RiflemanPath);
-            try
-            {
-                Animator animator = root.GetComponentInChildren<Animator>(true);
-                if (animator == null || AssetDatabase.GetAssetPath(animator.runtimeAnimatorController) != ControllerPath)
-                    throw new InvalidOperationException("Rifleman must contain the existing authored Adam controller.");
-                Transform aim = FindUnique(animator.transform, "AimTarget");
-                Transform muzzle = FindUnique(animator.transform, "Muzzle");
-                Transform grip = FindUnique(animator.transform, "LeftHandGrip");
-                if (muzzle.parent != grip.parent) throw new InvalidOperationException("Weapon muzzle/grip hierarchy changed; inspect before wiring.");
-                var bridge = new SerializedObject(root.GetComponent<EnemyAnimationBridge>());
-                bridge.FindProperty("_animator").objectReferenceValue = animator;
-                bridge.FindProperty("_aimTarget").objectReferenceValue = aim;
-                bridge.ApplyModifiedPropertiesWithoutUndo();
-                var actor = new SerializedObject(root.GetComponent<EnemyActor>());
-                actor.FindProperty("<Muzzle>k__BackingField").objectReferenceValue = muzzle;
-                actor.ApplyModifiedPropertiesWithoutUndo();
-                var vfx = new SerializedObject(root.GetComponent<EnemyVfxPresenter>());
-                var flash = vfx.FindProperty("_muzzleFlashEffect").objectReferenceValue as Breachpoint.Gameplay.Weapons.Effects.WeaponMuzzleFlash;
-                if (flash != null)
-                {
-                    flash.transform.SetParent(muzzle, false);
-                    flash.transform.localPosition = Vector3.zero;
-                    flash.transform.localRotation = Quaternion.identity;
-                }
-                PrefabUtility.SaveAsPrefabAsset(root, RiflemanPath);
-            }
-            finally { PrefabUtility.UnloadPrefabContents(root); }
         }
 
         private static Transform FindUnique(Transform root, string name)
@@ -101,29 +60,6 @@ namespace Breachpoint.Editor.Enemies
                 found = child;
             }
             return found != null ? found : throw new InvalidOperationException("Missing Adam transform: " + name);
-        }
-
-        [MenuItem("Breachpoint/Enemies/Adam presentation/Wire existing ragdoll")]
-        public static void SetupRagdoll()
-        {
-            if (EditorApplication.isPlayingOrWillChangePlaymode) throw new InvalidOperationException("Exit Play Mode before wiring assets.");
-            GameObject root = PrefabUtility.LoadPrefabContents(RiflemanPath);
-            try
-            {
-                Animator animator = root.GetComponentInChildren<Animator>(true);
-                Transform skeleton = FindUnique(animator.transform, "Adam_Reference");
-                if (skeleton.GetComponentsInChildren<Rigidbody>(true).Length != 12)
-                    throw new InvalidOperationException("Authored ragdoll body count changed; inspect before wiring.");
-                EnemyRagdollPresenter presenter = root.GetComponent<EnemyRagdollPresenter>();
-                if (presenter == null) presenter = root.AddComponent<EnemyRagdollPresenter>();
-                var data = new SerializedObject(presenter);
-                data.FindProperty("_animator").objectReferenceValue = animator;
-                data.FindProperty("_rigBuilder").objectReferenceValue = animator.GetComponent<RigBuilder>();
-                data.FindProperty("_skeletonRoot").objectReferenceValue = skeleton;
-                data.ApplyModifiedPropertiesWithoutUndo();
-                PrefabUtility.SaveAsPrefabAsset(root, RiflemanPath);
-            }
-            finally { PrefabUtility.UnloadPrefabContents(root); }
         }
 
         [MenuItem("Breachpoint/Enemies/Adam presentation/Validate asset wiring (read only)")]

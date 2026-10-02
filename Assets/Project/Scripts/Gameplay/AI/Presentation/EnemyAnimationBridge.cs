@@ -6,7 +6,7 @@ namespace Breachpoint.Gameplay.AI
     [DisallowMultipleComponent, RequireComponent(typeof(EnemyBrain))]
     public sealed class EnemyAnimationBridge : MonoBehaviour
     {
-        private enum Parameter { MoveSpeed, MoveX, MoveY, IsCombat, IsCrouching, IsFiring, IsReloading, IsHit, IsDead, HitDirection, ReloadSpeed, Turn90Left, Turn90Right, Turn180Left, Turn180Right, Hit, Speed, Dead, Reloading, Attack }
+        private enum Parameter { MoveSpeed, MoveX, MoveY, IsCombat, IsCrouching, IsFiring, IsReloading, IsHit, IsDead, HitDirection, ReloadSpeed, Turn90Left, Turn90Right, Turn180Left, Turn180Right, Hit, Speed, Dead, Reloading, Attack, SteadyStride, CombatStride, CrouchStride }
         private static readonly int[] Hashes = CreateHashes();
         [SerializeField] private Animator _animator;
         [SerializeField] private Transform _aimTarget;
@@ -26,6 +26,10 @@ namespace Breachpoint.Gameplay.AI
         private float _lethalDirection;
         private Vector3 _deathVelocity;
         private int _lastStateHash;
+        private Vector3 _pendingTurn;
+        private float _turnCandidateAt;
+        private bool _largeTurnCandidate;
+        public EnemyAnimationConfig Config => _config;
         public Animator Animator => _animator;
         public string CurrentTurn { get; private set; }
         public bool LogsAnimationTransitions => _logTransitions;
@@ -54,6 +58,7 @@ namespace Breachpoint.Gameplay.AI
             foreach (var parameter in _animator.parameters)
                 for (int i = 0; i < Hashes.Length; i++) if (parameter.nameHash == Hashes[i]) _available[i] = true;
             _modern = Has(Parameter.IsCombat);
+            if (_modern) _navigation.ConfigurePresentationTurning(_config.StationaryTurnSpeed);
             _animator.applyRootMotion = false;
             // Hitscan and shot VFX use the bone-attached muzzle even outside the camera.
             if (_modern) _animator.cullingMode = AnimatorCullingMode.AlwaysAnimate;
@@ -71,6 +76,10 @@ namespace Breachpoint.Gameplay.AI
             float speed = velocity.magnitude;
             Float(Parameter.MoveSpeed, EnemyAnimationMath.MoveSpeed(speed, movement.WalkSpeed, movement.RunSpeed, _config), speed > _config.StationarySpeed ? _config.FloatDamping : 0.04f);
             Float(Parameter.Speed, speed, _config.FloatDamping);
+            float blend = EnemyAnimationMath.MoveSpeed(speed, movement.WalkSpeed, movement.RunSpeed, _config);
+            Float(Parameter.SteadyStride, EnemyAnimationMath.StrideSpeed(speed, _config.SteadyNaturalSpeed, _config), _config.FloatDamping);
+            Float(Parameter.CombatStride, EnemyAnimationMath.StrideSpeed(speed, EnemyAnimationMath.NaturalCombatSpeed(blend, _config), _config), _config.FloatDamping);
+            Float(Parameter.CrouchStride, EnemyAnimationMath.StrideSpeed(speed, _config.CrouchNaturalSpeed, _config), _config.FloatDamping);
             Vector2 local = EnemyAnimationMath.LocalMovement(transform.rotation, velocity, IsCrouching ? movement.CrouchSpeed : Mathf.Max(movement.WalkSpeed, _navigation.DesiredSpeed));
             Float(Parameter.MoveX, local.x, _config.FloatDamping); Float(Parameter.MoveY, local.y, _config.FloatDamping);
             Bool(Parameter.IsCombat, _brain.States.Group != EnemyStateGroup.Passive || IsCrouching);
@@ -80,8 +89,9 @@ namespace Breachpoint.Gameplay.AI
             Bool(Parameter.IsHit, IsHit);
             Float(Parameter.ReloadSpeed, 1f / Mathf.Max(0.01f, _brain.Config.Combat.ReloadDuration), 0f);
             if (speed > _config.StationarySpeed || IsHit || _brain.Combat.IsReloading)
-            { ClearTurnTriggers(); _navigation.CancelTurn(); CurrentTurn = null; }
+            { ClearTurnTriggers(); _navigation.CancelTurn(); CurrentTurn = null; _pendingTurn = Vector3.zero; }
             else if (!_navigation.IsTurning) CurrentTurn = null;
+            if (_pendingTurn.sqrMagnitude > 0f) TryPresentTurn(_pendingTurn);
             if (_modern)
             {
                 AnimatorStateInfo current = _animator.GetCurrentAnimatorStateInfo(1);
@@ -90,7 +100,7 @@ namespace Breachpoint.Gameplay.AI
                 if (_animator.IsInTransition(1) && next.IsTag("None")) active = false;
                 // An empty Humanoid override layer still contributes default muscles at weight 1.
                 // Fade it out whenever no action owns the upper body.
-                _animator.SetLayerWeight(1, Mathf.MoveTowards(_animator.GetLayerWeight(1), active ? 1f : 0f, Time.deltaTime / 0.06f));
+                _animator.SetLayerWeight(1, Mathf.MoveTowards(_animator.GetLayerWeight(1), active ? 1f : 0f, Time.deltaTime / Mathf.Max(0.01f, _config.ActionLayerBlend)));
             }
             UpdateAim();
             if (_logTransitions)
@@ -102,19 +112,35 @@ namespace Breachpoint.Gameplay.AI
         }
         private void PresentTurn(Vector3 direction)
         {
+            if (!_bound || !_modern || _navigation.IsTurning || _navigation.Velocity.sqrMagnitude > _config.StationarySpeed * _config.StationarySpeed) return;
+            float angle = Vector3.SignedAngle(transform.forward, direction, Vector3.up);
+            if (Mathf.Abs(angle) < _config.Turn90Angle) return;
+            if (_pendingTurn.sqrMagnitude == 0f || Vector3.Angle(_pendingTurn, direction) > _config.TurnHysteresis)
+            {
+                _turnCandidateAt = Time.time;
+                _largeTurnCandidate = Mathf.Abs(angle) >= _config.Turn180Angle;
+            }
+            _pendingTurn = direction;
+            _navigation.DeferStationaryFacing(_config.TurnStableTime + _config.TurnBlendIn);
+            TryPresentTurn(direction);
+        }
+        private void TryPresentTurn(Vector3 direction)
+        {
             if (!_bound || !_modern || !_animator.enabled || _actor.Health.IsDead || _navigation.IsTurning ||
                 Time.time < _nextTurn || _navigation.Velocity.sqrMagnitude > _config.StationarySpeed * _config.StationarySpeed ||
                 IsHit || _brain.Combat.IsReloading || Time.time < _fireUntil || _animator.IsInTransition(0) ||
                 !_animator.GetCurrentAnimatorStateInfo(0).IsTag("Locomotion")) return;
+            if (Time.time - _turnCandidateAt < _config.TurnStableTime) return;
             float angle = Vector3.SignedAngle(transform.forward, direction, Vector3.up);
             if (Mathf.Abs(angle) < _config.Turn90Angle) return;
-            bool large = Mathf.Abs(angle) >= _config.Turn180Angle;
+            bool large = _largeTurnCandidate;
             bool left = angle < 0f;
             Parameter turn = large ? (left ? Parameter.Turn180Left : Parameter.Turn180Right) : (left ? Parameter.Turn90Left : Parameter.Turn90Right);
             bool combat = _brain.States.Group != EnemyStateGroup.Passive;
             Vector4 durations = IsCrouching ? _config.CrouchTurnDurations : combat ? _config.CombatTurnDurations : _config.SteadyTurnDurations;
             int index = large ? (left ? 2 : 3) : (left ? 0 : 1);
             if (!_navigation.BeginTurn(direction, durations[index])) return;
+            _pendingTurn = Vector3.zero;
             ClearTurnTriggers(); Trigger(turn); CurrentTurn = turn.ToString();
             _nextTurn = Time.time + durations[index] + _config.TurnCooldown;
             if (_logTransitions) Debug.Log($"[Enemy:{name}][Animation] {CurrentTurn}; reason=facing error {angle:0.0} degrees", this);
@@ -168,6 +194,7 @@ namespace Breachpoint.Gameplay.AI
         private void ResetView()
         {
             _stance?.SetCrouching(false); _navigation.CancelTurn(); ClearTurnTriggers(); CurrentTurn = null;
+            _pendingTurn = Vector3.zero;
             _nextTurn = _fireUntil = _hitUntil = _lethalDirection = 0f; _deathVelocity = Vector3.zero; _lastStateHash = 0;
             _ragdoll?.ResetPresentation(); _animator.Rebind();
             foreach (var parameter in _animator.parameters)

@@ -29,12 +29,21 @@ namespace Breachpoint.Editor.Enemies
             try
             {
                 if (command == "audit") Audit();
+                else if (command == "speed-audit") RiflemanPolish.AuditSpeed();
+                else if (command == "review-test") AdamPresentationIntegration.RunReview(-1, false);
+                else if (command == "review-control-test") AdamPresentationIntegration.ValidateReviewControls();
+                else if (command == "review-stop")
+                {
+                    if (!EditorApplication.isPlaying || !SessionState.GetBool("AdamPresentation.Validation", false) || SessionState.GetInt("AdamPresentation.Validation.Stage", 0) < 130)
+                        throw new InvalidOperationException("No owned presentation review is running.");
+                    EditorApplication.isPlaying = false;
+                }
+                else if (command.StartsWith("review-case:", StringComparison.Ordinal)) AdamPresentationIntegration.RunReview(int.Parse(command.Substring(12)), false);
+                else if (command.StartsWith("review:", StringComparison.Ordinal)) AdamPresentationIntegration.RunReview(int.Parse(command.Substring(7)), true);
                 else if (command == "arena-audit") AuditArena();
                 else if (command == "arena-setup") WireArenaCover();
                 else if (command == "refresh") AssetDatabase.Refresh();
                 else if (command == "animator") RiflemanAnimatorBuilder.Rebuild();
-                else if (command == "stance") WireStance();
-                else if (command == "tactics-setup") WireTactics();
                 else if (command == "performance-test") AdamPresentationIntegration.ValidateStage(110);
                 else if (command == "edge-test") AdamPresentationIntegration.ValidateStage(120);
                 else if (command == "tactical-test") AdamPresentationIntegration.RunTacticalScenario(-1);
@@ -87,55 +96,6 @@ namespace Breachpoint.Editor.Enemies
             File.WriteAllText(Evidence + "/animation-inventory.csv", inventory.ToString());
         }
 
-        private static void WireStance()
-        {
-            GameObject root = PrefabUtility.LoadPrefabContents(AdamPresentationIntegration.RiflemanPath);
-            try
-            {
-                var animator = root.GetComponentInChildren<Animator>(true);
-                animator.cullingMode = AnimatorCullingMode.AlwaysAnimate;
-                PrefabUtility.RecordPrefabInstancePropertyModifications(animator);
-                if (root.GetComponent<Breachpoint.Gameplay.AI.EnemyStance>() == null) root.AddComponent<Breachpoint.Gameplay.AI.EnemyStance>();
-                var rigPresenter = root.GetComponent<Breachpoint.Gameplay.AI.EnemyRigPresenter>();
-                if (rigPresenter == null) rigPresenter = root.AddComponent<Breachpoint.Gameplay.AI.EnemyRigPresenter>();
-                var rigData = new SerializedObject(rigPresenter);
-                var rigs = root.GetComponentsInChildren<UnityEngine.Animations.Rigging.Rig>(true);
-                rigData.FindProperty("_aimRig").objectReferenceValue = rigs.Single(rig => rig.name == "AimRig");
-                rigData.FindProperty("_leftHandRig").objectReferenceValue = rigs.Single(rig => rig.name == "LeftHandRig");
-                rigData.ApplyModifiedPropertiesWithoutUndo();
-                PrefabUtility.SaveAsPrefabAsset(root, AdamPresentationIntegration.RiflemanPath);
-            }
-            finally { PrefabUtility.UnloadPrefabContents(root); }
-        }
-
-        private static void WireTactics()
-        {
-            if (EditorApplication.isPlayingOrWillChangePlaymode) throw new InvalidOperationException("Exit Play Mode before configuration changes.");
-            var tactics = CreateConfig<Breachpoint.Gameplay.AI.EnemyTacticalConfig>("RiflemanTactics");
-            var squad = CreateConfig<Breachpoint.Gameplay.AI.EnemySquadConfig>("Squad");
-            var cover = CreateConfig<Breachpoint.Gameplay.AI.EnemyCoverConfig>("Cover");
-            var data = new SerializedObject(tactics);
-            data.FindProperty("<CommittedCoverBonus>k__BackingField").floatValue = 85f;
-            data.FindProperty("<CoverPreferenceBonus>k__BackingField").floatValue = 50f;
-            data.FindProperty("<Squad>k__BackingField").objectReferenceValue = squad;
-            data.FindProperty("<Cover>k__BackingField").objectReferenceValue = cover;
-            data.ApplyModifiedPropertiesWithoutUndo(); EditorUtility.SetDirty(tactics); AssetDatabase.SaveAssetIfDirty(tactics);
-            var rifleman = AssetDatabase.LoadAssetAtPath<Breachpoint.Gameplay.AI.EnemyArchetypeConfig>("Assets/Project/Enemies/Configs/Rifleman.asset");
-            data = new SerializedObject(rifleman); data.FindProperty("<Tactics>k__BackingField").objectReferenceValue = tactics;
-            data.ApplyModifiedPropertiesWithoutUndo(); AssetDatabase.SaveAssetIfDirty(rifleman);
-            var coverData = new SerializedObject(cover);
-            coverData.FindProperty("<StandingMuzzleHeight>k__BackingField").floatValue = 1.4f;
-            coverData.ApplyModifiedPropertiesWithoutUndo(); EditorUtility.SetDirty(cover); AssetDatabase.SaveAssetIfDirty(cover);
-            File.WriteAllText(Evidence + "/config-integration.txt", "CommittedCoverBonus=" + tactics.CommittedCoverBonus + ", CoverPreferenceBonus=" + tactics.CoverPreferenceBonus + ", AdvanceScore=" + tactics.AdvanceScore + ", StandingMuzzleHeight=" + cover.StandingMuzzleHeight);
-            WireStance();
-        }
-        private static T CreateConfig<T>(string name) where T : ScriptableObject
-        {
-            string path = "Assets/Project/Enemies/Configs/" + name + ".asset";
-            var value = AssetDatabase.LoadAssetAtPath<T>(path);
-            if (value != null) return value;
-            value = ScriptableObject.CreateInstance<T>(); AssetDatabase.CreateAsset(value, path); return value;
-        }
         private static string Csv(string value) => "\"" + value.Replace("\"", "\"\"") + "\"";
         private static void DescribeMachine(AnimatorStateMachine machine, string path, StringBuilder text, Dictionary<AnimationClip, List<string>> refs)
         {

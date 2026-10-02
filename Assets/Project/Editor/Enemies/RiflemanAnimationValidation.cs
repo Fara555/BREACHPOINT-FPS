@@ -69,7 +69,7 @@ namespace Breachpoint.Editor.Enemies
                     brain.Memory.Target = target; brain.Memory.Visible = true; brain.Memory.HasContact = true;
                     bool combat = index >= 8 && index < 39;
                     if (combat) brain.States.Change(EnemyStateId.Combat, "deterministic animation scenario");
-                    foreach (var wait in WaitEnumerable(0.35f)) yield return wait;
+                    foreach (var wait in WaitEnumerable(combat ? 1.25f : .35f)) yield return wait;
                     AppendResult("SCENARIO " + (index + 1) + ": " + AnimationScenarioNames[index]);
                     IEnumerator test = AnimationCase(index, enemy, brain, actor, bridge, target);
                     while (test.MoveNext()) { SampleAnimation(animator); yield return test.Current; }
@@ -138,7 +138,7 @@ namespace Breachpoint.Editor.Enemies
                 PlayCheck(animator.GetCurrentAnimatorStateInfo(0).IsTag("Death") && animator.GetLayerWeight(1) == 0f && !brain.Combat.IsReloading && !animator.GetComponent<RigBuilder>().layers[0].active, "Death interrupts reload/hit and releases aim rig");
                 enemy.SetActive(false); enemy.SetActive(true); yield return null; brain.ResetForSpawn(); brain.enabled = false;
                 brain.States.Change(EnemyStateId.Combat, "turn interruption");
-                foreach (var wait in WaitEnumerable(0.4f)) yield return wait;
+                foreach (var wait in WaitEnumerable(1.3f)) yield return wait;
                 actor.Navigation.Face(enemy.transform.position + Vector3.left * 10f, Time.deltaTime);
                 foreach (var wait in WaitEnumerable(0.15f)) yield return wait;
                 PlayCheck(actor.Navigation.IsTurning, "Turn interruption fixture starts controlled turn");
@@ -146,7 +146,7 @@ namespace Breachpoint.Editor.Enemies
                 foreach (var wait in WaitEnumerable(0.2f)) yield return wait;
                 PlayCheck(!actor.Navigation.IsTurning && animator.GetCurrentAnimatorStateInfo(1).IsTag("Hit"), "Hit cancels active controlled turn");
                 bridge.SetCrouching(true);
-                foreach (var wait in WaitEnumerable(0.85f)) yield return wait;
+                foreach (var wait in WaitEnumerable(1.3f)) yield return wait;
                 PlayCheck(StateMatches(animator, "CrouchLocomotion") && StateMatches(animator, "None", 1), "Stance change during hit settles without locking either layer");
                 yield break;
             }
@@ -203,7 +203,7 @@ namespace Breachpoint.Editor.Enemies
                     float stopDeadline = Time.time + 0.4f;
                     while (Time.time < stopDeadline && !StateMatches(animator, "SteadyStopWalk")) yield return null;
                     PlayCheck(StateMatches(animator, "SteadyStopWalk"), "Stop movement selects authored stop clip within 0.4 seconds (speed=" + animator.GetFloat("MoveSpeed") + ", state=" + animator.GetCurrentAnimatorStateInfo(0).fullPathHash + ")");
-                    foreach (var wait in WaitEnumerable(0.8f)) yield return wait;
+                    foreach (var wait in WaitEnumerable(1.2f)) yield return wait;
                     PlayCheck(StateMatches(animator, "SteadyIdle"), "Stop clip returns to idle without permanent lock");
                 }
                 CapturePresentation(enemy, "rework-" + (index + 1)); yield break;
@@ -214,16 +214,16 @@ namespace Breachpoint.Editor.Enemies
                 for (int group = 0; group < groups; group++)
                 {
                     bridge.SetCrouching(index == 22 && group == 1);
-                    foreach (var wait in WaitEnumerable(0.8f)) yield return wait;
+                    foreach (var wait in WaitEnumerable(1.3f)) yield return wait;
                     int first = index == 22 ? 0 : index - 4; int last = index == 22 ? 4 : first + 1;
                     for (int turn = first; turn < last; turn++)
                     {
                         if (index == 22 && turn > first)
-                        { brain.ResetForSpawn(); brain.States.Change(EnemyStateId.Combat, "turn fixture"); bridge.SetCrouching(group == 1); foreach (var wait in WaitEnumerable(0.8f)) yield return wait; }
+                        { brain.ResetForSpawn(); brain.States.Change(EnemyStateId.Combat, "turn fixture"); bridge.SetCrouching(group == 1); foreach (var wait in WaitEnumerable(1.3f)) yield return wait; }
                         float angle = turn == 0 ? -90f : turn == 1 ? 90f : turn == 2 ? -175f : 175f;
                         Vector3 facing = Quaternion.Euler(0f, angle, 0f) * enemy.transform.forward;
                         actor.Navigation.Face(enemy.transform.position + facing * 10f, Time.deltaTime);
-                        foreach (var wait in WaitEnumerable(0.2f)) yield return wait;
+                        foreach (var wait in WaitEnumerable(0.3f)) yield return wait;
                         PlayCheck(actor.Navigation.IsTurning && animator.GetCurrentAnimatorStateInfo(0).IsTag("Turn"), "Turn clip and controlled root rotation start together: " + angle);
                         CapturePresentation(enemy, "rework-turn-" + index + "-" + group + "-" + turn);
                         foreach (var wait in WaitEnumerable(2.2f)) yield return wait;
@@ -240,7 +240,7 @@ namespace Breachpoint.Editor.Enemies
                 foreach (Vector3 direction in directions)
                 {
                     enemy.transform.SetPositionAndRotation(AnimationStart, Quaternion.identity); brain.ResetForSpawn(); brain.States.Change(EnemyStateId.Combat, "directional fixture"); bridge.SetCrouching(index == 21);
-                    foreach (var wait in WaitEnumerable(0.8f)) yield return wait;
+                    foreach (var wait in WaitEnumerable(1.3f)) yield return wait;
                     IEnumerator move = MoveAnimation(actor, direction, pace);
                     while (move.MoveNext()) yield return move.Current;
                     Vector3 local = enemy.transform.InverseTransformDirection(actor.Navigation.Velocity);
@@ -256,10 +256,10 @@ namespace Breachpoint.Editor.Enemies
             }
             if (index >= 19 && index <= 23)
             {
-                bridge.SetCrouching(true); foreach (var wait in WaitEnumerable(0.8f)) yield return wait;
+                bridge.SetCrouching(true); foreach (var wait in WaitEnumerable(1.3f)) yield return wait;
                 PlayCheck(StateMatches(animator, "CrouchLocomotion") && actor.Eyes.localPosition.y < 1.2f && enemy.GetComponent<CapsuleCollider>().height < 1.5f, "Gameplay stance and crouch pose agree");
                 CapturePresentation(enemy, "rework-" + (index + 1));
-                if (index == 23) { bridge.SetCrouching(false); foreach (var wait in WaitEnumerable(0.85f)) yield return wait; PlayCheck(StateMatches(animator, "StandingLocomotion") && !bridge.IsCrouching, "Crouch exits and restores standing stance"); }
+                if (index == 23) { bridge.SetCrouching(false); foreach (var wait in WaitEnumerable(1.4f)) yield return wait; PlayCheck(StateMatches(animator, "StandingLocomotion") && !bridge.IsCrouching, "Crouch exits and restores standing stance"); }
                 yield break;
             }
             if (index >= 24 && index <= 32)
@@ -270,9 +270,12 @@ namespace Breachpoint.Editor.Enemies
                 {
                     enemy.transform.SetPositionAndRotation(AnimationStart, Quaternion.identity); brain.ResetForSpawn(); brain.States.Change(EnemyStateId.Combat, "action fixture");
                     bridge.SetCrouching(crouch); brain.Memory.Target = target; brain.Memory.Visible = true; target.transform.position = AnimationStart + Vector3.forward * 10f;
-                    foreach (var wait in WaitEnumerable(0.8f)) yield return wait;
+                    foreach (var wait in WaitEnumerable(1.3f)) yield return wait;
                     if (moving || crouch && pace == EnemyMovePace.Crouch) { IEnumerator move = MoveAnimation(actor, Vector3.forward, pace); while (move.MoveNext()) yield return move.Current; }
                     Physics.SyncTransforms();
+                    Transform head = animator.GetBoneTransform(HumanBodyBones.Head);
+                    float crouchHeadHeight = head.position.y - enemy.transform.position.y;
+                    float maximumReloadHeight = crouchHeadHeight;
                     if (index <= 29)
                     {
                         brain.Combat.Attack(target, Time.time - 1f); brain.Combat.Attack(target, Time.time);
@@ -285,12 +288,18 @@ namespace Breachpoint.Editor.Enemies
                             SampleAnimation(animator); CapturePresentation(enemy, "rework-action-" + index + "-" + pace);
                             actor.Navigation.Stop();
                             float until = Time.time + brain.Config.Combat.ReloadDuration + 0.2f;
-                            while (Time.time < until) { brain.Combat.Tick(Time.time); yield return null; }
+                            while (Time.time < until)
+                            {
+                                brain.Combat.Tick(Time.time);
+                                maximumReloadHeight = Mathf.Max(maximumReloadHeight, head.position.y - enemy.transform.position.y);
+                                yield return null;
+                            }
+                            if (index == 29) PlayCheck(maximumReloadHeight <= crouchHeadHeight + .25f, "Crouch reload preserves physical crouched body height throughout the action");
                             PlayCheck(!brain.Combat.IsReloading && brain.Combat.Ammo == brain.Config.Combat.MagazineSize && StateMatches(animator, "None", 1), "Reload timing matches gameplay and cannot lock actions");
                         }
                         else
                         {
-                            foreach (var wait in WaitEnumerable(0.1f)) yield return wait;
+                            foreach (var wait in WaitEnumerable(bridge.Config.ActionBlendIn + .04f)) yield return wait;
                             PlayCheck(animator.GetCurrentAnimatorStateInfo(1).IsTag("Fire"), "Real firing selects fire action while locomotion remains on base layer");
                             CapturePresentation(enemy, "rework-action-" + index + "-" + pace);
                             actor.Navigation.Stop(); foreach (var wait in WaitEnumerable(0.4f)) yield return wait;
@@ -317,7 +326,7 @@ namespace Breachpoint.Editor.Enemies
             }
             if (index >= 33 && index <= 38)
             {
-                bridge.SetCrouching(index == 37); foreach (var wait in WaitEnumerable(0.8f)) yield return wait;
+                bridge.SetCrouching(index == 37); foreach (var wait in WaitEnumerable(1.3f)) yield return wait;
                 if (index == 38) { IEnumerator move = MoveAnimation(actor, Vector3.forward, EnemyMovePace.Run); while (move.MoveNext()) yield return move.Current; }
                 Vector3 direction = index == 34 ? Vector3.forward : index == 35 ? Vector3.right : index == 36 ? Vector3.left : Vector3.back;
                 actor.Health.TakeDamage(new DamageInfo(100000f, actor.Eyes.position, direction, target.gameObject));
@@ -339,14 +348,14 @@ namespace Breachpoint.Editor.Enemies
             {
                 IEnumerator move = MoveAnimation(actor, Vector3.forward, EnemyMovePace.Walk, 0.2f); while (move.MoveNext()) yield return move.Current;
                 brain.States.Change(EnemyStateId.Combat, "mode change during StartWalk");
-                foreach (var wait in WaitEnumerable(0.35f)) yield return wait;
+                foreach (var wait in WaitEnumerable(1.3f)) yield return wait;
                 PlayCheck(StateMatches(animator, "StandingLocomotion") && animator.GetBool("IsCombat"), "Explicit combat mode interrupts Steady start without CrossFade");
             }
             else if (index == 40)
             {
-                brain.States.Change(EnemyStateId.Combat, "mode fixture"); foreach (var wait in WaitEnumerable(0.3f)) yield return wait;
+                brain.States.Change(EnemyStateId.Combat, "mode fixture"); foreach (var wait in WaitEnumerable(1.3f)) yield return wait;
                 brain.Memory.HasContact = false; brain.Memory.Visible = false; brain.States.Change(EnemyStateId.Idle, "awareness expired");
-                foreach (var wait in WaitEnumerable(0.3f)) yield return wait;
+                foreach (var wait in WaitEnumerable(1.8f)) yield return wait;
                 PlayCheck(StateMatches(animator, "SteadyIdle") && !animator.GetBool("IsCombat"), "Awareness loss returns to Steady through conditioned Animator transition");
             }
         }

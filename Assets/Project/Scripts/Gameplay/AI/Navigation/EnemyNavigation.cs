@@ -21,6 +21,9 @@ namespace Breachpoint.Gameplay.AI
         private Quaternion _turnEnd;
         private float _turnBegan;
         private float _turnDuration;
+        private float _stationaryTurnSpeed;
+        private float _deferFacingUntil;
+        private EnemyBrain _brain;
         public NavigationResult Result { get; private set; }
         public Vector3 Velocity => Ready ? _agent.velocity : Vector3.zero;
         public Vector3 DesiredVelocity => Ready ? _agent.desiredVelocity : Vector3.zero;
@@ -38,6 +41,7 @@ namespace Breachpoint.Gameplay.AI
         public void Initialize(EnemyMovementConfig config)
         {
             _config = config; _agent = GetComponent<NavMeshAgent>(); _path = new NavMeshPath();
+            _brain = GetComponent<EnemyBrain>();
             _agent.acceleration = config.Acceleration; _agent.angularSpeed = config.TurnSpeed;
             _agent.stoppingDistance = config.StoppingDistance;
             // Gameplay rotation is updated here; turn clips never apply root motion.
@@ -46,7 +50,7 @@ namespace Breachpoint.Gameplay.AI
         public bool ResetAt(Vector3 position)
         {
             _nextRepath = 0f; _requested = false; Result = NavigationResult.None; RepathCount = 0;
-            CancelTurn(); _desiredFacing = Vector3.zero;
+            CancelTurn(); _desiredFacing = Vector3.zero; _deferFacingUntil = 0f;
             if (_agent == null || !NavMesh.SamplePosition(position, out NavMeshHit hit, 2f, _agent.areaMask))
             { Result = NavigationResult.Unavailable; return false; }
             bool success = _agent.Warp(hit.position);
@@ -58,6 +62,7 @@ namespace Breachpoint.Gameplay.AI
         {
             if (!Ready) { Result = NavigationResult.Unavailable; return; }
             _agent.speed = pace == EnemyMovePace.Sprint ? _config.SprintSpeed : pace == EnemyMovePace.Crouch ? _config.CrouchSpeed : pace == EnemyMovePace.Run ? _config.RunSpeed : _config.WalkSpeed;
+            if (pace == EnemyMovePace.Walk && _config.SteadyWalkSpeed > 0f && _brain.States.Group == EnemyStateGroup.Passive) _agent.speed = _config.SteadyWalkSpeed;
             if (now < _nextRepath) return;
             _nextRepath = now + _config.RepathInterval; RepathCount++;
             if (!NavMesh.SamplePosition(point, out NavMeshHit hit, 1.5f, _agent.areaMask) || !_agent.CalculatePath(hit.position, _path) || _path.status != NavMeshPathStatus.PathComplete)
@@ -100,6 +105,8 @@ namespace Breachpoint.Gameplay.AI
             _turnBegan = Time.time; _turnDuration = duration; IsTurning = true; return true;
         }
         public void CancelTurn() => IsTurning = false;
+        public void ConfigurePresentationTurning(float stationarySpeed) => _stationaryTurnSpeed = stationarySpeed;
+        public void DeferStationaryFacing(float duration) => _deferFacingUntil = Time.time + duration;
         private void Update()
         {
             if (_config == null || !Ready) return;
@@ -115,9 +122,10 @@ namespace Breachpoint.Gameplay.AI
                 }
             }
             Vector3 facing = Time.time < _facingUntil ? _desiredFacing : Velocity.sqrMagnitude > 0.01f ? DesiredVelocity : _desiredFacing;
+            if (Velocity.sqrMagnitude < 0.01f && Time.time < _deferFacingUntil) return;
             facing.y = 0f;
             if (facing.sqrMagnitude > 0.001f)
-                transform.rotation = Quaternion.RotateTowards(transform.rotation, Quaternion.LookRotation(facing), _config.TurnSpeed * Time.deltaTime);
+                transform.rotation = Quaternion.RotateTowards(transform.rotation, Quaternion.LookRotation(facing), (_stationaryTurnSpeed > 0f && Velocity.sqrMagnitude < 0.01f ? _stationaryTurnSpeed : _config.TurnSpeed) * Time.deltaTime);
         }
         private void OnDisable() { Stop(); CancelTurn(); _desiredFacing = Vector3.zero; }
     }

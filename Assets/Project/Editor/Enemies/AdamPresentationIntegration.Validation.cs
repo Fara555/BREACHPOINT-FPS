@@ -29,9 +29,6 @@ namespace Breachpoint.Editor.Enemies
         [InitializeOnLoadMethod]
         private static void SubscribeValidation() => EditorApplication.playModeStateChanged += ValidationModeChanged;
 
-        [MenuItem("Breachpoint/Enemies/Adam presentation/Validate all in Play Mode")]
-        public static void ValidateAll() => ValidateStage(70);
-
         public static void ValidateStage(int stage)
         {
             if (EditorApplication.isPlayingOrWillChangePlaymode) throw new InvalidOperationException("Exit Play Mode before validation.");
@@ -59,13 +56,27 @@ namespace Breachpoint.Editor.Enemies
                 _tests = PresentationTests(SessionState.GetInt(StageKey, 4));
                 _deadline = EditorApplication.timeSinceStartup + (SessionState.GetInt(StageKey, 70) >= 100 ? 600 : SessionState.GetInt(StageKey, 70) == 70 ? 360 : 100);
                 EditorApplication.update += ValidationTick;
+                if (SessionState.GetBool("RiflemanPolish.ControlTest", false)) StartReviewControlChecks();
+            }
+            if (state == PlayModeStateChange.ExitingPlayMode)
+            {
+                // Dispose while the original domain and live review resources still exist.
+                EditorApplication.update -= ValidationTick;
+                Application.logMessageReceived -= ValidationLog;
+                (_tests as IDisposable)?.Dispose(); _tests = null;
+                Application.runInBackground = _priorBackground;
             }
             if (state == PlayModeStateChange.EnteredEditMode)
             {
+                EditorApplication.update -= ValidationTick;
+                Application.logMessageReceived -= ValidationLog;
+                (_tests as IDisposable)?.Dispose(); _tests = null;
+                Application.runInBackground = _priorBackground;
                 SessionState.SetBool(RunningKey, false);
                 SavedScenes saved = JsonUtility.FromJson<SavedScenes>(SessionState.GetString(ScenesKey, ""));
                 EditorSceneManager.RestoreSceneManagerSetup(saved.scenes);
                 AppendResult("Editor scene setup restored.");
+                if (SessionState.GetBool("RiflemanPolish.ControlStopping", false)) CompleteReviewControlChecks();
             }
         }
 
@@ -77,6 +88,13 @@ namespace Breachpoint.Editor.Enemies
 
         private static void ValidationTick()
         {
+            if (!EditorApplication.isPlaying) return;
+            if (SessionState.GetInt(StageKey, 0) >= 130)
+            {
+                _deadline = EditorApplication.timeSinceStartup + 600;
+                Time.timeScale = SessionState.GetBool("RiflemanPolish.Paused", false) ? 0f : SessionState.GetFloat("RiflemanPolish.TimeScale", 1f);
+                if (Time.timeScale == 0f) return;
+            }
             try
             {
                 if (EditorApplication.timeSinceStartup > _deadline) throw new TimeoutException("Presentation validation timed out.");
@@ -118,8 +136,9 @@ namespace Breachpoint.Editor.Enemies
             foreach (EnemyBrain existing in Object.FindObjectsByType<EnemyBrain>()) existing.gameObject.SetActive(false);
             GameLifetimeScope scope = Object.FindAnyObjectByType<GameLifetimeScope>();
             EnemyWorld world = scope.Container.Resolve<EnemyWorld>();
-            IEnumerator scenario = stage == 50 ? OriginalGameplayTests() : stage == 60 ? WeaponEffectsTests(scope, world) : stage == 80 ? CoverFoundationTests(scope, world) : stage == 90 ? SquadFoundationTests(scope, world) : stage == 100 ? RiflemanTacticalTests(scope, world) : stage == 110 ? RiflemanPerformanceTests(scope, world) : stage == 120 ? RiflemanEdgeTests(scope, world) : RiflemanAnimationTests(scope, world);
-            while (scenario.MoveNext()) yield return scenario.Current;
+            IEnumerator scenario = stage >= 130 ? PolishReviewTests(scope, world, stage == 131) : stage == 50 ? OriginalGameplayTests() : stage == 60 ? WeaponEffectsTests(scope, world) : stage == 80 ? CoverFoundationTests(scope, world) : stage == 90 ? SquadFoundationTests(scope, world) : stage == 100 ? RiflemanTacticalTests(scope, world) : stage == 110 ? RiflemanPerformanceTests(scope, world) : stage == 120 ? RiflemanEdgeTests(scope, world) : RiflemanAnimationTests(scope, world);
+            try { while (scenario.MoveNext()) yield return scenario.Current; }
+            finally { (scenario as IDisposable)?.Dispose(); }
         }
 
         private static IEnumerable<object> WaitEnumerable(float seconds)
@@ -174,8 +193,6 @@ namespace Breachpoint.Editor.Enemies
             // Invoke only existing tests, never the suite's asset-builder/scene-save entry point.
             const System.Reflection.BindingFlags flags = System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic;
             Type suite = typeof(EnemyValidation);
-            if (suite.GetField("_routine", flags).GetValue(null) != null)
-                throw new InvalidOperationException("The original enemy suite is already running.");
             Directory.CreateDirectory("Logs");
             const string originalReport = "Logs/EnemyValidation.txt";
             int offset = File.Exists(originalReport) ? File.ReadAllText(originalReport).Length : 0;

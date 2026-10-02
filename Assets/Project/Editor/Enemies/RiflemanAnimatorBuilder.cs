@@ -5,6 +5,7 @@ using UnityEditor;
 using UnityEditor.Animations;
 using UnityEngine;
 using Object = UnityEngine.Object;
+using Breachpoint.Gameplay.AI;
 
 namespace Breachpoint.Editor.Enemies
 {
@@ -12,6 +13,7 @@ namespace Breachpoint.Editor.Enemies
     {
         private const string MaskPath = "Assets/Project/Art/Enemies/Adam/Config/AM_Adam_UpperBody.mask";
         private static AnimatorController _controller;
+        private static EnemyAnimationConfig Tuning => AssetDatabase.LoadAssetAtPath<GameObject>(AdamPresentationIntegration.RiflemanPath).GetComponent<EnemyAnimationBridge>().Config;
         private static readonly Dictionary<string, AnimationClip> Clips = new Dictionary<string, AnimationClip>(StringComparer.OrdinalIgnoreCase);
 
         [MenuItem("Breachpoint/Enemies/AI Test / Tactical Debug/Rebuild Rifleman Animator")]
@@ -31,7 +33,7 @@ namespace Breachpoint.Editor.Enemies
             foreach (Object asset in AssetDatabase.LoadAllAssetsAtPath(RiflemanRework.ControllerPath))
                 if (asset != _controller) Object.DestroyImmediate(asset, true);
             _controller.parameters = Array.Empty<AnimatorControllerParameter>();
-            foreach (string name in new[] { "MoveSpeed", "MoveX", "MoveY", "HitDirection", "ReloadSpeed" }) _controller.AddParameter(name, AnimatorControllerParameterType.Float);
+            foreach (string name in new[] { "MoveSpeed", "MoveX", "MoveY", "HitDirection", "ReloadSpeed", "SteadyStride", "CombatStride", "CrouchStride" }) _controller.AddParameter(name, AnimatorControllerParameterType.Float);
             foreach (string name in new[] { "IsCombat", "IsCrouching", "IsFiring", "IsReloading", "IsHit", "IsDead" }) _controller.AddParameter(name, AnimatorControllerParameterType.Bool);
             foreach (string name in new[] { "Turn90Left", "Turn90Right", "Turn180Left", "Turn180Right", "Hit" }) _controller.AddParameter(name, AnimatorControllerParameterType.Trigger);
             AnimatorStateMachine body = Machine("Base Layer");
@@ -53,6 +55,59 @@ namespace Breachpoint.Editor.Enemies
         }
 
         private static AnimationClip Clip(string name) => Clips.TryGetValue(name, out AnimationClip clip) ? clip : throw new InvalidOperationException("Missing authored Adam clip: " + name);
+        private static AnimationClip OneShot(string source)
+        {
+            string path = "Assets/Project/Art/Enemies/Adam/Config/" + source.Replace(" ", "") + ".anim";
+            AnimationClip clip = AssetDatabase.LoadAssetAtPath<AnimationClip>(path);
+            if (clip == null)
+            {
+                clip = Object.Instantiate(Clip(source)); clip.name = source + " One Shot";
+                var settings = AnimationUtility.GetAnimationClipSettings(clip); settings.loopTime = false; settings.loopBlend = false;
+                AnimationUtility.SetAnimationClipSettings(clip, settings); AssetDatabase.CreateAsset(clip, path);
+            }
+            return clip;
+        }
+        private static AnimationClip TurnClip(string source)
+        {
+            string path = "Assets/Project/Art/Enemies/Adam/Config/" + source.Replace(" ", "") + "InPlace.anim";
+            AnimationClip clip = AssetDatabase.LoadAssetAtPath<AnimationClip>(path);
+            if (clip == null)
+            {
+                clip = Object.Instantiate(Clip(source)); AssetDatabase.CreateAsset(clip, path);
+            }
+            // Authored yaw is baked into the source pose and can oppose gameplay yaw.
+            // Extract it in this representation; navigation alone rotates the actor.
+            clip.name = System.IO.Path.GetFileNameWithoutExtension(path);
+            var settings = AnimationUtility.GetAnimationClipSettings(clip);
+            settings.loopBlendOrientation = false;
+            settings.loopTime = false;
+            AnimationUtility.SetAnimationClipSettings(clip, settings);
+            EditorUtility.SetDirty(clip); AssetDatabase.SaveAssetIfDirty(clip);
+            return clip;
+        }
+        private static AnimationClip CrouchReloadClip()
+        {
+            const string path = "Assets/Project/Art/Enemies/Adam/Config/CrouchReloadUpper.anim";
+            AnimationClip clip = AssetDatabase.LoadAssetAtPath<AnimationClip>(path);
+            bool created = clip == null;
+            if (created) { clip = Object.Instantiate(Clip("Reload")); clip.name = "CrouchReloadUpper"; }
+            // Retain authored arm/hand timing while the crouched torso stays crouched.
+            // Body muscles on an override layer otherwise straighten the lower stance.
+            var binding = AnimationUtility.GetCurveBindings(clip).Single(b => b.propertyName == "RootT.y");
+            var crouchHeight = AnimationUtility.GetEditorCurve(Clip("idle crouching"), binding);
+            if (crouchHeight == null) throw new InvalidOperationException("Authored crouch body height is missing.");
+            float height = crouchHeight.Evaluate(0f);
+            AnimationUtility.SetEditorCurve(clip, binding, AnimationCurve.Constant(0f, clip.length, height));
+            foreach (var body in AnimationUtility.GetCurveBindings(clip))
+            {
+                if (!body.propertyName.StartsWith("Spine", StringComparison.Ordinal) && !body.propertyName.StartsWith("Chest", StringComparison.Ordinal) && !body.propertyName.StartsWith("UpperChest", StringComparison.Ordinal)) continue;
+                var reference = AnimationUtility.GetEditorCurve(Clip("idle crouching"), body);
+                if (reference != null) AnimationUtility.SetEditorCurve(clip, body, AnimationCurve.Constant(0f, clip.length, reference.Evaluate(0f)));
+            }
+            if (created) AssetDatabase.CreateAsset(clip, path);
+            else { EditorUtility.SetDirty(clip); AssetDatabase.SaveAssetIfDirty(clip); }
+            return clip;
+        }
         private static AnimatorStateMachine Machine(string name)
         {
             var machine = new AnimatorStateMachine { name = name, hideFlags = HideFlags.HideInHierarchy };
@@ -99,31 +154,42 @@ namespace Breachpoint.Editor.Enemies
         private static void BuildBody(AnimatorStateMachine machine)
         {
             AnimatorState idle = State(machine, "SteadyIdle", Clip("Rifle Idle"), "Locomotion"); machine.defaultState = idle;
-            AnimatorState start = State(machine, "SteadyStartWalk", Clip("Rifle start walking"), "Locomotion", 4f);
+            AnimatorState start = State(machine, "SteadyStartWalk", Clip("Rifle start walking"), "Locomotion", Tuning.SteadyStartSpeed);
             AnimatorState walk = State(machine, "SteadyWalk", Clip("Rifle Walk"), "Locomotion");
-            AnimatorState stop = State(machine, "SteadyStopWalk", Clip("Rifle stop walking"), "Locomotion", 4f);
+            AnimatorState stop = State(machine, "SteadyStopWalk", Clip("Rifle stop walking"), "Locomotion", Tuning.SteadyStopSpeed);
+            walk.speedParameter = "SteadyStride"; walk.speedParameterActive = true;
             var standingTree = Tree("StandingLocomotion", "MoveSpeed");
             standingTree.AddChild(Clip("idle aiming"), 0f);
             standingTree.AddChild(Directional("Walk", "walk "), 0.33f);
             standingTree.AddChild(Directional("Run", "run "), 0.66f);
             standingTree.AddChild(Directional("Sprint", "sprint "), 1f);
             AnimatorState standing = State(machine, "StandingLocomotion", standingTree, "Locomotion");
+            standing.speedParameter = "CombatStride"; standing.speedParameterActive = true;
             AnimatorState crouch = State(machine, "CrouchLocomotion", Directional("Crouch", "walk crouching ", Clip("idle crouching")), "Locomotion");
-            AnimatorState down = State(machine, "StandingToCrouch", Clip("Standing to crouch"), "Stance", 2f);
-            AnimatorState up = State(machine, "CrouchToStanding", Clip("Crouch to standing"), "Stance", 2f);
-            Speed(To(idle, start, 0.06f), true);
-            To(start, walk, 0.08f, 0.8f); Speed(To(start, stop), false);
-            Speed(To(walk, stop), false); To(stop, idle, 0.08f, 0.8f); Speed(To(stop, start), true);
+            crouch.speedParameter = "CrouchStride"; crouch.speedParameterActive = true;
+            AnimatorState down = State(machine, "StandingToCrouch", Clip("Standing to crouch"), "Stance", Tuning.StancePlaybackSpeed);
+            AnimatorState up = State(machine, "CrouchToStanding", Clip("Crouch to standing"), "Stance", Tuning.StancePlaybackSpeed);
+            AnimatorState raise = State(machine, "RaiseWeapon", OneShot("Rifle Raise"), "Readiness");
+            AnimatorState lower = State(machine, "LowerWeapon", OneShot("Rifle Lower"), "Readiness");
+            Speed(To(idle, start, Tuning.LocomotionBlend), true);
+            // Use the authored opening/settling phase at natural speed, not a 4x whole clip.
+            To(start, walk, Tuning.LocomotionBlend, 0.25f); Speed(To(start, stop, Tuning.LocomotionBlend), false);
+            Speed(To(walk, stop, Tuning.LocomotionBlend), false); To(stop, idle, Tuning.LocomotionBlend, 0.35f); Speed(To(stop, start, Tuning.LocomotionBlend), true);
             foreach (AnimatorState state in new[] { idle, start, walk, stop })
             {
-                AnimatorStateTransition mode = To(state, standing, 0.12f); Bool(mode, "IsCombat", true); Alive(mode);
-                AnimatorStateTransition stance = To(state, down); Bool(stance, "IsCrouching", true); Alive(stance);
+                AnimatorStateTransition stance = To(state, down, Tuning.StanceBlend); Bool(stance, "IsCrouching", true); Alive(stance);
+                AnimatorStateTransition mode = To(state, raise, Tuning.ReadinessBlend); Bool(mode, "IsCombat", true); Bool(mode, "IsCrouching", false); Alive(mode);
             }
-            AnimatorStateTransition toSteady = To(standing, idle, 0.12f); Bool(toSteady, "IsCombat", false); Bool(toSteady, "IsCrouching", false); Alive(toSteady);
-            AnimatorStateTransition toDown = To(standing, down); Bool(toDown, "IsCrouching", true); Alive(toDown);
-            AnimatorStateTransition toUp = To(crouch, up); Bool(toUp, "IsCrouching", false); Alive(toUp);
-            To(down, crouch, 0.08f, 0.85f); Bool(To(down, up), "IsCrouching", false);
-            To(up, standing, 0.08f, 0.85f); Bool(To(up, down), "IsCrouching", true);
+            To(raise, standing, Tuning.ReadinessBlend, 0.9f);
+            To(lower, idle, Tuning.ReadinessBlend, 0.9f);
+            Bool(To(raise, lower, Tuning.ReadinessBlend), "IsCombat", false);
+            Bool(To(lower, raise, Tuning.ReadinessBlend), "IsCombat", true);
+            foreach (var mode in new[] { raise, lower }) Bool(To(mode, down, Tuning.StanceBlend), "IsCrouching", true);
+            AnimatorStateTransition toSteady = To(standing, lower, Tuning.ReadinessBlend); Bool(toSteady, "IsCombat", false); Bool(toSteady, "IsCrouching", false); Alive(toSteady);
+            AnimatorStateTransition toDown = To(standing, down, Tuning.StanceBlend); Bool(toDown, "IsCrouching", true); Alive(toDown);
+            AnimatorStateTransition toUp = To(crouch, up, Tuning.StanceBlend); Bool(toUp, "IsCrouching", false); Alive(toUp);
+            To(down, crouch, Tuning.StanceBlend, 0.9f); Bool(To(down, up, Tuning.StanceBlend), "IsCrouching", false);
+            To(up, standing, Tuning.StanceBlend, 0.9f); Bool(To(up, down, Tuning.StanceBlend), "IsCrouching", true);
             AddTurns(machine, idle, "Steady", "Steady rifle turn ");
             AddTurns(machine, standing, "Combat", "turn ");
             AddTurns(machine, crouch, "Crouch", "crouching turn ");
@@ -143,10 +209,10 @@ namespace Breachpoint.Editor.Enemies
             foreach (string suffix in new[] { "90 left", "90 right", "180 left", "180 right" })
             {
                 string trigger = "Turn" + suffix.Replace(" ", ""); trigger = trigger.Replace("left", "Left").Replace("right", "Right");
-                AnimatorState turn = State(machine, group + trigger, Clip(prefix + suffix), "Turn");
-                AnimatorStateTransition enter = To(entry, turn, 0.06f); enter.AddCondition(AnimatorConditionMode.If, 0f, trigger); Speed(enter, false); Bool(enter, "IsHit", false); Bool(enter, "IsReloading", false); Alive(enter);
-                To(turn, entry, 0.08f, 0.9f);
-                Speed(To(turn, entry, 0.08f), true);
+                AnimatorState turn = State(machine, group + trigger, TurnClip(prefix + suffix), "Turn");
+                AnimatorStateTransition enter = To(entry, turn, Tuning.TurnBlendIn); enter.AddCondition(AnimatorConditionMode.If, 0f, trigger); Speed(enter, false); Bool(enter, "IsHit", false); Bool(enter, "IsReloading", false); Alive(enter);
+                To(turn, entry, Tuning.TurnBlendOut, 0.92f);
+                Speed(To(turn, entry, Tuning.TurnBlendOut), true);
                 AnimatorStateTransition mode = To(turn, entry); Bool(mode, "IsHit", true);
                 if (group == "Steady") Bool(To(turn, machine.states.First(s => s.state.name == "StandingLocomotion").state), "IsCombat", true);
                 else if (group == "Combat") Bool(To(turn, machine.states.First(s => s.state.name == "SteadyIdle").state), "IsCombat", false);
@@ -162,33 +228,34 @@ namespace Breachpoint.Editor.Enemies
         private static void BuildActions(AnimatorStateMachine machine)
         {
             AnimatorState empty = State(machine, "None", null, "None"); machine.defaultState = empty;
-            AnimatorState fire = State(machine, "Fire", SpeedTree("FireMotion", "Fire", "Fire Walk", "Fire Run", "Fire Sprint"), "Fire");
+            AnimatorState fire = State(machine, "Fire", Clip("Fire"), "Fire");
             var crouchFireTree = Tree("CrouchFireMotion", "MoveSpeed"); crouchFireTree.AddChild(Clip("Fire Crouch"), 0f); crouchFireTree.AddChild(Clip("Fire Crouch Moving"), 0.33f);
             AnimatorState crouchFire = State(machine, "CrouchFire", crouchFireTree, "Fire");
             AnimatorState reload = State(machine, "Reload", NormalizeDuration(SpeedTree("ReloadMotion", "Reload", "Reload Walking", "Reload Sprinting")), "Reload");
-            var crouchReloadTree = Tree("CrouchReloadMotion", "MoveSpeed"); crouchReloadTree.AddChild(Clip("Reload crouch"), 0f); NormalizeDuration(crouchReloadTree);
+            var crouchReloadTree = Tree("CrouchReloadMotion", "MoveSpeed"); crouchReloadTree.AddChild(CrouchReloadClip(), 0f); NormalizeDuration(crouchReloadTree);
             AnimatorState crouchReload = State(machine, "CrouchReload", crouchReloadTree, "Reload");
             reload.speedParameter = crouchReload.speedParameter = "ReloadSpeed"; reload.speedParameterActive = crouchReload.speedParameterActive = true;
             var hitMotion = Tree("HitMotion", "MoveSpeed");
             foreach (var group in new[] { ("Idle Hit", "Idle hit left", "Idle hit right"), ("Walk Hit", "Walk hit left", "Walk hit right"), ("Sprint hit", "Sprint hit left", "Sprint hit right") })
             {
-                var directional = Tree(group.Item1, "HitDirection"); directional.AddChild(Clip(group.Item1), 0f); directional.AddChild(Clip(group.Item2), 1f); directional.AddChild(Clip(group.Item3), 2f); NormalizeDuration(directional);
+                var directional = Tree(group.Item1, "HitDirection"); directional.AddChild(Clip(group.Item1), 0f); directional.AddChild(Clip(group.Item2), 1f); directional.AddChild(Clip(group.Item3), 2f);
                 hitMotion.AddChild(directional, hitMotion.children.Length * 0.33f);
             }
-            AnimatorState hit = State(machine, "Hit", hitMotion, "Hit", 2f);
+            AnimatorState hit = State(machine, "Hit", hitMotion, "Hit");
             var crouchHitTree = Tree("CrouchHitMotion", "HitDirection");
-            for (int i = 0; i < 3; i++) crouchHitTree.AddChild(Clip("Crouch hit " + (i + 1)), i); NormalizeDuration(crouchHitTree);
-            AnimatorState crouchHit = State(machine, "CrouchHit", crouchHitTree, "Hit", 2f);
+            for (int i = 0; i < 3; i++) crouchHitTree.AddChild(Clip("Crouch hit " + (i + 1)), i);
+            AnimatorState crouchHit = State(machine, "CrouchHit", crouchHitTree, "Hit");
             // Priority: hit > reload > fire. Gameplay clock controls reload completion.
             foreach (AnimatorState state in new[] { hit, crouchHit, reload, crouchReload, fire, crouchFire })
             {
-                AnimatorStateTransition enter = machine.AddAnyStateTransition(state); enter.duration = 0.06f; enter.hasFixedDuration = true; enter.hasExitTime = false; enter.canTransitionToSelf = false;
+                AnimatorStateTransition enter = machine.AddAnyStateTransition(state); enter.duration = state == hit || state == crouchHit ? Tuning.HitBlendIn : Tuning.ActionBlendIn; enter.hasFixedDuration = true; enter.hasExitTime = false; enter.canTransitionToSelf = false;
                 Bool(enter, "IsDead", false); Bool(enter, "IsCrouching", state == crouchHit || state == crouchReload || state == crouchFire);
                 if (state == hit || state == crouchHit) enter.AddCondition(AnimatorConditionMode.If, 0f, "Hit");
                 else Bool(enter, "IsHit", false);
                 if (state != hit && state != crouchHit) Bool(enter, "IsReloading", state == reload || state == crouchReload);
                 if (state == fire || state == crouchFire) Bool(enter, "IsFiring", true);
-                AnimatorStateTransition leave = To(state, empty, 0.06f, state == hit || state == crouchHit ? 0.95f : -1f);
+                AnimatorStateTransition leave = To(state, empty, Tuning.ActionBlendOut);
+                if (state == hit || state == crouchHit) Bool(leave, "IsHit", false);
                 if (state == reload || state == crouchReload) Bool(leave, "IsReloading", false);
                 if (state == fire || state == crouchFire) Bool(leave, "IsFiring", false);
                 Bool(To(state, empty, 0.02f), "IsDead", true);

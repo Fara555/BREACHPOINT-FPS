@@ -13,6 +13,7 @@ namespace Breachpoint.Editor.Enemies
         private AnimatorController _controller;
         private readonly Dictionary<int, string> _states = new Dictionary<int, string>();
         private int _tacticalScenario;
+        private int _reviewScenario;
         private bool _global;
         private string _validationStatus = "No validation selected";
         private double _nextSnapshot;
@@ -93,6 +94,23 @@ namespace Breachpoint.Editor.Enemies
                 }
             }
             EditorGUILayout.Space();
+            EditorGUILayout.LabelField("Continuous Game View presentation review", EditorStyles.boldLabel);
+            _reviewScenario = EditorGUILayout.Popup("Review loop", _reviewScenario, AdamPresentationIntegration.ReviewNames);
+            bool reviewing = EditorApplication.isPlaying && SessionState.GetBool("AdamPresentation.Validation", false) && SessionState.GetInt("AdamPresentation.Validation.Stage", 0) >= 130;
+            using (new EditorGUI.DisabledScope(EditorApplication.isPlayingOrWillChangePlaymode || EditorApplication.isCompiling))
+                if (GUILayout.Button("Run visible review")) AdamPresentationIntegration.RunReview(_reviewScenario, true);
+            using (new EditorGUI.DisabledScope(!reviewing))
+            {
+                bool paused = SessionState.GetBool("RiflemanPolish.Paused", false);
+                if (GUILayout.Button(paused ? "Resume review" : "Pause review")) SessionState.SetBool("RiflemanPolish.Paused", !paused);
+                SessionState.SetBool("RiflemanPolish.Repeat", EditorGUILayout.Toggle("Repeat scenario", SessionState.GetBool("RiflemanPolish.Repeat", true)));
+                EditorGUILayout.BeginHorizontal();
+                if (GUILayout.Button("0.5x review")) SessionState.SetFloat("RiflemanPolish.TimeScale", .5f);
+                if (GUILayout.Button("1.0x review")) SessionState.SetFloat("RiflemanPolish.TimeScale", 1f);
+                if (GUILayout.Button("Next scenario")) { _reviewScenario = (_reviewScenario + 1) % AdamPresentationIntegration.ReviewNames.Length; SessionState.SetInt("RiflemanPolish.Scenario", _reviewScenario); }
+                if (GUILayout.Button("Stop / restore scene")) EditorApplication.isPlaying = false;
+                EditorGUILayout.EndHorizontal();
+            }
             _global = EditorGUILayout.Toggle("Global live statistics", _global);
             if (_global && EditorApplication.isPlaying) ShowGlobal();
             EditorGUILayout.LabelField("Deterministic tactical scenarios", EditorStyles.boldLabel);
@@ -111,7 +129,7 @@ namespace Breachpoint.Editor.Enemies
                 if (GUILayout.Button("Run selected scenario")) AdamPresentationIntegration.RunAnimationScenario(_scenario);
                 if (GUILayout.Button("Run complete animation matrix")) AdamPresentationIntegration.RunAnimationMatrix();
             }
-            EditorGUILayout.HelpBox("Scenarios use the existing EnemyArena and runtime-only fixtures. Unsaved scenes are protected; original scene setup is restored after the run. PASS verifies runtime facts; inspect rendered frames for visual quality.", MessageType.None);
+            EditorGUILayout.HelpBox("Review shows continuous motion in Game View and records a sequence. Slow/pause controls apply only to this review session; exit restores time and scene setup. Automated PASS verifies mechanics, not visual acceptance.", MessageType.None);
             EditorGUILayout.EndScrollView();
         }
         private static void ShowTactics(EnemyBrain brain)

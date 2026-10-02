@@ -13,7 +13,10 @@ MonoBehaviour:
   m_Name: Movement
   m_EditorClassIdentifier: Assembly-CSharp::Breachpoint.Gameplay.AI.EnemyMovementConfig
   <WalkSpeed>k__BackingField: 2
+  <SteadyWalkSpeed>k__BackingField: 1.25
   <RunSpeed>k__BackingField: 4.5
+  <SprintSpeed>k__BackingField: 6.75
+  <CrouchSpeed>k__BackingField: 1.2
   <Acceleration>k__BackingField: 14
   <TurnSpeed>k__BackingField: 360
   <StoppingDistance>k__BackingField: 0.35

@@ -95,6 +95,27 @@ namespace Breachpoint.Editor.Enemies
                 EnemyContext holder = index == 7 ? fixture.Contexts[3] : null;
                 if (holder != null) { fixture.Brains[3].enabled = false; PlayCheck(fixture.Covers.Reserve(point, holder, fixture.Brains[0].Config.Tactics.Cover, Time.time), "External holder reserves all available cover"); }
                 Physics.SyncTransforms();
+                if (index == 11)
+                {
+                    // Rush interrupts protected cover; a completed exposure cycle is not a prerequisite.
+                    // Dedicated low/high cases still require exposed shots and physical return.
+                    EnemyBrain covered = null; float deadline = Time.time + 10f;
+                    while (Time.time < deadline)
+                    {
+                        fixture.Observe();
+                        foreach (var brain in fixture.Brains)
+                            if (brain.Tactics.CurrentCover == point && brain.Tactics.CoverPhase == EnemyCoverActionPhase.Protected && brain.GetComponent<EnemyStance>().IsCrouching) covered = brain;
+                        if (covered != null) break;
+                        yield return null;
+                    }
+                    DescribeCover(fixture);
+                    PlayCheck(covered != null, "Rush begins from an actual protected crouching cover owner");
+                    Vector3 original = covered.transform.position;
+                    fixture.Target.transform.position = original + new Vector3(-2f, 0f, .8f); Physics.SyncTransforms();
+                    foreach (var wait in Enumerate(WatchTactical(fixture, 2f))) yield return wait;
+                    PlayCheck(covered.Tactics.CurrentCover == null && (covered.transform.position - original).sqrMagnitude > .5f, "Close rush abandons cover and physically falls back/laterally repositions");
+                    yield break;
+                }
                 if (index == 8)
                 {
                     fixture.Brains[2].Memory.Target = fixture.Target;
@@ -116,22 +137,18 @@ namespace Breachpoint.Editor.Enemies
                 while (Time.time < until)
                 { if (holder != null) fixture.Covers.Pulse(point, holder, fixture.Brains[0].Config.Tactics.Cover, Time.time, false); fixture.Observe(); yield return null; }
                 PlayCheck(fixture.Shots > 0, "Covered/all-reserved/unreachable engagement retains actual pressure fire");
-                if (index == 4 || index == 5 || index == 11 || index == 16) DescribeCover(fixture);
-                if (index == 4 || index == 5 || index == 11 || index == 16)
+                if (index == 4 || index == 5 || index == 16) DescribeCover(fixture);
+                if (index == 4 || index == 5 || index == 16)
                     PlayCheck(index == 5 ? fixture.SawProtectedHigh && fixture.SawExposed : fixture.SawProtectedLow && fixture.SawExposed, "Cover reaches protected stance and actual exposure phase");
-                if (index == 4 || index == 5) { PlayCheck(fixture.CoverExposedShot, "Covered enemy actually fires from exposure, not just entering an exposure phase"); }
+                if (index == 4 || index == 5)
+                {
+                    PlayCheck(fixture.CoverExposedShot, "Covered enemy actually fires from exposure, not just entering an exposure phase");
+                    PlayCheck(fixture.ReturnedProtectedAfterShot, "The same cover owner physically returns protected after its actual exposed shot");
+                }
                 if (index == 6) PlayCheck(fixture.MaximumReservations == 1, "Competing enemies never own the same single cover together");
                 if (index == 7) PlayCheck(fixture.Covers.Reservation(point)?.Owner == holder && fixture.SawMover, "All reserved cover falls back to other useful positions");
                 if (index == 8) PlayCheck(fixture.Covers.Reservation(point) == null, "Unreachable cover is never reserved");
                 CapturePresentation(fixture.Brains[2].gameObject, "tactical-cover-" + (index + 1));
-                if (index == 11)
-                {
-                    EnemyBrain covered = null; foreach (var brain in fixture.Brains) if (brain.Tactics.CurrentCover == point) covered = brain;
-                    PlayCheck(covered != null, "Rush fixture still owns cover"); Vector3 original = covered.transform.position;
-                    fixture.Target.transform.position = original + new Vector3(-2f, 0f, 0.8f); Physics.SyncTransforms();
-                    foreach (var wait in Enumerate(WatchTactical(fixture, 2f))) yield return wait;
-                    PlayCheck(covered.Tactics.CurrentCover == null && (covered.transform.position - original).sqrMagnitude > 0.5f, "Close rush abandons cover and physically falls back/laterally repositions");
-                }
                 if (index == 16)
                 {
                     foreach (var brain in fixture.Brains)

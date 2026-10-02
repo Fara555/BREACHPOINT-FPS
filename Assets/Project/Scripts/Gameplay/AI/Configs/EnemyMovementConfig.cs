@@ -5,6 +5,7 @@ namespace Breachpoint.Gameplay.AI
     public sealed class EnemyMovementConfig : ScriptableObject
     {
         [field: SerializeField, Min(0.1f)] public float WalkSpeed { get; private set; } = 2f;
+        [field: SerializeField, Min(0f)] public float SteadyWalkSpeed { get; private set; }
         [field: SerializeField, Min(0.1f)] public float RunSpeed { get; private set; } = 4.5f;
         [field: SerializeField, Min(0.1f)] public float SprintSpeed { get; private set; } = 6.75f;
         [field: SerializeField, Min(0.1f)] public float CrouchSpeed { get; private set; } = 1.2f;
