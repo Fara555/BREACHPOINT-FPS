@@ -14,7 +14,7 @@ using Object = UnityEngine.Object;
 
 namespace Breachpoint.Editor.Enemies
 {
-    public static partial class AdamPresentationIntegration
+    public static partial class EnemyValidationRunner
     {
         internal static readonly string[] AnimationScenarioNames =
         {
@@ -27,19 +27,19 @@ namespace Breachpoint.Editor.Enemies
         private static readonly Vector3 AnimationStart = new Vector3(4f, 0f, -8f);
         private static StreamWriter _animationSamples;
 
-        [MenuItem("Breachpoint/Enemies/AI Test / Tactical Debug/Run complete animation matrix")]
+        [MenuItem("Breachpoint/Enemies/Validation/Run complete animation matrix")]
         public static void RunAnimationMatrix() => RunAnimationScenario(-1);
         public static void RunAnimationScenario(int index)
         {
-            SessionState.SetInt("RiflemanRework.AnimationScenario", index);
+            SessionState.SetInt("EnemyTools.AnimationScenario", index);
             ValidateStage(70);
         }
         private static IEnumerator RiflemanAnimationTests(GameLifetimeScope scope, EnemyWorld world)
         {
-            Directory.CreateDirectory(RiflemanRework.Evidence);
+            Directory.CreateDirectory(EnemyTools.Evidence);
             ObservedAnimationPaths.Clear();
-            _animationSamples = new StreamWriter(RiflemanRework.Evidence + "/animation-samples.csv", false);
-            _animationSamples.WriteLine("Time,Layer,StateHash,Clip,Weight,MoveSpeed,MoveX,MoveY,RootYaw");
+            _animationSamples = new StreamWriter(EnemyTools.Evidence + "/animation-samples.csv", false);
+            _animationSamples.WriteLine("Time,Layer,State,Clip,Weight,MoveSpeed,MoveX,MoveY,RootYaw");
             GameObject enemy;
             using (LifetimeScope.EnqueueParent(scope)) enemy = Object.Instantiate(AssetDatabase.LoadAssetAtPath<GameObject>(RiflemanPath), AnimationStart, Quaternion.identity);
             GameObject player = new GameObject("Rework animation target"); player.layer = 6;
@@ -53,10 +53,10 @@ namespace Breachpoint.Editor.Enemies
             Animator animator = bridge.Animator;
             PlayCheck(animator.cullingMode == AnimatorCullingMode.AlwaysAnimate, "Prefab/runtime keep the bone-attached gameplay muzzle updating outside the camera");
             RigBuilder rig = animator.GetComponent<RigBuilder>();
-            PlayCheck(animator.layerCount == 2 && !animator.applyRootMotion && animator.isHuman && animator.avatar.isValid, "Rebuilt two-layer controller has valid Humanoid and root motion disabled");
+            PlayCheck(animator.layerCount == 3 && !animator.applyRootMotion && animator.isHuman && animator.avatar.isValid, "Three-layer controller with additive recoil has valid Humanoid and root motion disabled");
             PlayCheck(rig.layers.Count == 2 && rig.layers[0].rig.name == "AimRig" && rig.layers[1].rig.name == "LeftHandRig", "Authored AimRig -> LeftHandRig order remains intact");
             PlayCheck(actor.Muzzle != null && FindUnique(animator.transform, "LeftHandGrip") != null, "Existing weapon muzzle and hand grip remain assigned");
-            int selected = SessionState.GetInt("RiflemanRework.AnimationScenario", -1);
+            int selected = SessionState.GetInt("EnemyTools.AnimationScenario", -1);
             try
             {
                 for (int index = 0; index < AnimationScenarioNames.Length; index++)
@@ -77,7 +77,7 @@ namespace Breachpoint.Editor.Enemies
                     PlayCheck(true, "Scenario " + (index + 1) + " PASS: " + AnimationScenarioNames[index]);
                 }
                 PlayCheck(!actor.Health.IsDead || brain.States.Current == EnemyStateId.Dead, "Gameplay health and terminal state remain authoritative");
-                File.WriteAllLines(RiflemanRework.Evidence + "/observed-animation-assets.txt", ObservedAnimationPaths.OrderBy(path => path));
+                File.WriteAllLines(EnemyTools.Evidence + "/observed-animation-assets.txt", ObservedAnimationPaths.OrderBy(path => path));
             }
             finally
             {
@@ -97,13 +97,25 @@ namespace Breachpoint.Editor.Enemies
                     if (info.weight < 0.05f) continue;
                     ObservedAnimationPaths.Add(AssetDatabase.GetAssetPath(info.clip));
                     _animationSamples?.WriteLine(string.Join(",", Time.time.ToString("F3", System.Globalization.CultureInfo.InvariantCulture), layer,
-                        animator.GetCurrentAnimatorStateInfo(layer).fullPathHash, info.clip.name, info.weight.ToString("F3", System.Globalization.CultureInfo.InvariantCulture),
+                        EnemyAnimationStateNames.Get(animator.GetCurrentAnimatorStateInfo(layer).fullPathHash), info.clip.name, info.weight.ToString("F3", System.Globalization.CultureInfo.InvariantCulture),
                         animator.GetFloat("MoveSpeed").ToString("F3", System.Globalization.CultureInfo.InvariantCulture), animator.GetFloat("MoveX").ToString("F3", System.Globalization.CultureInfo.InvariantCulture),
                         animator.GetFloat("MoveY").ToString("F3", System.Globalization.CultureInfo.InvariantCulture), animator.transform.root.eulerAngles.y.ToString("F1", System.Globalization.CultureInfo.InvariantCulture)));
                 }
             }
         }
         private static bool StateMatches(Animator animator, string name, int layer = 0) => animator.GetCurrentAnimatorStateInfo(layer).IsName(name) || animator.GetNextAnimatorStateInfo(layer).IsName(name);
+        // A reaction contributes during the user's incoming blend, before becoming current.
+        // Require positive transition progress so a merely queued destination cannot pass.
+        private static bool HasActionPose(Animator animator, string tag, int layer = 1) => animator.GetCurrentAnimatorStateInfo(layer).IsTag(tag) || animator.IsInTransition(layer) && animator.GetNextAnimatorStateInfo(layer).IsTag(tag) && animator.GetAnimatorTransitionInfo(layer).normalizedTime > .01f;
+        // A manually tuned incoming blend already evaluates the destination turn pose.
+        private static bool HasTurnPose(Animator animator) => animator.GetCurrentAnimatorStateInfo(0).IsTag("Turn") || animator.IsInTransition(0) && animator.GetNextAnimatorStateInfo(0).IsTag("Turn");
+        private static IEnumerator WaitForTurnFixture(Animator animator, string state)
+        {
+            // Settle the user's authored stance before measuring the separate turn-start deadline.
+            float until = Time.time + 3f;
+            while (Time.time < until && (!StateMatches(animator, state) || animator.IsInTransition(0))) yield return null;
+            PlayCheck(StateMatches(animator, state) && !animator.IsInTransition(0), "Current authored stance settles before isolated turn probe: " + state);
+        }
         private static IEnumerator MoveAnimation(EnemyActor actor, Vector3 direction, EnemyMovePace pace, float seconds = 0.9f)
         {
             Vector3 start = actor.transform.position;
@@ -116,7 +128,9 @@ namespace Breachpoint.Editor.Enemies
                     actor.Navigation.Face(actor.transform.position + Vector3.forward * 20f, Time.deltaTime);
                 yield return null;
             }
-            PlayCheck((actor.transform.position - start).sqrMagnitude > 0.02f && !actor.Navigation.Failed, "Actual NavMesh movement succeeds: " + pace + "/" + direction + " | " + actor.Navigation.Result + " | " + actor.transform.position);
+            // A short startup probe validates acceleration, not full-speed cruise distance.
+            float minimumTravel = seconds < .3f ? .02f : Mathf.Sqrt(.02f);
+            PlayCheck((actor.transform.position - start).sqrMagnitude > minimumTravel * minimumTravel && actor.Navigation.Velocity.sqrMagnitude > .0004f && !actor.Navigation.Failed, "Actual NavMesh movement succeeds: " + pace + "/" + direction + " | " + actor.Navigation.Result + " | " + actor.transform.position);
         }
         private static IEnumerator AnimationCase(int index, GameObject enemy, EnemyBrain brain, EnemyActor actor, EnemyAnimationBridge bridge, PerceptionTarget target)
         {
@@ -130,12 +144,12 @@ namespace Breachpoint.Editor.Enemies
                 PlayCheck(!animator.GetComponent<RigBuilder>().layers[1].active, "Reload releases hand IK through runtime rig layer activity");
                 actor.Health.TakeDamage(new DamageInfo(1f, actor.Eyes.position, Vector3.back, target.gameObject));
                 foreach (var wait in WaitEnumerable(0.15f)) yield return wait;
-                PlayCheck(animator.GetCurrentAnimatorStateInfo(1).IsTag("Hit") && brain.Combat.IsReloading, "Hit overrides reload presentation without cancelling gameplay timer");
+                PlayCheck(HasActionPose(animator, "Hit") && brain.Combat.IsReloading, "Hit overrides reload presentation without cancelling gameplay timer");
                 foreach (var wait in WaitEnumerable(0.7f)) yield return wait;
                 PlayCheck(animator.GetCurrentAnimatorStateInfo(1).IsTag("Reload"), "After hit the ongoing reload presentation resumes");
                 actor.Health.TakeDamage(new DamageInfo(100000f, actor.Eyes.position, Vector3.back, target.gameObject));
                 foreach (var wait in WaitEnumerable(0.25f)) yield return wait;
-                PlayCheck(animator.GetCurrentAnimatorStateInfo(0).IsTag("Death") && animator.GetLayerWeight(1) == 0f && !brain.Combat.IsReloading && !animator.GetComponent<RigBuilder>().layers[0].active, "Death interrupts reload/hit and releases aim rig");
+                PlayCheck(animator.GetCurrentAnimatorStateInfo(0).IsTag("Death") && animator.GetLayerWeight(1) == 0f && animator.GetLayerWeight(2) == 0f && !brain.Combat.IsReloading && !animator.GetComponent<RigBuilder>().layers[0].active, "Death interrupts reload/hit and releases aim rig");
                 enemy.SetActive(false); enemy.SetActive(true); yield return null; brain.ResetForSpawn(); brain.enabled = false;
                 brain.States.Change(EnemyStateId.Combat, "turn interruption");
                 foreach (var wait in WaitEnumerable(1.3f)) yield return wait;
@@ -144,7 +158,7 @@ namespace Breachpoint.Editor.Enemies
                 PlayCheck(actor.Navigation.IsTurning, "Turn interruption fixture starts controlled turn");
                 actor.Health.TakeDamage(new DamageInfo(1f, actor.Eyes.position, Vector3.back, target.gameObject));
                 foreach (var wait in WaitEnumerable(0.2f)) yield return wait;
-                PlayCheck(!actor.Navigation.IsTurning && animator.GetCurrentAnimatorStateInfo(1).IsTag("Hit"), "Hit cancels active controlled turn");
+                PlayCheck(!actor.Navigation.IsTurning && HasActionPose(animator, "Hit"), "Hit cancels active controlled turn");
                 bridge.SetCrouching(true);
                 foreach (var wait in WaitEnumerable(1.3f)) yield return wait;
                 PlayCheck(StateMatches(animator, "CrouchLocomotion") && StateMatches(animator, "None", 1), "Stance change during hit settles without locking either layer");
@@ -171,12 +185,13 @@ namespace Breachpoint.Editor.Enemies
                 {
                     rig.Clear(); animator.runtimeAnimatorController = probe; animator.Rebind(); animator.Update(0f); rig.Build();
                     foreach (var wait in WaitEnumerable(0.5f)) yield return wait;
-                    CapturePresentation(enemy, "rework-IK-single-layer-steady");
+                    var hand = enemy.GetComponentInChildren<TwoBoneIKConstraint>(true);
+                    PlayCheck(Vector3.Distance(hand.data.tip.position, hand.data.target.position) < .03f, "Single base layer reaches the preserved hand grip");
                     animator.SetBool("IsCombat", true);
                     // Disable the bridge only for this isolated controller comparison.
                     bridge.enabled = false;
                     foreach (var wait in WaitEnumerable(0.5f)) yield return wait;
-                    CapturePresentation(enemy, "rework-IK-single-layer-combat");
+                    PlayCheck(Vector3.Distance(hand.data.tip.position, hand.data.target.position) < .03f, "Single base layer retains combat hand grip");
                 }
                 finally
                 {
@@ -190,23 +205,35 @@ namespace Breachpoint.Editor.Enemies
                 PlayCheck(StateMatches(animator, index == 0 ? "SteadyIdle" : "StandingLocomotion"), "Correct stationary mode state");
                 var hand = enemy.GetComponentInChildren<TwoBoneIKConstraint>(true);
                 PlayCheck(Vector3.Distance(hand.data.tip.position, hand.data.target.position) < 0.03f, "Stable idle reaches the preserved hand grip");
-                CapturePresentation(enemy, "rework-" + (index + 1)); yield break;
+                yield break;
             }
             if (index >= 1 && index <= 3)
             {
+                if (index == 1)
+                {
+                    Vector3 startPosition = enemy.transform.position;
+                    Vector3 destination = startPosition + Vector3.forward * 10f;
+                    float deadline = Time.time + .2f;
+                    while (Time.time < deadline) { actor.Navigation.MoveTo(destination, EnemyMovePace.Walk, Time.time); yield return null; }
+                    PlayCheck(StateMatches(animator, "SteadyStartWalk") && actor.Navigation.MovementPhase == EnemyMovementPhase.Starting && Vector3.Distance(startPosition, enemy.transform.position) < .08f, "Authored Steady startup responds within 0.2 seconds before meaningful world travel");
+                    deadline = Time.time + .45f;
+                    while (Time.time < deadline) { actor.Navigation.MoveTo(destination, EnemyMovePace.Walk, Time.time); yield return null; }
+                    PlayCheck(Vector3.Distance(startPosition, enemy.transform.position) > .02f && actor.Navigation.Velocity.sqrMagnitude > .0004f && !actor.Navigation.Failed, "Delayed Steady startup produces real NavMesh acceleration and travel within 0.65 seconds");
+                    yield break;
+                }
                 IEnumerator move = MoveAnimation(actor, Vector3.forward, EnemyMovePace.Walk, index == 1 ? 0.2f : 1.05f);
                 while (move.MoveNext()) yield return move.Current;
-                PlayCheck(index == 1 ? StateMatches(animator, "SteadyStartWalk") : StateMatches(animator, "SteadyWalk"), "Steady locomotion responds without idle exit-time delay");
+                PlayCheck(index == 1 ? StateMatches(animator, "SteadyStartWalk") : StateMatches(animator, "SteadyWalk"), "Steady locomotion responds without idle exit-time delay (state=" + EnemyAnimationStateNames.Get(animator.GetCurrentAnimatorStateInfo(0).fullPathHash) + ", normalized=" + animator.GetCurrentAnimatorStateInfo(0).normalizedTime + ", next=" + EnemyAnimationStateNames.Get(animator.GetNextAnimatorStateInfo(0).fullPathHash) + ")");
                 if (index == 3)
                 {
                     actor.Navigation.Stop();
                     float stopDeadline = Time.time + 0.4f;
                     while (Time.time < stopDeadline && !StateMatches(animator, "SteadyStopWalk")) yield return null;
-                    PlayCheck(StateMatches(animator, "SteadyStopWalk"), "Stop movement selects authored stop clip within 0.4 seconds (speed=" + animator.GetFloat("MoveSpeed") + ", state=" + animator.GetCurrentAnimatorStateInfo(0).fullPathHash + ")");
+                    PlayCheck(StateMatches(animator, "SteadyStopWalk"), "Stop movement selects authored stop clip within 0.4 seconds (speed=" + animator.GetFloat("MoveSpeed") + ", state=" + EnemyAnimationStateNames.Get(animator.GetCurrentAnimatorStateInfo(0).fullPathHash) + ")");
                     foreach (var wait in WaitEnumerable(1.2f)) yield return wait;
                     PlayCheck(StateMatches(animator, "SteadyIdle"), "Stop clip returns to idle without permanent lock");
                 }
-                CapturePresentation(enemy, "rework-" + (index + 1)); yield break;
+                yield break;
             }
             if (index >= 4 && index <= 7 || index == 22)
             {
@@ -214,19 +241,43 @@ namespace Breachpoint.Editor.Enemies
                 for (int group = 0; group < groups; group++)
                 {
                     bridge.SetCrouching(index == 22 && group == 1);
-                    foreach (var wait in WaitEnumerable(1.3f)) yield return wait;
+                    IEnumerator settle = WaitForTurnFixture(animator, index == 22 ? group == 1 ? "CrouchLocomotion" : "StandingLocomotion" : "SteadyIdle");
+                    while (settle.MoveNext()) yield return settle.Current;
                     int first = index == 22 ? 0 : index - 4; int last = index == 22 ? 4 : first + 1;
                     for (int turn = first; turn < last; turn++)
                     {
                         if (index == 22 && turn > first)
-                        { brain.ResetForSpawn(); brain.States.Change(EnemyStateId.Combat, "turn fixture"); bridge.SetCrouching(group == 1); foreach (var wait in WaitEnumerable(1.3f)) yield return wait; }
+                        {
+                            brain.ResetForSpawn(); brain.States.Change(EnemyStateId.Combat, "turn fixture"); bridge.SetCrouching(group == 1);
+                            settle = WaitForTurnFixture(animator, group == 1 ? "CrouchLocomotion" : "StandingLocomotion");
+                            while (settle.MoveNext()) yield return settle.Current;
+                        }
                         float angle = turn == 0 ? -90f : turn == 1 ? 90f : turn == 2 ? -175f : 175f;
                         Vector3 facing = Quaternion.Euler(0f, angle, 0f) * enemy.transform.forward;
                         actor.Navigation.Face(enemy.transform.position + facing * 10f, Time.deltaTime);
                         foreach (var wait in WaitEnumerable(0.3f)) yield return wait;
-                        PlayCheck(actor.Navigation.IsTurning && animator.GetCurrentAnimatorStateInfo(0).IsTag("Turn"), "Turn clip and controlled root rotation start together: " + angle);
-                        CapturePresentation(enemy, "rework-turn-" + index + "-" + group + "-" + turn);
-                        foreach (var wait in WaitEnumerable(2.2f)) yield return wait;
+                        PlayCheck(actor.Navigation.IsTurning && HasTurnPose(animator), "Turn clip and controlled root rotation start together: " + angle);
+                        Transform hips = animator.GetBoneTransform(HumanBodyBones.Hips);
+                        Transform leftFoot = animator.GetBoneTransform(HumanBodyBones.LeftFoot);
+                        Transform rightFoot = animator.GetBoneTransform(HumanBodyBones.RightFoot);
+                        Vector3 previousLeft = hips.InverseTransformPoint(leftFoot.position);
+                        Vector3 previousRight = hips.InverseTransformPoint(rightFoot.position);
+                        float footTravel = 0f; bool progressiveYaw = false;
+                        float until = Time.time + 2.2f;
+                        while (Time.time < until)
+                        {
+                            if (HasTurnPose(animator))
+                            {
+                                Vector3 left = hips.InverseTransformPoint(leftFoot.position);
+                                Vector3 right = hips.InverseTransformPoint(rightFoot.position);
+                                footTravel += Vector3.Distance(previousLeft, left) + Vector3.Distance(previousRight, right);
+                                previousLeft = left; previousRight = right;
+                                float remaining = Vector3.Angle(enemy.transform.forward, facing);
+                                if (remaining > 5f && remaining < Mathf.Abs(angle) - 5f) progressiveYaw = true;
+                            }
+                            yield return null;
+                        }
+                        PlayCheck(footTravel > .05f && progressiveYaw, "Runtime turn has animated feet and progressive body facing: " + angle);
                         PlayCheck(!actor.Navigation.IsTurning && Vector3.Angle(enemy.transform.forward, facing) < 4f && animator.GetCurrentAnimatorStateInfo(0).IsTag("Locomotion"), "Turn finishes once, root reaches desired facing and returns to locomotion");
                     }
                 }
@@ -248,7 +299,6 @@ namespace Breachpoint.Editor.Enemies
                     Vector2 actual = new Vector2(animator.GetFloat("MoveX"), animator.GetFloat("MoveY")).normalized;
                     PlayCheck(Vector2.Dot(expected, actual) > 0.9f && animator.GetFloat("MoveSpeed") > 0.1f, "Directional parameters follow actual local motion: " + direction);
                     SampleAnimation(animator);
-                    if (index == 16 || index == 21) CapturePresentation(enemy, "rework-direction-" + index + "-" + direction.x + "-" + direction.z);
                     actor.Navigation.Stop();
                 }
                 if (index == 18) { foreach (var wait in WaitEnumerable(0.4f)) yield return wait; PlayCheck(animator.GetFloat("MoveSpeed") < 0.02f, "Run stops responsively without a long StopRun animation lock"); }
@@ -258,7 +308,6 @@ namespace Breachpoint.Editor.Enemies
             {
                 bridge.SetCrouching(true); foreach (var wait in WaitEnumerable(1.3f)) yield return wait;
                 PlayCheck(StateMatches(animator, "CrouchLocomotion") && actor.Eyes.localPosition.y < 1.2f && enemy.GetComponent<CapsuleCollider>().height < 1.5f, "Gameplay stance and crouch pose agree");
-                CapturePresentation(enemy, "rework-" + (index + 1));
                 if (index == 23) { bridge.SetCrouching(false); foreach (var wait in WaitEnumerable(1.4f)) yield return wait; PlayCheck(StateMatches(animator, "StandingLocomotion") && !bridge.IsCrouching, "Crouch exits and restores standing stance"); }
                 yield break;
             }
@@ -285,7 +334,7 @@ namespace Breachpoint.Editor.Enemies
                             PlayCheck(brain.Combat.RequestReload(Time.time) && !brain.Combat.RequestReload(Time.time), "Gameplay reload starts once and rejects duplicate request");
                             foreach (var wait in WaitEnumerable(0.2f)) yield return wait;
                             PlayCheck(animator.GetCurrentAnimatorStateInfo(1).IsTag("Reload"), "Reload action matches stance/motion");
-                            SampleAnimation(animator); CapturePresentation(enemy, "rework-action-" + index + "-" + pace);
+                            SampleAnimation(animator);
                             actor.Navigation.Stop();
                             float until = Time.time + brain.Config.Combat.ReloadDuration + 0.2f;
                             while (Time.time < until)
@@ -300,10 +349,9 @@ namespace Breachpoint.Editor.Enemies
                         else
                         {
                             foreach (var wait in WaitEnumerable(bridge.Config.ActionBlendIn + .04f)) yield return wait;
-                            PlayCheck(animator.GetCurrentAnimatorStateInfo(1).IsTag("Fire"), "Real firing selects fire action while locomotion remains on base layer");
-                            CapturePresentation(enemy, "rework-action-" + index + "-" + pace);
+                            PlayCheck(animator.GetCurrentAnimatorStateInfo(2).IsTag("Fire") && animator.GetLayerWeight(2) > 0f, "Real firing selects fire action while locomotion remains on base layer | current=" + EnemyAnimationStateNames.Get(animator.GetCurrentAnimatorStateInfo(2).fullPathHash) + " | next=" + EnemyAnimationStateNames.Get(animator.GetNextAnimatorStateInfo(2).fullPathHash) + " | transition=" + animator.IsInTransition(2) + " | weight=" + animator.GetLayerWeight(2) + " | firing=" + animator.GetBool("IsFiring") + " | dt=" + Time.deltaTime);
                             actor.Navigation.Stop(); foreach (var wait in WaitEnumerable(0.4f)) yield return wait;
-                            PlayCheck(StateMatches(animator, "None", 1), "Fire action stops shortly after gameplay shot");
+                            PlayCheck(StateMatches(animator, "None", 2), "Fire action stops shortly after gameplay shot");
                         }
                     }
                     else
@@ -314,10 +362,11 @@ namespace Breachpoint.Editor.Enemies
                             { enemy.transform.SetPositionAndRotation(AnimationStart, Quaternion.identity); actor.Navigation.ResetAt(AnimationStart); IEnumerator move = MoveAnimation(actor, Vector3.forward, pace, 0.5f); while (move.MoveNext()) yield return move.Current; }
                             actor.Health.TakeDamage(new DamageInfo(1f, actor.Eyes.position, direction, target.gameObject));
                             foreach (var wait in WaitEnumerable(0.15f)) yield return wait;
-                            PlayCheck(animator.GetCurrentAnimatorStateInfo(1).IsTag("Hit"), "Nonlethal damage activates directional hit action");
-                            SampleAnimation(animator); CapturePresentation(enemy, "rework-hit-" + index + "-" + pace + "-" + direction.x);
+                            AppendResult("HIT OBSERVED current=" + EnemyAnimationStateNames.Get(animator.GetCurrentAnimatorStateInfo(1).fullPathHash) + " next=" + EnemyAnimationStateNames.Get(animator.GetNextAnimatorStateInfo(1).fullPathHash) + " transition=" + animator.IsInTransition(1) + " progress=" + animator.GetAnimatorTransitionInfo(1).normalizedTime + " nextTime=" + animator.GetNextAnimatorStateInfo(1).normalizedTime);
+                            PlayCheck(HasActionPose(animator, "Hit"), "Nonlethal damage activates directional hit action");
+                            SampleAnimation(animator);
                             foreach (var wait in WaitEnumerable(0.7f)) yield return wait;
-                            PlayCheck(StateMatches(animator, "None", 1), "Hit action releases locomotion without permanent lock | state=" + animator.GetCurrentAnimatorStateInfo(1).fullPathHash + " | length=" + animator.GetCurrentAnimatorStateInfo(1).length + " | normalized=" + animator.GetCurrentAnimatorStateInfo(1).normalizedTime + " | hit=" + animator.GetBool("IsHit") + " | fire=" + animator.GetBool("IsFiring") + " | reload=" + animator.GetBool("IsReloading"));
+                            PlayCheck(StateMatches(animator, "None", 1), "Hit action releases locomotion without permanent lock | state=" + EnemyAnimationStateNames.Get(animator.GetCurrentAnimatorStateInfo(1).fullPathHash) + " | length=" + animator.GetCurrentAnimatorStateInfo(1).length + " | normalized=" + animator.GetCurrentAnimatorStateInfo(1).normalizedTime + " | hit=" + animator.GetBool("IsHit") + " | fire=" + animator.GetBool("IsFiring") + " | reload=" + animator.GetBool("IsReloading"));
                         }
                         actor.Navigation.Stop();
                     }
@@ -334,22 +383,25 @@ namespace Breachpoint.Editor.Enemies
                 Vector3 stoppedPosition = enemy.transform.position; yield return null; yield return null;
                 PlayCheck(actor.Navigation.Velocity.sqrMagnitude < 0.001f && Vector3.Distance(stoppedPosition, enemy.transform.position) < 0.01f, "Death stops translation on the next navigation update");
                 foreach (var wait in WaitEnumerable(0.22f)) yield return wait;
-                PlayCheck(animator.GetCurrentAnimatorStateInfo(0).IsTag("Death") && animator.GetLayerWeight(1) == 0f, "Death has highest priority and upper-body actions are disabled");
-                SampleAnimation(animator); CapturePresentation(enemy, "rework-death-" + index);
-                foreach (var wait in WaitEnumerable(1.1f)) yield return wait;
+                PlayCheck(animator.GetCurrentAnimatorStateInfo(0).IsTag("Death") && animator.GetLayerWeight(1) == 0f && animator.GetLayerWeight(2) == 0f, "Death has highest priority and upper-body actions are disabled");
+                SampleAnimation(animator);
+                            foreach (var wait in WaitEnumerable(1.1f)) yield return wait;
                 var ragdoll = enemy.GetComponent<EnemyRagdollPresenter>();
                 PlayCheck(ragdoll.IsRagdoll && !animator.enabled && !animator.GetComponent<RigBuilder>().enabled && enemy.GetComponentsInChildren<Rigidbody>(true).All(body => !body.isKinematic), "Existing pose-preserving timed ragdoll takeover succeeds");
-                CapturePresentation(enemy, "rework-ragdoll-" + index);
                 enemy.SetActive(false); enemy.SetActive(true); yield return null; brain.ResetForSpawn();
                 PlayCheck(animator.enabled && animator.GetComponent<RigBuilder>().enabled && !ragdoll.IsRagdoll && enemy.GetComponentsInChildren<Rigidbody>(true).All(body => body.isKinematic) && !animator.GetBool("IsDead"), "Pool reset restores Animator, rigs, bodies and terminal parameters");
                 yield break;
             }
             if (index == 39)
             {
-                IEnumerator move = MoveAnimation(actor, Vector3.forward, EnemyMovePace.Walk, 0.2f); while (move.MoveNext()) yield return move.Current;
+                float startDeadline = Time.time + .2f;
+                Vector3 startPosition = enemy.transform.position;
+                while (Time.time < startDeadline) { actor.Navigation.MoveTo(startPosition + Vector3.forward * 10f, EnemyMovePace.Walk, Time.time); yield return null; }
+                PlayCheck(StateMatches(animator, "SteadyStartWalk") && actor.Navigation.MovementPhase == EnemyMovementPhase.Starting && Vector3.Distance(startPosition, enemy.transform.position) < .08f, "Combat interruption fixture reaches visual StartWalk before the synchronized world ramp");
                 brain.States.Change(EnemyStateId.Combat, "mode change during StartWalk");
                 foreach (var wait in WaitEnumerable(1.3f)) yield return wait;
                 PlayCheck(StateMatches(animator, "StandingLocomotion") && animator.GetBool("IsCombat"), "Explicit combat mode interrupts Steady start without CrossFade");
+                PlayCheck(actor.Navigation.MovementPhase == EnemyMovementPhase.Idle && actor.Navigation.Velocity.sqrMagnitude < .0001f, "Combat entry cancels the pending passive movement envelope");
             }
             else if (index == 40)
             {

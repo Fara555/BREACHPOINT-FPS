@@ -11,30 +11,30 @@ using UnityEngine;
 using Object = UnityEngine.Object;
 namespace Breachpoint.Editor.Enemies
 {
-    public static partial class AdamPresentationIntegration
+    public static partial class EnemyValidationRunner
     {
         internal static readonly string[] TacticalScenarioNames =
         {
             "Single Rifleman baseline", "Three simultaneous contacts", "Suppressor and mover", "Suppressor and flanker", "Low cover", "High cover", "Competing for one cover", "All covers reserved", "Unreachable cover", "Ally blocks firing line", "Reload under pressure", "Player rushes cover", "Lost contact and group search", "Narrow passage", "Suppressor casualty", "Death during cover transition", "Reset and reuse", "Ten-agent stress", "Thirty-agent stress", "No valid tactical position"
         };
         public static void RunTacticalScenario(int index)
-        { SessionState.SetInt("RiflemanRework.TacticalScenario", index); ValidateStage(100); }
+        { SessionState.SetInt("EnemyTools.TacticalScenario", index); ValidateStage(100); }
         public static void RunTacticalRange(int first)
         {
             if (first < 0 || first >= TacticalScenarioNames.Length) throw new ArgumentOutOfRangeException(nameof(first));
-            SessionState.SetInt("RiflemanRework.TacticalScenario", 1000 + first); ValidateStage(100);
+            SessionState.SetInt("EnemyTools.TacticalScenario", 1000 + first); ValidateStage(100);
         }
         private static IEnumerator RiflemanTacticalTests(GameLifetimeScope scope, EnemyWorld world)
         {
-            Directory.CreateDirectory(RiflemanRework.Evidence);
+            Directory.CreateDirectory(EnemyTools.Evidence);
             var service = scope.Container.Resolve<EnemyCoverService>();
             var originalPoints = new List<EnemyCoverPoint>(service.Points);
             foreach (var point in originalPoints) service.Unregister(point);
             UnityEngine.Random.State priorRandom = UnityEngine.Random.state;
-            int selected = SessionState.GetInt("RiflemanRework.TacticalScenario", -1); _nextTacticalSample = 0;
+            int selected = SessionState.GetInt("EnemyTools.TacticalScenario", -1); _nextTacticalSample = 0;
             try
             {
-                using (var samples = new StreamWriter(RiflemanRework.Evidence + "/tactical-samples.csv", false))
+                using (var samples = new StreamWriter(EnemyTools.Evidence + "/tactical-samples.csv", false))
                 {
                     samples.WriteLine("Scenario,Time,Enemy,State,Intent,Role,Knowledge,DirectLOS,FireLane,Shooter,Mover,Cover,Phase,X,Z,Ammo,SnapshotTime,Decisions,Repaths");
                     for (int index = 0; index < TacticalScenarioNames.Length; index++)
@@ -87,7 +87,7 @@ namespace Breachpoint.Editor.Enemies
                 if (index == 3) PlayCheck(fixture.SawFlank, "Validated flank sector is executed under pressure");
                 if (index == 1) PlayCheck(fixture.SawMover && fixture.MaximumShooters < fixture.Brains.Length, "Open contact uses different roles instead of all enemies shooting together");
                 if (index == 17 || index == 18) foreach (var actor in fixture.Actors) PlayCheck(!actor.Health.IsDead && actor.Navigation.RepathCount < 30, "Stress enemy remains valid with throttled navigation");
-                CapturePresentation(fixture.Brains[0].gameObject, "tactical-" + (index + 1)); yield break;
+                yield break;
             }
             if (index >= 4 && index <= 8 || index == 11 || index == 15 || index == 16)
             {
@@ -148,7 +148,6 @@ namespace Breachpoint.Editor.Enemies
                 if (index == 6) PlayCheck(fixture.MaximumReservations == 1, "Competing enemies never own the same single cover together");
                 if (index == 7) PlayCheck(fixture.Covers.Reservation(point)?.Owner == holder && fixture.SawMover, "All reserved cover falls back to other useful positions");
                 if (index == 8) PlayCheck(fixture.Covers.Reservation(point) == null, "Unreachable cover is never reserved");
-                CapturePresentation(fixture.Brains[2].gameObject, "tactical-cover-" + (index + 1));
                 if (index == 16)
                 {
                     foreach (var brain in fixture.Brains)

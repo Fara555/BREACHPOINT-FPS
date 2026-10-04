@@ -45,7 +45,7 @@ namespace Breachpoint.Editor.Enemies
             if (target.Health.CurrentHealth >= playerBefore) throw new System.InvalidOperationException("Enemy could not damage the original player.");
             player.SetActive(false); Object.Destroy(player); Object.Destroy(staging);
         }
-        [MenuItem("Breachpoint/Enemies/Connect selected player")]
+        [MenuItem("Breachpoint/Enemies/Authoring/Connect selected player")]
         public static void ConnectSelectedPlayer()
         {
             GameObject player = Selection.activeGameObject;

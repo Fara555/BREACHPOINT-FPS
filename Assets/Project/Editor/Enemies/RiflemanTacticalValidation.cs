@@ -11,7 +11,7 @@ using UnityEngine;
 using Object = UnityEngine.Object;
 namespace Breachpoint.Editor.Enemies
 {
-    public static partial class AdamPresentationIntegration
+    public static partial class EnemyValidationRunner
     {
         public static void ValidateTacticalPolicy()
         {
@@ -33,8 +33,8 @@ namespace Breachpoint.Editor.Enemies
                 candidates[1].Valid = true;
                 CheckPolicy(policy.Choose(candidates, 2, current, 0f, 0f, true, out reason).Intent == EnemyTacticalIntent.FlankLeft, "Safety override bypasses commitment");
                 CheckPolicy(policy.Choose(candidates, 2, default, 0f, 0f, false, out reason).Intent == EnemyTacticalIntent.FlankLeft, "Invalid current intent is replaced immediately");
-                Directory.CreateDirectory(RiflemanRework.Evidence);
-                File.WriteAllText(RiflemanRework.Evidence + "/stage-2-policy.txt", "PASS: 8 deterministic score, tie, invalidity, fallback, commitment, override and improvement checks.\n" + ConsoleCounts());
+                Directory.CreateDirectory(EnemyTools.Evidence);
+                File.WriteAllText(EnemyTools.Evidence + "/stage-2-policy.txt", "PASS: 8 deterministic score, tie, invalidity, fallback, commitment, override and improvement checks.\n" + ConsoleCounts());
             }
             finally { Object.DestroyImmediate(config); }
         }

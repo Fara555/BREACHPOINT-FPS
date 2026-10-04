@@ -4,6 +4,32 @@ namespace Breachpoint.Gameplay.AI
 {
     public static class EnemyAnimationMath
     {
+        private const float SteadyStartBlend = .035f;
+        public static Vector2 MovementDirection(Quaternion rotation, Vector3 desired, Vector3 actual, float requestedSpeed)
+        {
+            desired.y = actual.y = 0f;
+            if (desired.sqrMagnitude < .0001f) desired = actual;
+            float actualWeight = Mathf.Clamp01(actual.magnitude / Mathf.Max(.01f, requestedSpeed));
+            Vector3 direction = Vector3.Lerp(desired.normalized, actual.normalized, actualWeight);
+            Vector3 local = Quaternion.Inverse(rotation) * direction;
+            return new Vector2(local.x, local.z).normalized;
+        }
+
+        public static float MovementBlend(float speed, float requestedSpeed, EnemyMovementTier tier, bool requested, EnemyMovementConfig movement, EnemyAnimationConfig config)
+        {
+            float threshold = tier == EnemyMovementTier.Sprint ? config.SprintThreshold : tier == EnemyMovementTier.Run ? config.RunThreshold : config.WalkThreshold;
+            // A tier request is a target, not the current pose. Use actual world speed
+            // across continuous thresholds while navigation changes its speed limit.
+            float raw = tier == EnemyMovementTier.Crouch ? threshold * Mathf.Clamp01(speed / Mathf.Max(.01f, movement.CrouchSpeed)) : ContinuousMovementBlend(speed, movement, config);
+            return requested ? Mathf.Max(raw, tier == EnemyMovementTier.Steady ? SteadyStartBlend : threshold * config.MovementStartAnticipation) : raw;
+        }
+        private static float ContinuousMovementBlend(float speed, EnemyMovementConfig movement, EnemyAnimationConfig config)
+        {
+            if (speed <= config.StationarySpeed) return 0f;
+            if (speed <= movement.WalkSpeed) return config.WalkThreshold * speed / Mathf.Max(.01f, movement.WalkSpeed);
+            if (speed <= movement.RunSpeed) return Mathf.Lerp(config.WalkThreshold, config.RunThreshold, Mathf.InverseLerp(movement.WalkSpeed, movement.RunSpeed, speed));
+            return Mathf.Lerp(config.RunThreshold, config.SprintThreshold, Mathf.InverseLerp(movement.RunSpeed, movement.SprintSpeed, speed));
+        }
         public static float StrideSpeed(float speed, float naturalSpeed, EnemyAnimationConfig config)
         {
             if (speed <= config.StationarySpeed) return 1f;

@@ -9,7 +9,7 @@ using UnityEngine;
 using VContainer;
 namespace Breachpoint.Editor.Enemies
 {
-    public static partial class AdamPresentationIntegration
+    public static partial class EnemyValidationRunner
     {
         private static IEnumerator RiflemanPerformanceTests(GameLifetimeScope scope, EnemyWorld world)
         {
@@ -47,7 +47,7 @@ namespace Breachpoint.Editor.Enemies
                 }
                 yield return null;
             }
-            File.WriteAllLines(RiflemanRework.Evidence + "/performance.csv", lines);
+            File.WriteAllLines(EnemyTools.Evidence + "/performance.csv", lines);
         }
         private static void SumPerformance(RiflemanTacticalFixture fixture, ref int checks, ref int decisions, ref int repaths, ref int measured, ref long bytes, ref double milliseconds)
         {

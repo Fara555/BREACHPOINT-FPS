@@ -10,7 +10,7 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 namespace Breachpoint.Editor.Enemies
 {
-    public static partial class RiflemanRework
+    public static partial class EnemyTools
     {
         private const string ArenaPath = "Assets/Project/Enemies/EnemyArena.unity";
         private static void AuditArena()
@@ -33,9 +33,10 @@ namespace Breachpoint.Editor.Enemies
             }
             finally { if (temporary) EditorSceneManager.CloseScene(scene, true); }
         }
-        [MenuItem("Breachpoint/Enemies/AI Test / Tactical Debug/Wire existing EnemyArena cover")]
+        [MenuItem("Breachpoint/Enemies/Cover Authoring/Wire EnemyArena cover")]
         public static void WireArenaCover()
         {
+            Directory.CreateDirectory(Evidence);
             if (EditorApplication.isPlayingOrWillChangePlaymode) throw new InvalidOperationException("Exit Play Mode before cover authoring.");
             SceneSetup[] setup = EditorSceneManager.GetSceneManagerSetup();
             for (int i = 0; i < SceneManager.sceneCount; i++)
@@ -61,7 +62,7 @@ namespace Breachpoint.Editor.Enemies
                 serialized.ApplyModifiedPropertiesWithoutUndo();
                 EditorSceneManager.MarkSceneDirty(scene);
                 if (!EditorSceneManager.SaveScene(scene)) throw new InvalidOperationException("EnemyArena save failed.");
-                File.WriteAllText(Evidence + "/arena-cover-setup.txt", "Added four local authored points for the two existing in-bounds barriers. GameLifetimeScope references all four. Existing geometry, actor placement, authored rigs, navigation data and other scene roots are preserved. No navigation rebake required.\n" + AdamPresentationIntegration.ConsoleCounts());
+                File.WriteAllText(Evidence + "/arena-cover-setup.txt", "Added four local authored points for the two existing in-bounds barriers. GameLifetimeScope references all four. Existing geometry, actor placement, authored rigs, navigation data and other scene roots are preserved. No navigation rebake required.\n" + EnemyValidationRunner.ConsoleCounts());
             }
             finally
             {

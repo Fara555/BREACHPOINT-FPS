@@ -7,9 +7,14 @@ namespace Breachpoint.Gameplay.AI
         private EnemyBrain _brain;
         private EnemyActor _actor;
         private EnemyAnimationBridge _animation;
+        private EnemyHitscanWeapon _hitscan;
+        private Vector3 _shotOrigin;
+        private Vector3 _shotDirection;
+        private float _shotUntil;
         private bool _animationOwned;
         private bool _bound;
         private float _nextSample;
+        private readonly System.Collections.Generic.List<AnimatorClipInfo> _locomotionClips = new System.Collections.Generic.List<AnimatorClipInfo>(16);
         private bool _visible;
         private bool _lane;
         private NavigationResult _navigation;
@@ -27,6 +32,7 @@ namespace Breachpoint.Gameplay.AI
             _brain.ResetCompleted += Reset;
             _brain.Combat.Fired += Fired;
             _brain.Combat.ReloadStarted += Reload;
+            _hitscan = GetComponent<EnemyHitscanWeapon>(); if (_hitscan != null) _hitscan.Attacked += ShotResolved;
             if (_brain.Tactics != null) _brain.Tactics.DecisionChanged += Decision;
             _bound = true;
         }
@@ -38,6 +44,7 @@ namespace Breachpoint.Gameplay.AI
             _brain.ResetCompleted -= Reset;
             _brain.Combat.Fired -= Fired;
             _brain.Combat.ReloadStarted -= Reload;
+            if (_hitscan != null) _hitscan.Attacked -= ShotResolved;
             if (_brain.Tactics != null) _brain.Tactics.DecisionChanged -= Decision;
             _bound = false;
         }
@@ -51,6 +58,8 @@ namespace Breachpoint.Gameplay.AI
         }
         private void Reset() { if (Logs(EnemyDebugCategory.Reset)) Write(EnemyDebugCategory.Reset, "Spawn state and resources reset"); }
         private void Fired() { if (Logs(EnemyDebugCategory.Combat)) Write(EnemyDebugCategory.Combat, "Shot | ammo=" + _brain.Combat.Ammo); }
+        private void ShotResolved(Breachpoint.Gameplay.Weapons.WeaponShotResult shot)
+        { _shotOrigin = shot.Origin; _shotDirection = (shot.EndPoint - shot.Origin).normalized; _shotUntil = Time.time + .5f; }
         private void Reload() { if (Logs(EnemyDebugCategory.Combat)) Write(EnemyDebugCategory.Combat, "Reload started"); }
         private void Decision(EnemyTacticalCandidate intent, TacticalReason reason)
         {
@@ -63,6 +72,16 @@ namespace Breachpoint.Gameplay.AI
             _animationOwned = animationLogs;
             if (!_settings.Enabled || !_bound || Time.time < _nextSample) return;
             _nextSample = Time.time + 0.25f;
+            if (animationLogs && _animation != null && _animation.Animator.enabled)
+            {
+                var animator = _animation.Animator; var state = animator.GetCurrentAnimatorStateInfo(0);
+                _locomotionClips.Clear(); animator.GetCurrentAnimatorClipInfo(0, _locomotionClips);
+                AnimationClip dominant = null; float weight = -1f;
+                foreach (var clip in _locomotionClips) if (clip.weight > weight) { dominant = clip.clip; weight = clip.weight; }
+                var nav = _actor.Navigation;
+                Debug.Log($"[Enemy:{name}][Locomotion] Phase: {nav.MovementPhase} | FootMotion: {_animation.FootMotionDetected} | NormalizedTime: {state.normalizedTime:0.000} | Tier: {nav.DesiredMovementTier} | RequestedSpeed: {nav.RequestedWorldSpeed:0.00} | NavMeshSpeedLimit: {nav.DesiredSpeed:0.00} | DesiredVelocity: {nav.DesiredVelocity} | ActualVelocity: {nav.Velocity} | LocalDesiredVelocity: {transform.InverseTransformDirection(nav.PresentationDesiredVelocity)} | LocalActualVelocity: {transform.InverseTransformDirection(nav.Velocity)} | MoveSpeedRaw/Smoothed: {_animation.MoveSpeedRaw:0.000}/{_animation.MoveSpeedSmoothed:0.000} | MoveXRaw/Smoothed: {_animation.MoveDirectionRaw.x:0.000}/{animator.GetFloat("MoveX"):0.000} | MoveYRaw/Smoothed: {_animation.MoveDirectionRaw.y:0.000}/{animator.GetFloat("MoveY"):0.000} | State: {EnemyAnimationStateNames.Get(state.fullPathHash)} | Clip: {(dominant != null ? dominant.name : "None")} | EffectiveStateSpeed: {state.speed * state.speedMultiplier * animator.speed:0.00}", this);
+                Debug.Log($"[Enemy:{name}][Aim] State: {EnemyAnimationStateNames.Get(state.fullPathHash)} | BodyError: {_animation.BodyAimErrorDegrees:0.0} deg | Horizontal/Vertical/TotalMuzzleError: {_animation.HorizontalMuzzleErrorDegrees:0.0}/{_animation.VerticalMuzzleErrorDegrees:0.0}/{_animation.MuzzleAimErrorDegrees:0.0} deg", this);
+            }
             var tactics = _brain.Tactics;
             bool visible = _brain.Memory.Visible; bool lane = tactics != null && tactics.FireLane;
             if ((_visible != visible || _lane != lane) && Logs(EnemyDebugCategory.Perception))
@@ -86,6 +105,13 @@ namespace Breachpoint.Gameplay.AI
             if (_actor == null) _actor = GetComponent<EnemyActor>();
             if (_brain == null || _brain.Config == null || _brain.Memory == null) return;
             Vector3 eye = _actor.Eyes.position;
+            if (_animation != null && _animation.AimTarget != null)
+            {
+                Gizmos.color = Color.blue; Gizmos.DrawRay(eye, transform.forward * 3f);
+                Gizmos.color = Color.yellow; Gizmos.DrawLine(_actor.Muzzle.position, _animation.AimTarget.position);
+                Gizmos.color = Color.red; Gizmos.DrawRay(_actor.Muzzle.position, _actor.Muzzle.forward * 3f);
+                if (Time.time < _shotUntil) { Gizmos.color = Color.cyan; Gizmos.DrawRay(_shotOrigin, _shotDirection * 5f); }
+            }
             var tactics = _brain.Tactics;
             Gizmos.color = _brain.Memory.Visible ? Color.red : Color.yellow;
             if (_settings.FieldOfView)

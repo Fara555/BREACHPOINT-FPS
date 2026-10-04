@@ -141,7 +141,7 @@ namespace Breachpoint.Gameplay.AI
             { _current.Valid = false; _nextDecision = now + 0.2f; return; }
             _squad.ReleaseSlots(_member);
             bool sameCover = _cover == selected.Cover && _cover != null;
-            _cover = selected.Cover; _current = selected; _enteredAt = now; _intentThreatAt = _context.Memory.LastKnownPosition; _hadPressure = false;
+            _intentMoveStart = _context.Actor.transform.position; _cover = selected.Cover; _current = selected; _enteredAt = now; _intentThreatAt = _context.Memory.LastKnownPosition; _hadPressure = false;
             if (!sameCover) { _coverReached = false; CoverPhase = EnemyCoverActionPhase.MovingToCover; _phaseUntil = now; }
             if (_cover == null) _stance?.SetCrouching(false);
             if (IsMoving(selected.Intent)) _context.Combat.PauseAim();
@@ -155,7 +155,7 @@ namespace Breachpoint.Gameplay.AI
             _hadPressure |= pressure;
             if (Vector3.Distance(_context.Actor.transform.position, destination) <= 0.65f)
             {
-                _context.Navigation.Stop(); _squad.ReleaseMovement(_member);
+                _context.Navigation.RequestStop(true); _squad.ReleaseMovement(_member);
                 if (_cover == null && _current.Intent != EnemyTacticalIntent.Search) { _current.Valid = false; _nextDecision = now; }
                 if (_current.Intent == EnemyTacticalIntent.Search) _context.Navigation.Face(_context.Actor.transform.position + Quaternion.Euler(0, (now - _enteredAt) * 50f, 0) * Vector3.forward * 5f, deltaTime);
                 return;
@@ -163,6 +163,8 @@ namespace Breachpoint.Gameplay.AI
             if (!_covers.PositionAvailable(destination, _context, _config.PreferredSpacing) || !_squad.TryMover(_member, destination, flank, _config.PreferredSpacing, now, _current.Intent != EnemyTacticalIntent.Fallback))
             { _context.Navigation.Stop(); _squad.ReleaseMovement(_member); return; }
             _member.Role = _current.Intent == EnemyTacticalIntent.Search ? EnemySquadRole.Searching : flank != 0 ? EnemySquadRole.Flanker : EnemySquadRole.Mover;
+            // Distance is measured from the adopted intent, so pace cannot oscillate at a threshold.
+            if (pace == EnemyMovePace.Run) pace = MovementPace(_current.Intent, Vector3.Distance(_intentMoveStart, destination));
             _context.Navigation.MoveTo(destination, pace, now);
             _context.Navigation.Face(_context.Memory.KnownAimPosition, deltaTime);
         }
@@ -216,6 +218,19 @@ namespace Breachpoint.Gameplay.AI
         }
         private void Fired() { if (_member != null) _member.LastShotAt = Time.time; }
         private static bool IsMoving(EnemyTacticalIntent intent) => intent == EnemyTacticalIntent.Advance || intent == EnemyTacticalIntent.Reposition || intent == EnemyTacticalIntent.FlankLeft || intent == EnemyTacticalIntent.FlankRight || intent == EnemyTacticalIntent.Fallback || intent == EnemyTacticalIntent.Search;
+        private const float ShortMovementDistance = 3f;
+        private const float UrgentFallbackDistance = 6f;
+        private const float LongFlankDistance = 14f;
+        private const float LongAdvanceDistance = 18f;
+        private Vector3 _intentMoveStart;
+        public static EnemyMovePace MovementPace(EnemyTacticalIntent intent, float distance)
+        {
+            if (intent == EnemyTacticalIntent.Search || distance < ShortMovementDistance && intent != EnemyTacticalIntent.Fallback) return EnemyMovePace.Walk;
+            bool urgent = intent == EnemyTacticalIntent.Fallback && distance >= UrgentFallbackDistance;
+            bool longFlank = (intent == EnemyTacticalIntent.FlankLeft || intent == EnemyTacticalIntent.FlankRight) && distance >= LongFlankDistance;
+            bool longClosure = intent == EnemyTacticalIntent.Advance && distance >= LongAdvanceDistance;
+            return urgent || longFlank || longClosure ? EnemyMovePace.Sprint : EnemyMovePace.Run;
+        }
         private static int FlankSide(EnemyTacticalIntent intent) => intent == EnemyTacticalIntent.FlankLeft ? -1 : intent == EnemyTacticalIntent.FlankRight ? 1 : 0;
         public void Dispose()
         { if (_disposed) return; Suspend(); _context.Combat.Fired -= Fired; _disposed = true; }

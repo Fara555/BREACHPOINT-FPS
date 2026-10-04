@@ -8,13 +8,14 @@ namespace Breachpoint.Gameplay.AI
         protected EnemyState(EnemyContext context) => C = context;
         public virtual void Enter() { C.Memory.StateEnteredAt = C.Now; }
         public abstract void Tick(float deltaTime);
-        public virtual void Exit() => C.Navigation.Stop();
+        public virtual void Exit()
+        { if (Id == EnemyStateId.Idle || Id == EnemyStateId.Patrol) C.Navigation.RequestStop(); else C.Navigation.Stop(); }
     }
     public sealed class IdleState : EnemyState
     {
         public IdleState(EnemyContext c) : base(c) { }
         public override EnemyStateId Id => EnemyStateId.Idle;
-        public override void Enter() { base.Enter(); C.Tactics?.Pause(); C.Navigation.Stop(); }
+        public override void Enter() { base.Enter(); C.Tactics?.Pause(); C.Navigation.RequestStop(); }
         public override void Tick(float dt) { }
     }
     public sealed class PatrolState : EnemyState
@@ -31,7 +32,7 @@ namespace Breachpoint.Gameplay.AI
             if (C.Navigation.Arrived || C.Navigation.Failed) Advance();
         }
         private void Advance()
-        { C.Memory.PatrolIndex++; C.Navigation.Stop(); _waitUntil = C.Now + C.Config.Movement.PatrolWait; }
+        { C.Memory.PatrolIndex++; C.Navigation.RequestStop(); _waitUntil = C.Now + C.Config.Movement.PatrolWait; }
     }
     public sealed class InvestigateState : EnemyState
     {
@@ -71,6 +72,7 @@ namespace Breachpoint.Gameplay.AI
     {
         public CombatState(EnemyContext c) : base(c) { }
         public override EnemyStateId Id => EnemyStateId.Combat;
+        public override void Enter() { base.Enter(); C.Navigation.Stop(); }
         public override void Tick(float dt)
         {
             if (C.Tactics != null) { C.Tactics.Tick(dt); return; }

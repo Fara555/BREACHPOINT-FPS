@@ -13,7 +13,6 @@ namespace Breachpoint.Editor.Enemies
         private AnimatorController _controller;
         private readonly Dictionary<int, string> _states = new Dictionary<int, string>();
         private int _tacticalScenario;
-        private int _reviewScenario;
         private bool _global;
         private string _validationStatus = "No validation selected";
         private double _nextSnapshot;
@@ -25,8 +24,8 @@ namespace Breachpoint.Editor.Enemies
         public static void Open() => GetWindow<EnemyTacticalDebugWindow>("Enemy AI / Tactical");
         private void OnInspectorUpdate()
         {
-            int stage = SessionState.GetInt("AdamPresentation.Validation.Stage", 70);
-            string path = "Docs/AI/AdamPresentation/stage-" + stage + "-play.txt";
+            int stage = SessionState.GetInt("EnemyTools.Validation.Stage", 70);
+            string path = "Logs/EnemyValidation/validation.txt";
             if (System.IO.File.Exists(path))
             {
                 string[] lines = System.IO.File.ReadAllLines(path);
@@ -40,6 +39,7 @@ namespace Breachpoint.Editor.Enemies
                 }
                 _validationStatus = "Stage " + stage + " | " + result + "\n" + checkpoint;
             }
+            else _validationStatus = "No current validation report";
             Repaint();
         }
         private void OnGUI()
@@ -61,6 +61,16 @@ namespace Breachpoint.Editor.Enemies
                 ShowTactics(brain);
                 Show("Target / direct LOS", (brain.Memory.Target != null ? brain.Memory.Target.name : "none") + " / " + brain.Memory.Visible);
                 Show("Health / ammo / reload", actor.Health.CurrentHealth + " / " + brain.Combat.Ammo + " / " + brain.Combat.IsReloading);
+                Show("Movement phase / permitted speed", actor.Navigation.MovementPhase + " / " + actor.Navigation.AllowedSpeed.ToString("F3"));
+                Show("Desired tier / requested speed / NavMesh limit", actor.Navigation.DesiredMovementTier + " / " + actor.Navigation.RequestedWorldSpeed.ToString("F2") + " / " + actor.Navigation.DesiredSpeed.ToString("F2"));
+                if (bridge != null)
+                {
+                    Show("MoveSpeed raw / smoothed", bridge.MoveSpeedRaw.ToString("F3") + " / " + bridge.MoveSpeedSmoothed.ToString("F3"));
+                    Show("Direction raw / smoothed", bridge.MoveDirectionRaw + " / " + bridge.MoveDirectionSmoothed);
+                    Show("Foot motion detected", bridge.FootMotionDetected.ToString());
+                    Show("Muzzle horizontal / vertical / total", bridge.HorizontalMuzzleErrorDegrees.ToString("F1") + " / " + bridge.VerticalMuzzleErrorDegrees.ToString("F1") + " / " + bridge.MuzzleAimErrorDegrees.ToString("F1"));
+                    Show("Body / muzzle aim error", bridge.BodyAimErrorDegrees.ToString("F1") + " / " + bridge.MuzzleAimErrorDegrees.ToString("F1"));
+                }
                 Show("World velocity", actor.Navigation.Velocity.ToString("F3"));
                 Show("Local velocity", brain.transform.InverseTransformDirection(actor.Navigation.Velocity).ToString("F3"));
                 Show("Desired velocity", actor.Navigation.DesiredVelocity.ToString("F3"));
@@ -79,6 +89,7 @@ namespace Breachpoint.Editor.Enemies
                         AnimatorStateInfo next = animator.GetNextAnimatorStateInfo(layer);
                         Show("Layer " + layer + " state", StateName(state.fullPathHash));
                         Show("Next / transition", StateName(next.fullPathHash) + " / " + animator.IsInTransition(layer));
+                        Show("Effective state playback speed", (state.speed * state.speedMultiplier * animator.speed).ToString("F2"));
                         Show("State time / layer weight", state.normalizedTime.ToString("F2") + " / " + animator.GetLayerWeight(layer).ToString("F2"));
                         foreach (var clip in animator.GetCurrentAnimatorClipInfo(layer)) Show("Clip / tree weight", clip.clip.name + " / " + clip.weight.ToString("F2"));
                     }
@@ -94,42 +105,26 @@ namespace Breachpoint.Editor.Enemies
                 }
             }
             EditorGUILayout.Space();
-            EditorGUILayout.LabelField("Continuous Game View presentation review", EditorStyles.boldLabel);
-            _reviewScenario = EditorGUILayout.Popup("Review loop", _reviewScenario, AdamPresentationIntegration.ReviewNames);
-            bool reviewing = EditorApplication.isPlaying && SessionState.GetBool("AdamPresentation.Validation", false) && SessionState.GetInt("AdamPresentation.Validation.Stage", 0) >= 130;
-            using (new EditorGUI.DisabledScope(EditorApplication.isPlayingOrWillChangePlaymode || EditorApplication.isCompiling))
-                if (GUILayout.Button("Run visible review")) AdamPresentationIntegration.RunReview(_reviewScenario, true);
-            using (new EditorGUI.DisabledScope(!reviewing))
-            {
-                bool paused = SessionState.GetBool("RiflemanPolish.Paused", false);
-                if (GUILayout.Button(paused ? "Resume review" : "Pause review")) SessionState.SetBool("RiflemanPolish.Paused", !paused);
-                SessionState.SetBool("RiflemanPolish.Repeat", EditorGUILayout.Toggle("Repeat scenario", SessionState.GetBool("RiflemanPolish.Repeat", true)));
-                EditorGUILayout.BeginHorizontal();
-                if (GUILayout.Button("0.5x review")) SessionState.SetFloat("RiflemanPolish.TimeScale", .5f);
-                if (GUILayout.Button("1.0x review")) SessionState.SetFloat("RiflemanPolish.TimeScale", 1f);
-                if (GUILayout.Button("Next scenario")) { _reviewScenario = (_reviewScenario + 1) % AdamPresentationIntegration.ReviewNames.Length; SessionState.SetInt("RiflemanPolish.Scenario", _reviewScenario); }
-                if (GUILayout.Button("Stop / restore scene")) EditorApplication.isPlaying = false;
-                EditorGUILayout.EndHorizontal();
-            }
+            if (GUILayout.Button("Open live animation review")) RiflemanLiveReviewWindow.Open();
             _global = EditorGUILayout.Toggle("Global live statistics", _global);
             if (_global && EditorApplication.isPlaying) ShowGlobal();
             EditorGUILayout.LabelField("Deterministic tactical scenarios", EditorStyles.boldLabel);
-            _tacticalScenario = EditorGUILayout.Popup("Tactical scenario", _tacticalScenario, AdamPresentationIntegration.TacticalScenarioNames);
+            _tacticalScenario = EditorGUILayout.Popup("Tactical scenario", _tacticalScenario, EnemyValidationRunner.TacticalScenarioNames);
             using (new EditorGUI.DisabledScope(EditorApplication.isPlayingOrWillChangePlaymode || EditorApplication.isCompiling))
             {
-                if (GUILayout.Button("Run selected tactical scenario")) AdamPresentationIntegration.RunTacticalScenario(_tacticalScenario);
-                if (GUILayout.Button("Run all 20 tactical scenarios")) AdamPresentationIntegration.RunTacticalScenario(-1);
-                if (GUILayout.Button("Measure 1 / 3 / 10 / 30 agents")) AdamPresentationIntegration.ValidateStage(110);
-                if (GUILayout.Button("Validate lifecycle and edge cases")) AdamPresentationIntegration.ValidateStage(120);
+                if (GUILayout.Button("Run selected tactical scenario")) EnemyValidationRunner.RunTacticalScenario(_tacticalScenario);
+                if (GUILayout.Button("Run all 20 tactical scenarios")) EnemyValidationRunner.RunTacticalScenario(-1);
+                if (GUILayout.Button("Measure 1 / 3 / 10 / 30 agents")) EnemyValidationRunner.ValidateStage(110);
+                if (GUILayout.Button("Validate lifecycle and edge cases")) EnemyValidationRunner.ValidateStage(120);
             }
             EditorGUILayout.LabelField("Deterministic animation scenarios", EditorStyles.boldLabel);
-            _scenario = EditorGUILayout.Popup("Scenario", _scenario, AdamPresentationIntegration.AnimationScenarioNames);
+            _scenario = EditorGUILayout.Popup("Scenario", _scenario, EnemyValidationRunner.AnimationScenarioNames);
             using (new EditorGUI.DisabledScope(EditorApplication.isPlayingOrWillChangePlaymode || EditorApplication.isCompiling))
             {
-                if (GUILayout.Button("Run selected scenario")) AdamPresentationIntegration.RunAnimationScenario(_scenario);
-                if (GUILayout.Button("Run complete animation matrix")) AdamPresentationIntegration.RunAnimationMatrix();
+                if (GUILayout.Button("Run selected scenario")) EnemyValidationRunner.RunAnimationScenario(_scenario);
+                if (GUILayout.Button("Run complete animation matrix")) EnemyValidationRunner.RunAnimationMatrix();
             }
-            EditorGUILayout.HelpBox("Review shows continuous motion in Game View and records a sequence. Slow/pause controls apply only to this review session; exit restores time and scene setup. Automated PASS verifies mechanics, not visual acceptance.", MessageType.None);
+            EditorGUILayout.HelpBox("Review shows continuous motion in Game View. Slow/pause controls apply only to this review session; exit restores time and scene setup. Automated PASS verifies mechanics, not visual acceptance.", MessageType.None);
             EditorGUILayout.EndScrollView();
         }
         private static void ShowTactics(EnemyBrain brain)

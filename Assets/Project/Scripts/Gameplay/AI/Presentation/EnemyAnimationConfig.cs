@@ -6,7 +6,27 @@ namespace Breachpoint.Gameplay.AI
     [Serializable]
     public sealed class EnemyAnimationConfig
     {
+        [SerializeField] private EnemyTurnProfile[] _turnProfiles = Array.Empty<EnemyTurnProfile>();
+        public EnemyTurnProfile GetTurnProfile(string state)
+        {
+            foreach (var profile in _turnProfiles) if (profile != null && profile.State == state) return profile;
+            return null;
+        }
         [field: SerializeField, Min(0f)] public float FloatDamping { get; private set; } = 0.18f;
+        [field: SerializeField, Min(0.01f)] public float MoveSpeedAccelerationDamp { get; private set; } = 0.12f;
+        [field: SerializeField, Min(0.01f)] public float MoveSpeedDecelerationDamp { get; private set; } = 0.1f;
+        [field: SerializeField, Min(0.01f)] public float MoveDirectionDamp { get; private set; } = 0.035f;
+        [field: SerializeField, Range(0f, 1f)] public float MovementStartAnticipation { get; private set; } = 0.2f;
+        [field: SerializeField, Range(0f, 30f)] public float CoarseAimYawLimit { get; private set; } = 18f;
+        [field: SerializeField, Range(0f, 1f)] public float CoarseAimWeight { get; private set; } = 0.8f;
+        [field: SerializeField, Range(0f, 25f)] public float CoarseAimPitchLimit { get; private set; } = 18f;
+        [field: SerializeField, Range(0f, 1f)] public float CoarseAimPitchWeight { get; private set; } = .95f;
+        [field: SerializeField, Min(.01f)] public float CoarseAimBlend { get; private set; } = .2f;
+        [SerializeField] private AnimationCurve _raiseAim = new AnimationCurve(new Keyframe(0f, 0f), new Keyframe(.12f, .05f), new Keyframe(.30f, .55f), new Keyframe(.50f, 1f), new Keyframe(1f, 1f));
+        [SerializeField] private AnimationCurve _leftTurnAim = new AnimationCurve(new Keyframe(0f, 1f), new Keyframe(.12f, .2f), new Keyframe(.25f, 0f), new Keyframe(.55f, 0f), new Keyframe(.78f, .4f), new Keyframe(.93f, 1f), new Keyframe(1.2f, 1f));
+        [field: SerializeField, Range(0f, 1f)] public float SprintAimRigWeight { get; private set; } = 0f;
+        public float RaiseAimAt(float normalizedTime) => Mathf.Clamp01(_raiseAim.Evaluate(Mathf.Clamp01(normalizedTime)));
+        public float LeftTurnAimAt(float normalizedTime) => Mathf.Clamp01(_leftTurnAim.Evaluate(Mathf.Clamp(normalizedTime, 0f, 1.2f)));
         [field: SerializeField, Min(0.01f)] public float SteadyNaturalSpeed { get; private set; } = 1.12f;
         [field: SerializeField] public Vector3 CombatNaturalSpeeds { get; private set; } = new Vector3(1.74f, 4.26f, 6.06f);
         [field: SerializeField, Min(0.01f)] public float CrouchNaturalSpeed { get; private set; } = 1.62f;
@@ -45,5 +65,16 @@ namespace Breachpoint.Gameplay.AI
         [field: SerializeField, Min(0f)] public float AimSmoothing { get; private set; } = 12f;
         [field: SerializeField, Min(0.1f)] public float RestAimDistance { get; private set; } = 8f;
         [field: SerializeField, Min(0f)] public float FireHoldDuration { get; private set; } = 0.18f;
+    }
+
+    [Serializable]
+    public sealed class EnemyTurnProfile
+    {
+        [SerializeField] private string _state;
+        [SerializeField] private AnimationCurve _progress;
+        [SerializeField] private float _duration;
+        public string State => _state;
+        public float Duration => _duration;
+        public float Evaluate(float normalizedTime) => _progress.Evaluate(Mathf.Clamp01(normalizedTime));
     }
 }

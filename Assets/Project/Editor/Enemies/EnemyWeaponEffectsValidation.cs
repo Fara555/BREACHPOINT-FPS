@@ -13,15 +13,15 @@ using Object = UnityEngine.Object;
 
 namespace Breachpoint.Editor.Enemies
 {
-    public static partial class AdamPresentationIntegration
+    public static partial class EnemyValidationRunner
     {
-        [MenuItem("Breachpoint/Enemies/Weapon effects/Validate in Play Mode")]
+        [MenuItem("Breachpoint/Enemies/Validation/Validate weapon effects")]
         public static void ValidateWeaponEffects() => ValidateStage(60);
 
         private static IEnumerator WeaponEffectsTests(GameLifetimeScope scope, EnemyWorld world)
         {
-            EnemyWeaponEffectsSetup.Validate(AssetDatabase.LoadAssetAtPath<GameObject>(RiflemanPath));
-            EnemyWeaponEffectsSetup.Validate(AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Project/Enemies/Prefabs/Melee.prefab"));
+            EnemyTools.ValidateWeaponEffects(AssetDatabase.LoadAssetAtPath<GameObject>(RiflemanPath));
+            EnemyTools.ValidateWeaponEffects(AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Project/Enemies/Prefabs/Melee.prefab"));
             PlayCheck(true, "Both enemy prefabs contain no legacy particles/static tracer or missing scripts");
             GameObject enemy;
             using (LifetimeScope.EnqueueParent(scope))
@@ -59,7 +59,6 @@ namespace Breachpoint.Editor.Enemies
             PlayCheck(weapon.Attack(target, 0f), "Real enemy hitscan attack succeeds");
             PlayCheck(shots == 1 && targetHealth.CurrentHealth < healthBefore, "One real shot delivers damage and one presentation event");
             PlayCheck(flare.enabled && light.enabled && sparks.enabled, "Real shot activates existing flare/light/VFX Graph");
-            CapturePresentation(enemy, "weapon-effects-shot");
             LineRenderer active = lines.Single(line => line.enabled);
             PlayCheck(Vector3.Distance(active.GetPosition(0), shot.Origin) < 0.001f &&
                 Vector3.Dot(active.GetPosition(1) - shot.Origin, shot.EndPoint - shot.Origin) > 0f, "Trace starts at actual muzzle and follows hitscan result");

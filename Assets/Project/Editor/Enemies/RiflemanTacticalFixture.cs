@@ -41,7 +41,7 @@ namespace Breachpoint.Editor.Enemies
             Root = new GameObject("Runtime tactical scenario " + id); Root.SetActive(false);
             Brains = new EnemyBrain[count]; Actors = new EnemyActor[count]; Contexts = new EnemyContext[count]; _fireHandlers = new Action[count];
             _shotCover = new EnemyCoverPoint[count];
-            var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(AdamPresentationIntegration.RiflemanPath);
+            var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(EnemyValidationRunner.RiflemanPath);
             var archetype = Object.Instantiate(prefab.GetComponent<EnemyLifetimeScope>().Archetype); _configs.Add(archetype);
             var tactics = Object.Instantiate(archetype.Tactics); _configs.Add(tactics);
             var squad = Object.Instantiate(tactics.Squad); _configs.Add(squad);

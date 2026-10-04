@@ -27,7 +27,10 @@ namespace Breachpoint.Gameplay.AI
         private float _aimWeight = 1f;
         private AnimationScriptPlayable _hintPlayable;
         private Vector3 _hintOffset;
+        private float _coarseWeight;
         public float HandWeight => _handWeight;
+        public float AimRigWeight => _aimActive ? _aimWeight : 0f;
+        public float CoarseWeight => _coarseWeight;
         private void Awake()
         {
             _brain = GetComponent<EnemyBrain>(); _actor = GetComponent<EnemyActor>();
@@ -58,7 +61,10 @@ namespace Breachpoint.Gameplay.AI
             bool dead = _actor.Health.IsDead;
             EnemyAnimationConfig config = _bridge.Config;
             _handWeight = dead ? 0f : Mathf.MoveTowards(_handWeight, _brain.Combat.IsReloading ? 0f : 1f, Time.deltaTime / Mathf.Max(0.01f, config.IkBlend));
-            _aimWeight = dead ? 0f : Mathf.MoveTowards(_aimWeight, 1f, Time.deltaTime / Mathf.Max(0.01f, config.AimBlend));
+            // A passive turn must retain its authored torso weight shift instead of counter-aiming.
+            bool passiveTurn = _brain.States.Group == EnemyStateGroup.Passive && _actor.Navigation.IsTurning;
+            float aimRigTarget = passiveTurn ? 0f : Mathf.Lerp(1f, config.SprintAimRigWeight, _bridge.SprintPoseWeight);
+            _aimWeight = dead ? 0f : Mathf.MoveTowards(_aimWeight, aimRigTarget, Time.deltaTime / Mathf.Max(0.01f, config.AimBlend));
             _aimLayer.active = _aimActive && _aimWeight > 0f;
             _handLayer.active = _handActive && _handWeight > 0f;
             // Blend the existing rig outputs, outside Animator's default property stream.
@@ -72,7 +78,9 @@ namespace Breachpoint.Gameplay.AI
                     var job = new ElbowHintJob
                     {
                         Chest = _bridge.Animator.BindStreamTransform(_chest),
-                        Hint = _bridge.Animator.BindStreamTransform(_handIk.data.hint)
+                        Hint = _bridge.Animator.BindStreamTransform(_handIk.data.hint),
+                        Muzzle = _bridge.Animator.BindStreamTransform(_actor.Muzzle),
+                        Target = _bridge.Animator.BindSceneTransform(_bridge.AimTarget)
                     };
                     _hintPlayable = AnimationScriptPlayable.Create(_builder.graph, job);
                     // One authored hand constraint: supply its hint after AimRig in the same stream.
@@ -84,7 +92,14 @@ namespace Breachpoint.Gameplay.AI
             {
                 Vector3 offset = _bridge.IsCrouching ? config.CrouchElbowFromChest : config.ElbowFromChest;
                 _hintOffset = Vector3.Lerp(_hintOffset, offset, 1f - Mathf.Exp(-Time.deltaTime / Mathf.Max(0.01f, config.HintBlend)));
-                var job = _hintPlayable.GetJobData<ElbowHintJob>(); job.Offset = transform.TransformDirection(_hintOffset); _hintPlayable.SetJobData(job);
+                var job = _hintPlayable.GetJobData<ElbowHintJob>(); job.Offset = transform.TransformDirection(_hintOffset);
+                _coarseWeight = Mathf.MoveTowards(_coarseWeight, config.CoarseAimWeight * _bridge.AimPresentationWeight, Time.deltaTime / config.CoarseAimBlend);
+                job.Raising = _bridge.IsRaising;
+                job.AimWeight = _coarseWeight;
+                job.YawLimit = config.CoarseAimYawLimit;
+                job.PitchLimit = config.CoarseAimPitchLimit;
+                job.PitchWeight = config.CoarseAimPitchWeight * Mathf.Clamp01(_coarseWeight / Mathf.Max(.01f, config.CoarseAimWeight)) ;
+                _hintPlayable.SetJobData(job);
             }
         }
         private void ResetLayers()
@@ -92,6 +107,7 @@ namespace Breachpoint.Gameplay.AI
             if (!_ready) return;
             _handWeight = _aimWeight = 1f; _aimLayer.active = _aimActive; _handLayer.active = _handActive;
             _hintOffset = _bridge.Config.ElbowFromChest;
+            _coarseWeight = 0f;
             if (_handIk != null && _handIk.data.hint != null) _handIk.data.hint.localPosition = _originalHint;
             if (_builder.graph.IsValid() && _builder.graph.GetOutputCount() == 3)
             { _builder.graph.GetOutput(1).SetWeight(1f); _builder.graph.GetOutput(2).SetWeight(1f); }
@@ -103,11 +119,47 @@ namespace Breachpoint.Gameplay.AI
         {
             public TransformStreamHandle Chest;
             public TransformStreamHandle Hint;
+            public TransformStreamHandle Muzzle;
+            public TransformSceneHandle Target;
             public Vector3 Offset;
+            public float AimWeight;
+            public float YawLimit;
+            public float PitchLimit;
+            public float PitchWeight;
+            public bool Raising;
             public void ProcessRootMotion(AnimationStream stream) { }
             public void ProcessAnimation(AnimationStream stream)
             {
-                if (Chest.IsValid(stream) && Hint.IsValid(stream)) Hint.SetPosition(stream, Chest.GetPosition(stream) + Offset);
+                if (!Chest.IsValid(stream)) return;
+                if (AimWeight > 0f && Muzzle.IsValid(stream) && Target.IsValid(stream))
+                {
+                    Vector3 forward = Muzzle.GetRotation(stream) * Vector3.forward;
+                    Vector3 direction = Target.GetPosition(stream) - Muzzle.GetPosition(stream);
+                    direction.Normalize();
+                    float pitch = Mathf.Asin(Mathf.Clamp(forward.y, -1f, 1f)) * Mathf.Rad2Deg - Mathf.Asin(Mathf.Clamp(direction.y, -1f, 1f)) * Mathf.Rad2Deg;
+                    // Early Raise owns the upward gesture. Correct overshoot, not its low carry pose.
+                    if (Raising) pitch = Mathf.Max(0f, pitch);
+                    Vector3 horizontalForward = Vector3.ProjectOnPlane(forward, Vector3.up), horizontalTarget = Vector3.ProjectOnPlane(direction, Vector3.up);
+                    if (horizontalForward.sqrMagnitude > .0001f && horizontalTarget.sqrMagnitude > .0001f)
+                    {
+                        float yaw = Vector3.SignedAngle(horizontalForward, horizontalTarget, Vector3.up);
+                        // Fade outside the forward engagement cone. Clamping +/-180 directly
+                        // flips the correction sign while a stationary turn crosses the target.
+                        float coneWeight = 1f - Mathf.InverseLerp(60f, 100f, Mathf.Abs(yaw));
+                        Vector3 right = Vector3.Cross(Vector3.up, horizontalForward).normalized;
+                        Quaternion pitchRotation = Quaternion.AngleAxis(Mathf.Clamp(pitch, -PitchLimit, PitchLimit) * PitchWeight * coneWeight, right);
+                        Chest.SetRotation(stream, pitchRotation * Chest.GetRotation(stream));
+                        // Pitch changes the chest-relative barrel position. Measure yaw again
+                        // from the updated stream before applying the existing bounded yaw gain.
+                        horizontalForward = Vector3.ProjectOnPlane(Muzzle.GetRotation(stream) * Vector3.forward, Vector3.up);
+                        horizontalTarget = Vector3.ProjectOnPlane(Target.GetPosition(stream) - Muzzle.GetPosition(stream), Vector3.up);
+                        yaw = Vector3.SignedAngle(horizontalForward, horizontalTarget, Vector3.up);
+                        coneWeight = 1f - Mathf.InverseLerp(60f, 100f, Mathf.Abs(yaw));
+                        Quaternion yawRotation = Quaternion.AngleAxis(Mathf.Clamp(yaw, -YawLimit, YawLimit) * AimWeight * coneWeight, Vector3.up);
+                        Chest.SetRotation(stream, yawRotation * Chest.GetRotation(stream));
+                    }
+                }
+                if (Hint.IsValid(stream)) Hint.SetPosition(stream, Chest.GetPosition(stream) + Offset);
             }
         }
     }

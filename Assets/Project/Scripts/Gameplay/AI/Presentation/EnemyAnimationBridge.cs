@@ -26,9 +26,53 @@ namespace Breachpoint.Gameplay.AI
         private float _lethalDirection;
         private Vector3 _deathVelocity;
         private int _lastStateHash;
+        private int _lastActionHash;
+        private int _lastRecoilHash;
+        private EnemyStateGroup _lastLoggedMode;
         private Vector3 _pendingTurn;
         private float _turnCandidateAt;
         private bool _largeTurnCandidate;
+        private EnemyTurnProfile _activeTurnProfile;
+        private bool _turnAnimationStarted;
+        private Vector3 _smoothedAimPosition;
+        private Transform _leftFoot;
+        private Transform _rightFoot;
+        private Vector3 _lastLeftFoot;
+        private Vector3 _lastRightFoot;
+        private float _nextFootSample;
+        public bool FootMotionDetected { get; private set; }
+        public float MoveSpeedRaw { get; private set; }
+        public float MoveSpeedSmoothed { get; private set; }
+        public Vector2 MoveDirectionRaw { get; private set; }
+        public Vector2 MoveDirectionSmoothed { get; private set; }
+        public Transform AimTarget => _aimTarget;
+        public float BodyAimErrorDegrees => _aimTarget == null ? 0f : Vector3.Angle(transform.forward, Vector3.ProjectOnPlane(_aimTarget.position - transform.position, Vector3.up));
+        public float MuzzleAimErrorDegrees => _aimTarget == null || _actor == null ? 0f : Vector3.Angle(_actor.Muzzle.forward, _aimTarget.position - _actor.Muzzle.position);
+        public float HorizontalMuzzleErrorDegrees => _aimTarget == null || _actor == null ? 0f : Vector3.SignedAngle(Vector3.ProjectOnPlane(_actor.Muzzle.forward, Vector3.up), Vector3.ProjectOnPlane(_aimTarget.position - _actor.Muzzle.position, Vector3.up), Vector3.up);
+        public float VerticalMuzzleErrorDegrees => _aimTarget == null || _actor == null ? 0f : Mathf.Asin(Mathf.Clamp(_actor.Muzzle.forward.y, -1f, 1f)) * Mathf.Rad2Deg - Mathf.Asin(Mathf.Clamp((_aimTarget.position - _actor.Muzzle.position).normalized.y, -1f, 1f)) * Mathf.Rad2Deg;
+        public bool IsRaising => _animator != null && (_animator.GetCurrentAnimatorStateInfo(0).IsName("RaiseWeapon") || _animator.IsInTransition(0) && _animator.GetNextAnimatorStateInfo(0).IsName("RaiseWeapon"));
+        public float AimPresentationWeight
+        {
+            get
+            {
+                if (_animator == null || _brain.States.Group == EnemyStateGroup.Passive || _brain.Combat.IsReloading || IsHit) return 0f;
+                var current = _animator.GetCurrentAnimatorStateInfo(0);
+                bool transition = _animator.IsInTransition(0);
+                var next = _animator.GetNextAnimatorStateInfo(0);
+                float blend = transition ? Mathf.Clamp01(_animator.GetAnimatorTransitionInfo(0).normalizedTime) : 0f;
+                float weight = AimStateWeight(current);
+                if (transition) weight = Mathf.Lerp(weight, AimStateWeight(next), blend);
+                return weight * (1f - SprintPoseWeight);
+            }
+        }
+        public float SprintPoseWeight => !IsCrouching && _animator != null && _animator.GetCurrentAnimatorStateInfo(0).IsName("StandingLocomotion") ? Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(_config.RunThreshold, _config.SprintThreshold, MoveSpeedSmoothed)) : 0f;
+        private float AimStateWeight(AnimatorStateInfo state)
+        {
+            if (state.IsName("RaiseWeapon")) return _config.RaiseAimAt(state.normalizedTime);
+            if (state.IsName("CombatTurn180Left")) return _config.LeftTurnAimAt(state.normalizedTime);
+            return state.IsName("StandingLocomotion") || state.IsName("CrouchLocomotion") || state.IsTag("Turn") ? 1f : 0f;
+        }
+        public bool IsAimPoseReady => _animator != null && (_animator.GetCurrentAnimatorStateInfo(0).IsName("StandingLocomotion") || _animator.GetCurrentAnimatorStateInfo(0).IsName("CrouchLocomotion") || _animator.GetCurrentAnimatorStateInfo(0).IsTag("Turn"));
         public EnemyAnimationConfig Config => _config;
         public Animator Animator => _animator;
         public string CurrentTurn { get; private set; }
@@ -58,6 +102,7 @@ namespace Breachpoint.Gameplay.AI
             foreach (var parameter in _animator.parameters)
                 for (int i = 0; i < Hashes.Length; i++) if (parameter.nameHash == Hashes[i]) _available[i] = true;
             _modern = Has(Parameter.IsCombat);
+            if (_animator.isHuman) { _leftFoot = _animator.GetBoneTransform(HumanBodyBones.LeftFoot); _rightFoot = _animator.GetBoneTransform(HumanBodyBones.RightFoot); }
             if (_modern) _navigation.ConfigurePresentationTurning(_config.StationaryTurnSpeed);
             _animator.applyRootMotion = false;
             // Hitscan and shot VFX use the bone-attached muzzle even outside the camera.
@@ -74,14 +119,28 @@ namespace Breachpoint.Gameplay.AI
             Vector3 velocity = _navigation.Velocity; velocity.y = 0f;
             EnemyMovementConfig movement = _brain.Config.Movement;
             float speed = velocity.magnitude;
-            Float(Parameter.MoveSpeed, EnemyAnimationMath.MoveSpeed(speed, movement.WalkSpeed, movement.RunSpeed, _config), speed > _config.StationarySpeed ? _config.FloatDamping : 0.04f);
+            Vector3 desired = _navigation.PresentationDesiredVelocity;
+            float requestedSpeed = _navigation.RequestedWorldSpeed;
+            MoveSpeedRaw = EnemyAnimationMath.MovementBlend(speed, requestedSpeed, _navigation.DesiredMovementTier, _navigation.HasMovementRequest, movement, _config);
+            bool steadyStop = _navigation.DesiredMovementTier == EnemyMovementTier.Steady && _navigation.MovementPhase == EnemyMovementPhase.Stopping;
+            if (steadyStop) MoveSpeedRaw = MoveSpeedSmoothed = 0f;
+            float damping = MoveSpeedRaw > MoveSpeedSmoothed ? _config.MoveSpeedAccelerationDamp : _config.MoveSpeedDecelerationDamp;
+            MoveSpeedSmoothed = Mathf.Lerp(MoveSpeedSmoothed, MoveSpeedRaw, 1f - Mathf.Exp(-Time.deltaTime / Mathf.Max(.01f, damping)));
+            if (!_navigation.HasMovementRequest && MoveSpeedSmoothed < .002f) MoveSpeedSmoothed = 0f;
+            Float(Parameter.MoveSpeed, MoveSpeedSmoothed, 0f);
             Float(Parameter.Speed, speed, _config.FloatDamping);
-            float blend = EnemyAnimationMath.MoveSpeed(speed, movement.WalkSpeed, movement.RunSpeed, _config);
             Float(Parameter.SteadyStride, EnemyAnimationMath.StrideSpeed(speed, _config.SteadyNaturalSpeed, _config), _config.FloatDamping);
-            Float(Parameter.CombatStride, EnemyAnimationMath.StrideSpeed(speed, EnemyAnimationMath.NaturalCombatSpeed(blend, _config), _config), _config.FloatDamping);
+            Float(Parameter.CombatStride, EnemyAnimationMath.StrideSpeed(speed, EnemyAnimationMath.NaturalCombatSpeed(MoveSpeedSmoothed, _config), _config), _config.FloatDamping);
             Float(Parameter.CrouchStride, EnemyAnimationMath.StrideSpeed(speed, _config.CrouchNaturalSpeed, _config), _config.FloatDamping);
-            Vector2 local = EnemyAnimationMath.LocalMovement(transform.rotation, velocity, IsCrouching ? movement.CrouchSpeed : Mathf.Max(movement.WalkSpeed, _navigation.DesiredSpeed));
-            Float(Parameter.MoveX, local.x, _config.FloatDamping); Float(Parameter.MoveY, local.y, _config.FloatDamping);
+            MoveDirectionRaw = EnemyAnimationMath.MovementDirection(transform.rotation, desired, velocity, requestedSpeed);
+            if (MoveDirectionRaw.sqrMagnitude > .0001f)
+            {
+                if (MoveDirectionSmoothed.sqrMagnitude < .0001f) MoveDirectionSmoothed = MoveDirectionRaw;
+                else MoveDirectionSmoothed = Vector2.Lerp(MoveDirectionSmoothed, MoveDirectionRaw, 1f - Mathf.Exp(-Time.deltaTime / _config.MoveDirectionDamp));
+            }
+            float directionWeight = IsCrouching ? Mathf.Clamp01(MoveSpeedSmoothed / _config.WalkThreshold) : 1f;
+            Float(Parameter.MoveX, MoveDirectionSmoothed.x * directionWeight, 0f);
+            Float(Parameter.MoveY, MoveDirectionSmoothed.y * directionWeight, 0f);
             Bool(Parameter.IsCombat, _brain.States.Group != EnemyStateGroup.Passive || IsCrouching);
             Bool(Parameter.IsCrouching, IsCrouching);
             Bool(Parameter.IsFiring, !_brain.Combat.IsReloading && Time.time < _fireUntil);
@@ -91,30 +150,58 @@ namespace Breachpoint.Gameplay.AI
             if (speed > _config.StationarySpeed || IsHit || _brain.Combat.IsReloading)
             { ClearTurnTriggers(); _navigation.CancelTurn(); CurrentTurn = null; _pendingTurn = Vector3.zero; }
             else if (!_navigation.IsTurning) CurrentTurn = null;
-            if (_pendingTurn.sqrMagnitude > 0f) TryPresentTurn(_pendingTurn);
+            if (_pendingTurn.sqrMagnitude > 0f)
+            {
+                // Preserve the requested heading while an authored stance/readiness blend finishes.
+                // Otherwise navigation consumes part of the turn before its footwork can begin.
+                _navigation.DeferStationaryFacing(_config.TurnStableTime + _config.TurnBlendIn);
+                TryPresentTurn(_pendingTurn);
+            }
             if (_modern)
             {
-                AnimatorStateInfo current = _animator.GetCurrentAnimatorStateInfo(1);
-                AnimatorStateInfo next = _animator.GetNextAnimatorStateInfo(1);
-                bool active = !current.IsTag("None") || (_animator.IsInTransition(1) && !next.IsTag("None"));
-                if (_animator.IsInTransition(1) && next.IsTag("None")) active = false;
-                // An empty Humanoid override layer still contributes default muscles at weight 1.
-                // Fade it out whenever no action owns the upper body.
-                _animator.SetLayerWeight(1, Mathf.MoveTowards(_animator.GetLayerWeight(1), active ? 1f : 0f, Time.deltaTime / Mathf.Max(0.01f, _config.ActionLayerBlend)));
+                for (int layer = 1; layer < _animator.layerCount; layer++)
+                {
+                    AnimatorStateInfo current = _animator.GetCurrentAnimatorStateInfo(layer);
+                    AnimatorStateInfo next = _animator.GetNextAnimatorStateInfo(layer);
+                    bool active = !current.IsTag("None") || (_animator.IsInTransition(layer) && !next.IsTag("None"));
+                    if (_animator.IsInTransition(layer) && next.IsTag("None")) active = false;
+                    // Empty action layers fade out instead of contributing default Humanoid muscles.
+                    _animator.SetLayerWeight(layer, Mathf.MoveTowards(_animator.GetLayerWeight(layer), active ? 1f : 0f, Time.deltaTime / Mathf.Max(0.01f, _config.ActionLayerBlend)));
+                }
             }
-            UpdateAim();
             if (_logTransitions)
             {
                 int hash = _animator.GetCurrentAnimatorStateInfo(0).fullPathHash;
                 if (hash != _lastStateHash)
-                { Debug.Log($"[Enemy:{name}][Animation] {_lastStateHash} -> {hash}; mode={_brain.States.Group}, velocity={speed:0.00}", this); _lastStateHash = hash; }
+                {
+                    Debug.Log($"[Enemy:{name}][Animation] {EnemyAnimationStateNames.Get(_lastStateHash)} -> {EnemyAnimationStateNames.Get(hash)} | Mode: {_lastLoggedMode} -> {_brain.States.Group} | Velocity: {speed:0.00} m/s | Reason: {_brain.States.LastReason}", this);
+                    _lastStateHash = hash; _lastLoggedMode = _brain.States.Group;
+                }
+                if (_modern)
+                {
+                    for (int layer = 1; layer < _animator.layerCount; layer++)
+                    {
+                        int action = _animator.GetCurrentAnimatorStateInfo(layer).fullPathHash;
+                        int previous = layer == 1 ? _lastActionHash : _lastRecoilHash;
+                        if (action != previous)
+                        {
+                            Debug.Log($"[Enemy:{name}][Animation] {EnemyAnimationStateNames.Get(previous)} -> {EnemyAnimationStateNames.Get(action)} | Velocity: {speed:0.00} m/s | IsCrouching: {IsCrouching} | Reason: Action priority changed", this);
+                            if (layer == 1) _lastActionHash = action; else _lastRecoilHash = action;
+                        }
+                    }
+                }
             }
         }
         private void PresentTurn(Vector3 direction)
         {
             if (!_bound || !_modern || _navigation.IsTurning || _navigation.Velocity.sqrMagnitude > _config.StationarySpeed * _config.StationarySpeed) return;
             float angle = Vector3.SignedAngle(transform.forward, direction, Vector3.up);
-            if (Mathf.Abs(angle) < _config.Turn90Angle) return;
+            if (Mathf.Abs(angle) < _config.Turn90Angle)
+            {
+                _pendingTurn = Vector3.zero;
+                _navigation.DeferStationaryFacing(0f);
+                return;
+            }
             if (_pendingTurn.sqrMagnitude == 0f || Vector3.Angle(_pendingTurn, direction) > _config.TurnHysteresis)
             {
                 _turnCandidateAt = Time.time;
@@ -139,11 +226,14 @@ namespace Breachpoint.Gameplay.AI
             bool combat = _brain.States.Group != EnemyStateGroup.Passive;
             Vector4 durations = IsCrouching ? _config.CrouchTurnDurations : combat ? _config.CombatTurnDurations : _config.SteadyTurnDurations;
             int index = large ? (left ? 2 : 3) : (left ? 0 : 1);
-            if (!_navigation.BeginTurn(direction, durations[index])) return;
+            var profile = _config.GetTurnProfile((IsCrouching ? "Crouch" : combat ? "Combat" : "Steady") + turn);
+            float duration = profile != null ? profile.Duration : durations[index];
+            if (!_navigation.BeginTurn(direction, duration, profile != null)) return;
+            _activeTurnProfile = profile; _turnAnimationStarted = false;
             _pendingTurn = Vector3.zero;
             ClearTurnTriggers(); Trigger(turn); CurrentTurn = turn.ToString();
-            _nextTurn = Time.time + durations[index] + _config.TurnCooldown;
-            if (_logTransitions) Debug.Log($"[Enemy:{name}][Animation] {CurrentTurn}; reason=facing error {angle:0.0} degrees", this);
+            _nextTurn = Time.time + duration + _config.TurnCooldown;
+            if (_logTransitions) Debug.Log($"[Enemy:{name}][Animation] {EnemyAnimationStateNames.Get(_animator.GetCurrentAnimatorStateInfo(0).fullPathHash)} -> {(IsCrouching ? "Crouch" : combat ? "Combat" : "Steady")}/{CurrentTurn} | DesiredYawDelta: {angle:0.0} deg | Duration: {duration:0.00} s | Reason: Facing requested", this);
         }
         private void UpdateAim()
         {
@@ -152,13 +242,57 @@ namespace Breachpoint.Gameplay.AI
             Vector3 desired = _actor.Eyes.position + transform.forward * _config.RestAimDistance;
             if (memory.Visible && memory.Target != null && memory.Target.IsAlive) desired = memory.Target.AimPosition;
             else if (memory.HasContact) desired = memory.LastKnownPosition + Vector3.up * (_actor.Eyes.position.y - transform.position.y);
-            _aimTarget.position = Vector3.Lerp(_aimTarget.position, desired, 1f - Mathf.Exp(-_config.AimSmoothing * Time.deltaTime));
+            _smoothedAimPosition = Vector3.Lerp(_smoothedAimPosition, desired, 1f - Mathf.Exp(-_config.AimSmoothing * Time.deltaTime));
+            _aimTarget.position = _smoothedAimPosition;
+        }
+        private void LateUpdate()
+        {
+            ApplyPresentationTurn();
+            PublishSteadyMovementPhase();
+            // The Animator can write the rig target's bind pose after Update. Publish the target
+            // after evaluation so the next rig synchronization reads the gameplay target.
+            if (_bound && _animator.enabled && !_actor.Health.IsDead) UpdateAim();
+            if (_leftFoot != null && _rightFoot != null && Time.time >= _nextFootSample)
+            {
+                _nextFootSample = Time.time + .05f;
+                Vector3 left = transform.InverseTransformPoint(_leftFoot.position), right = transform.InverseTransformPoint(_rightFoot.position);
+                FootMotionDetected = Vector3.Distance(left, _lastLeftFoot) + Vector3.Distance(right, _lastRightFoot) > .003f;
+                _lastLeftFoot = left; _lastRightFoot = right;
+            }
+        }
+        private void PublishSteadyMovementPhase()
+        {
+            if (!_bound || !_animator.enabled || !_modern) { _navigation.ClearSteadyAnimationPhase(); return; }
+            var current = _animator.GetCurrentAnimatorStateInfo(0);
+            bool transition = _animator.IsInTransition(0);
+            var next = _animator.GetNextAnimatorStateInfo(0);
+            float blend = transition ? Mathf.Clamp01(_animator.GetAnimatorTransitionInfo(0).normalizedTime) : 0f;
+            float StartFraction(AnimatorStateInfo state) => state.IsName("SteadyStartWalk") ? _brain.Config.Movement.SteadyStartSpeedAt(state.normalizedTime) : state.IsName("SteadyWalk") ? 1f : 0f;
+            float StopFraction(AnimatorStateInfo state) => state.IsName("SteadyStopWalk") ? _brain.Config.Movement.SteadyStopSpeedAt(state.normalizedTime) : state.IsName("SteadyWalk") || state.IsName("SteadyStartWalk") ? 1f : 0f;
+            float start = StartFraction(current), stop = StopFraction(current);
+            if (transition) { start = Mathf.Lerp(start, StartFraction(next), blend); stop = Mathf.Lerp(stop, StopFraction(next), blend); }
+            bool rest = current.IsName("SteadyIdle") && !transition || current.IsName("SteadyStopWalk") && stop <= .001f;
+            _navigation.SetSteadyAnimationPhase(start, stop, current.IsName("SteadyWalk"), rest);
+        }
+        private void ApplyPresentationTurn()
+        {
+            if (!_bound || !_animator.enabled || !_navigation.IsTurning || _activeTurnProfile == null) return;
+            var current = _animator.GetCurrentAnimatorStateInfo(0);
+            var next = _animator.GetNextAnimatorStateInfo(0);
+            if (current.IsTag("Turn") || _animator.IsInTransition(0) && next.IsTag("Turn"))
+            {
+                float time = current.IsTag("Turn") ? current.normalizedTime : next.normalizedTime;
+                _turnAnimationStarted = true;
+                _navigation.ApplyAnimatedTurn(_activeTurnProfile.Evaluate(time), time >= 1f);
+            }
+            else if (_turnAnimationStarted) _navigation.ApplyAnimatedTurn(1f, true);
         }
         public void SetCrouching(bool crouching) => _stance?.SetCrouching(crouching);
         public void SetAnimationLogging(bool enabled) => _logTransitions = enabled;
         private void Fire()
         {
             if (_actor.Health.IsDead || !_animator.enabled) return;
+            if (_logTransitions) Debug.Log($"[Enemy:{name}][Animation] {EnemyAnimationStateNames.Get(_animator.GetCurrentAnimatorStateInfo(0).fullPathHash)} -> Recoil/{(IsCrouching ? "CrouchFire" : "Fire")} | Velocity: {_navigation.Velocity.magnitude:0.00} m/s | IsCrouching: {IsCrouching} | Reason: Weapon fired", this);
             _fireUntil = Time.time + _config.FireHoldDuration; Bool(Parameter.IsFiring, true); Trigger(Parameter.Attack);
         }
         private void Reload()
@@ -189,14 +323,17 @@ namespace Breachpoint.Gameplay.AI
             Bool(Parameter.IsFiring, false); Bool(Parameter.IsReloading, false); Bool(Parameter.IsHit, false); Bool(Parameter.Reloading, false);
             Bool(Parameter.IsCrouching, IsCrouching);
             Float(Parameter.HitDirection, _lethalDirection, 0f); Bool(Parameter.IsDead, true); Bool(Parameter.Dead, true);
-            if (_modern) _animator.SetLayerWeight(1, 0f);
+            if (_modern) for (int layer = 1; layer < _animator.layerCount; layer++) _animator.SetLayerWeight(layer, 0f);
         }
         private void ResetView()
         {
             _stance?.SetCrouching(false); _navigation.CancelTurn(); ClearTurnTriggers(); CurrentTurn = null;
+            MoveSpeedRaw = MoveSpeedSmoothed = 0f; MoveDirectionRaw = MoveDirectionSmoothed = Vector2.zero;
             _pendingTurn = Vector3.zero;
-            _nextTurn = _fireUntil = _hitUntil = _lethalDirection = 0f; _deathVelocity = Vector3.zero; _lastStateHash = 0;
-            _ragdoll?.ResetPresentation(); _animator.Rebind();
+            _activeTurnProfile = null; _turnAnimationStarted = false;
+            _nextFootSample = 0f; FootMotionDetected = false;
+            _nextTurn = _fireUntil = _hitUntil = _lethalDirection = 0f; _deathVelocity = Vector3.zero; _lastStateHash = _lastActionHash = _lastRecoilHash = 0; _lastLoggedMode = _brain.States.Group;
+            _ragdoll?.ResetPresentation(); _animator.speed = 1f; _animator.Rebind();
             foreach (var parameter in _animator.parameters)
             {
                 if (parameter.type == AnimatorControllerParameterType.Trigger) _animator.ResetTrigger(parameter.nameHash);
@@ -206,12 +343,12 @@ namespace Breachpoint.Gameplay.AI
             }
             if (_modern)
             {
-                _animator.SetLayerWeight(1, 0f);
+                for (int layer = 1; layer < _animator.layerCount; layer++) _animator.SetLayerWeight(layer, 0f);
                 Bool(Parameter.IsCombat, _brain.States.Group != EnemyStateGroup.Passive);
-                _animator.Play("Base Layer.SteadyIdle", 0, 0f); _animator.Play("Actions.None", 1, 0f);
+                _animator.Play("Base Layer.SteadyIdle", 0, 0f); _animator.Play("Actions.None", 1, 0f); if (_animator.layerCount > 2) _animator.Play("Recoil.None", 2, 0f);
             }
             _animator.Update(0f);
-            if (_aimTarget != null) _aimTarget.position = _actor.Eyes.position + transform.forward * _config.RestAimDistance;
+            if (_aimTarget != null) _aimTarget.position = _smoothedAimPosition = _actor.Eyes.position + transform.forward * _config.RestAimDistance;
         }
         private bool Has(Parameter parameter) => _available[(int)parameter];
         private void Float(Parameter parameter, float value, float damping)
@@ -226,6 +363,7 @@ namespace Breachpoint.Gameplay.AI
         { for (int i = (int)Parameter.Turn90Left; i <= (int)Parameter.Turn180Right; i++) if (_available[i]) _animator.ResetTrigger(Hashes[i]); }
         private void OnDisable()
         {
+            _navigation?.ClearSteadyAnimationPhase();
             if (!_bound) return;
             _brain.ResetCompleted -= ResetView; _navigation.FacingRequested -= PresentTurn;
             _brain.Combat.Fired -= Fire; _brain.Combat.ReloadStarted -= Reload;
