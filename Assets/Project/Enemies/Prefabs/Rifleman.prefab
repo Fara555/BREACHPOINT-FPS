@@ -6937,10 +6937,140 @@ MonoBehaviour:
     <MoveSpeedDecelerationDamp>k__BackingField: 0.1
     <MoveDirectionDamp>k__BackingField: 0.035
     <MovementStartAnticipation>k__BackingField: 0.2
+    <CombatStartDuration>k__BackingField: 0.18
+    <CombatStartBlend>k__BackingField: 0.6
     <CoarseAimYawLimit>k__BackingField: 18
     <CoarseAimWeight>k__BackingField: 0.8
+    <CoarseAimPitchLimit>k__BackingField: 18
+    <CoarseAimPitchWeight>k__BackingField: 0.95
+    <CoarseAimBlend>k__BackingField: 0.2
+    _raiseAim:
+      serializedVersion: 2
+      m_Curve:
+      - serializedVersion: 3
+        time: 0
+        value: 0
+        inSlope: 0
+        outSlope: 0
+        tangentMode: 0
+        weightedMode: 0
+        inWeight: 0
+        outWeight: 0
+      - serializedVersion: 3
+        time: 0.12
+        value: 0.05
+        inSlope: 0
+        outSlope: 0
+        tangentMode: 0
+        weightedMode: 0
+        inWeight: 0
+        outWeight: 0
+      - serializedVersion: 3
+        time: 0.3
+        value: 0.55
+        inSlope: 0
+        outSlope: 0
+        tangentMode: 0
+        weightedMode: 0
+        inWeight: 0
+        outWeight: 0
+      - serializedVersion: 3
+        time: 0.5
+        value: 1
+        inSlope: 0
+        outSlope: 0
+        tangentMode: 0
+        weightedMode: 0
+        inWeight: 0
+        outWeight: 0
+      - serializedVersion: 3
+        time: 1
+        value: 1
+        inSlope: 0
+        outSlope: 0
+        tangentMode: 0
+        weightedMode: 0
+        inWeight: 0
+        outWeight: 0
+      m_PreInfinity: 2
+      m_PostInfinity: 2
+      m_RotationOrder: 4
+    _leftTurnAim:
+      serializedVersion: 2
+      m_Curve:
+      - serializedVersion: 3
+        time: 0
+        value: 1
+        inSlope: 0
+        outSlope: 0
+        tangentMode: 0
+        weightedMode: 0
+        inWeight: 0
+        outWeight: 0
+      - serializedVersion: 3
+        time: 0.12
+        value: 0.2
+        inSlope: 0
+        outSlope: 0
+        tangentMode: 0
+        weightedMode: 0
+        inWeight: 0
+        outWeight: 0
+      - serializedVersion: 3
+        time: 0.25
+        value: 0
+        inSlope: 0
+        outSlope: 0
+        tangentMode: 0
+        weightedMode: 0
+        inWeight: 0
+        outWeight: 0
+      - serializedVersion: 3
+        time: 0.55
+        value: 0
+        inSlope: 0
+        outSlope: 0
+        tangentMode: 0
+        weightedMode: 0
+        inWeight: 0
+        outWeight: 0
+      - serializedVersion: 3
+        time: 0.78
+        value: 0.4
+        inSlope: 0
+        outSlope: 0
+        tangentMode: 0
+        weightedMode: 0
+        inWeight: 0
+        outWeight: 0
+      - serializedVersion: 3
+        time: 0.93
+        value: 1
+        inSlope: 0
+        outSlope: 0
+        tangentMode: 0
+        weightedMode: 0
+        inWeight: 0
+        outWeight: 0
+      - serializedVersion: 3
+        time: 1.2
+        value: 1
+        inSlope: 0
+        outSlope: 0
+        tangentMode: 0
+        weightedMode: 0
+        inWeight: 0
+        outWeight: 0
+      m_PreInfinity: 2
+      m_PostInfinity: 2
+      m_RotationOrder: 4
+    <SprintAimRigWeight>k__BackingField: 0
     <SteadyNaturalSpeed>k__BackingField: 1.12
     <CombatNaturalSpeeds>k__BackingField: {x: 1.74, y: 4.26, z: 6.06}
+    <WalkCardinalNaturalSpeeds>k__BackingField: {x: 1.8118, y: 1.7635, z: 1.8085}
+    <RunCardinalNaturalSpeeds>k__BackingField: {x: 4.4867, y: 4.5343, z: 4.5109}
+    <WalkDiagonalNaturalSpeeds>k__BackingField: {x: 1.8081, y: 1.7703, z: 1.8046, w: 1.7827}
+    <RunDiagonalNaturalSpeeds>k__BackingField: {x: 4.526, y: 4.5213, z: 4.5274, w: 4.3621}
     <CrouchNaturalSpeed>k__BackingField: 1.62
     <StridePlaybackLimits>k__BackingField: {x: 0.5, y: 1.15}
     <SteadyStartSpeed>k__BackingField: 1
@@ -6964,6 +7094,7 @@ MonoBehaviour:
     <TurnHysteresis>k__BackingField: 8
     <StationaryTurnSpeed>k__BackingField: 90
     <StationarySpeed>k__BackingField: 0.08
+    <DeathAnimationMaxSpeed>k__BackingField: 0.08
     <WalkThreshold>k__BackingField: 0.33
     <RunThreshold>k__BackingField: 0.66
     <SprintThreshold>k__BackingField: 1
@@ -7131,8 +7262,57 @@ MonoBehaviour:
   _animator: {fileID: 3568518880274429610}
   _rigBuilder: {fileID: 6379209240848725738}
   _skeletonRoot: {fileID: 3568518880284301632}
-  _takeoverDelay: 1
-  _momentumScale: 1
+  _takeoverDelay: 1.2
+  _momentumScale: 0.25
+  _takeoverNormalizedTime: 0.5
+  _maximumAnimationWait: 4
+  _maximumHorizontalMomentum: 1.2
+  _movingDeathSpeed:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 1.5
+      value: 2
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 3.2
+      value: 4.2
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 4.8
+      value: 6.5
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  _maximumMovingDeathSpeed: 6.5
+  _maximumDepenetrationSpeed: 1
+  _maximumAngularSpeed: 6
+  _angularDamping: 0.8
 --- !u!114 &8511453650133764361
 MonoBehaviour:
   m_ObjectHideFlags: 0

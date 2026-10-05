@@ -42,6 +42,35 @@ namespace Breachpoint.Gameplay.AI
             if (blend <= config.RunThreshold) return Mathf.Lerp(config.CombatNaturalSpeeds.x, config.CombatNaturalSpeeds.y, Mathf.InverseLerp(config.WalkThreshold, config.RunThreshold, blend));
             return Mathf.Lerp(config.CombatNaturalSpeeds.y, config.CombatNaturalSpeeds.z, Mathf.InverseLerp(config.RunThreshold, config.SprintThreshold, blend));
         }
+        public static float NaturalCombatSpeed(float blend, Vector2 direction, EnemyAnimationConfig config)
+        {
+            float walk = DirectionalNaturalSpeed(direction, config.CombatNaturalSpeeds.x, config.WalkCardinalNaturalSpeeds, config.WalkDiagonalNaturalSpeeds);
+            float run = DirectionalNaturalSpeed(direction, config.CombatNaturalSpeeds.y, config.RunCardinalNaturalSpeeds, config.RunDiagonalNaturalSpeeds);
+            if (blend <= config.WalkThreshold) return walk;
+            if (blend <= config.RunThreshold) return Mathf.Lerp(walk, run, Mathf.InverseLerp(config.WalkThreshold, config.RunThreshold, blend));
+            return Mathf.Lerp(run, config.CombatNaturalSpeeds.z, Mathf.InverseLerp(config.RunThreshold, config.SprintThreshold, blend));
+        }
+        private static float DirectionalNaturalSpeed(Vector2 direction, float forward, Vector3 cardinal, Vector4 diagonal)
+        {
+            if (direction.sqrMagnitude < .0001f) return forward;
+            float sector = Mathf.Repeat(Mathf.Atan2(-direction.x, direction.y) * Mathf.Rad2Deg, 360f) / 45f;
+            int index = Mathf.FloorToInt(sector);
+            float At(int i)
+            {
+                switch (i % 8)
+                {
+                    case 0: return forward;
+                    case 1: return diagonal.x;
+                    case 2: return cardinal.x;
+                    case 3: return diagonal.y;
+                    case 4: return cardinal.y;
+                    case 5: return diagonal.z;
+                    case 6: return cardinal.z;
+                    default: return diagonal.w;
+                }
+            }
+            return Mathf.Lerp(At(index), At(index + 1), sector - index);
+        }
         public static float MoveSpeed(float speed, float walkSpeed, float runSpeed, EnemyAnimationConfig config)
         {
             if (speed <= config.StationarySpeed) return 0f;

@@ -197,7 +197,7 @@ namespace Breachpoint.Editor.Enemies
             {
                 foreach (string name in new[] { "Rifle Idle", "Rifle start walking", "Rifle Walk", "Rifle stop walking", "sprint forward", "turn 180 left", "turn 180 right", "DerivedLeft", "DerivedRight" })
                 {
-                    AnimationClip clip = name.StartsWith("Derived") ? AssetDatabase.LoadAssetAtPath<AnimationClip>("Assets/Project/Art/Enemies/Adam/Config/turn180" + (name == "DerivedLeft" ? "left" : "right") + "InPlace.anim") : SourceClip(name);
+                    AnimationClip clip = name.StartsWith("Derived") ? AssetDatabase.LoadAssetAtPath<AnimationClip>(EnemyAnimationAssetPaths.DerivedClip("turn180" + (name == "DerivedLeft" ? "left" : "right") + "InPlace.anim")) : SourceClip(name);
                     for (int i = 0; i <= 100; i++)
                     {
                         float normalized = i / 100f;

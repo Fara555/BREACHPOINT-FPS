@@ -87,7 +87,7 @@ namespace Breachpoint.Editor.Enemies
         private static AnimationClip Clip(string name) => Clips.TryGetValue(name, out AnimationClip clip) ? clip : throw new InvalidOperationException("Missing authored Adam clip: " + name);
         private static AnimationClip OneShot(string source)
         {
-            string path = "Assets/Project/Art/Enemies/Adam/Config/" + source.Replace(" ", "") + ".anim";
+            string path = EnemyAnimationAssetPaths.DerivedClip(source.Replace(" ", "") + ".anim");
             AnimationClip clip = AssetDatabase.LoadAssetAtPath<AnimationClip>(path);
             if (clip == null)
             {
@@ -158,7 +158,7 @@ namespace Breachpoint.Editor.Enemies
 
         private static AnimationClip RecoilClip(string source)
         {
-            string path = "Assets/Project/Art/Enemies/Adam/Config/" + source.Replace(" ", "") + "Recoil.anim";
+            string path = EnemyAnimationAssetPaths.DerivedClip(source.Replace(" ", "") + "Recoil.anim");
             var clip = AssetDatabase.LoadAssetAtPath<AnimationClip>(path);
             bool created = clip == null;
             if (created) clip = Object.Instantiate(Clip(source));
@@ -190,7 +190,7 @@ namespace Breachpoint.Editor.Enemies
         }
         private static AnimationClip TurnClip(string source)
         {
-            string path = "Assets/Project/Art/Enemies/Adam/Config/" + source.Replace(" ", "") + "InPlace.anim";
+            string path = EnemyAnimationAssetPaths.DerivedClip(source.Replace(" ", "") + "InPlace.anim");
             AnimationClip clip = AssetDatabase.LoadAssetAtPath<AnimationClip>(path);
             if (clip == null)
             {
@@ -245,7 +245,7 @@ namespace Breachpoint.Editor.Enemies
                 string stateName = "SteadyTurn" + suffix.Replace(" ", "").Replace("left", "Left").Replace("right", "Right");
                 var state = controller.layers[0].stateMachine.states.First(s => s.state.name == stateName).state;
                 string source = "Steady rifle turn " + TurnSourceSuffix("Steady", suffix);
-                var clip = AssetDatabase.LoadAssetAtPath<AnimationClip>("Assets/Project/Art/Enemies/Adam/Config/" + source.Replace(" ", "") + "InPlace.anim");
+                var clip = AssetDatabase.LoadAssetAtPath<AnimationClip>(EnemyAnimationAssetPaths.DerivedClip(source.Replace(" ", "") + "InPlace.anim"));
                 if (clip == null) throw new InvalidOperationException("Missing existing derived clip: " + source);
                 if (state.motion == clip) continue;
                 Undo.RecordObject(state, "Correct reversed Steady source handedness"); state.motion = clip; EditorUtility.SetDirty(state); changed = true;
@@ -304,7 +304,7 @@ namespace Breachpoint.Editor.Enemies
 
         private static AnimationClip CrouchReloadClip()
         {
-            const string path = "Assets/Project/Art/Enemies/Adam/Config/CrouchReloadUpper.anim";
+            string path = EnemyAnimationAssetPaths.DerivedClip("CrouchReloadUpper.anim");
             AnimationClip clip = AssetDatabase.LoadAssetAtPath<AnimationClip>(path);
             bool created = clip == null;
             if (created) { clip = Object.Instantiate(Clip("Reload")); clip.name = "CrouchReloadUpper"; }

@@ -6,6 +6,7 @@ namespace Breachpoint.Gameplay.AI
     [DisallowMultipleComponent, RequireComponent(typeof(EnemyBrain))]
     public sealed class EnemyAnimationBridge : MonoBehaviour
     {
+        private const float CombatLocomotionReadyBlend = .25f;
         private enum Parameter { MoveSpeed, MoveX, MoveY, IsCombat, IsCrouching, IsFiring, IsReloading, IsHit, IsDead, HitDirection, ReloadSpeed, Turn90Left, Turn90Right, Turn180Left, Turn180Right, Hit, Speed, Dead, Reloading, Attack, SteadyStride, CombatStride, CrouchStride }
         private static readonly int[] Hashes = CreateHashes();
         [SerializeField] private Animator _animator;
@@ -25,6 +26,7 @@ namespace Breachpoint.Gameplay.AI
         private float _hitUntil;
         private float _lethalDirection;
         private Vector3 _deathVelocity;
+        public float DeathPlanarSpeed { get; private set; }
         private int _lastStateHash;
         private int _lastActionHash;
         private int _lastRecoilHash;
@@ -103,13 +105,13 @@ namespace Breachpoint.Gameplay.AI
                 for (int i = 0; i < Hashes.Length; i++) if (parameter.nameHash == Hashes[i]) _available[i] = true;
             _modern = Has(Parameter.IsCombat);
             if (_animator.isHuman) { _leftFoot = _animator.GetBoneTransform(HumanBodyBones.LeftFoot); _rightFoot = _animator.GetBoneTransform(HumanBodyBones.RightFoot); }
-            if (_modern) _navigation.ConfigurePresentationTurning(_config.StationaryTurnSpeed);
+            if (_modern) { _navigation.ConfigurePresentationTurning(_config.StationaryTurnSpeed); _navigation.ConfigureCombatStart(_config.CombatStartDuration); }
             _animator.applyRootMotion = false;
             // Hitscan and shot VFX use the bone-attached muzzle even outside the camera.
             if (_modern) _animator.cullingMode = AnimatorCullingMode.AlwaysAnimate;
             _brain.ResetCompleted += ResetView; _navigation.FacingRequested += PresentTurn;
             _brain.Combat.Fired += Fire; _brain.Combat.ReloadStarted += Reload;
-            _actor.Health.DamageReceived += ReceiveDamage; _actor.Health.Died += Die;
+            _actor.Health.DamageReceived += ReceiveDamage; _brain.DeathCompleted += Die;
             _bound = true; ResetView();
         }
         private void Update()
@@ -122,6 +124,8 @@ namespace Breachpoint.Gameplay.AI
             Vector3 desired = _navigation.PresentationDesiredVelocity;
             float requestedSpeed = _navigation.RequestedWorldSpeed;
             MoveSpeedRaw = EnemyAnimationMath.MovementBlend(speed, requestedSpeed, _navigation.DesiredMovementTier, _navigation.HasMovementRequest, movement, _config);
+            if (_navigation.MovementPhase == EnemyMovementPhase.Starting && (_navigation.DesiredMovementTier == EnemyMovementTier.CombatWalk || _navigation.DesiredMovementTier == EnemyMovementTier.Run))
+                MoveSpeedRaw = Mathf.Max(MoveSpeedRaw, _config.WalkThreshold * _config.CombatStartBlend);
             bool steadyStop = _navigation.DesiredMovementTier == EnemyMovementTier.Steady && _navigation.MovementPhase == EnemyMovementPhase.Stopping;
             if (steadyStop) MoveSpeedRaw = MoveSpeedSmoothed = 0f;
             float damping = MoveSpeedRaw > MoveSpeedSmoothed ? _config.MoveSpeedAccelerationDamp : _config.MoveSpeedDecelerationDamp;
@@ -130,7 +134,6 @@ namespace Breachpoint.Gameplay.AI
             Float(Parameter.MoveSpeed, MoveSpeedSmoothed, 0f);
             Float(Parameter.Speed, speed, _config.FloatDamping);
             Float(Parameter.SteadyStride, EnemyAnimationMath.StrideSpeed(speed, _config.SteadyNaturalSpeed, _config), _config.FloatDamping);
-            Float(Parameter.CombatStride, EnemyAnimationMath.StrideSpeed(speed, EnemyAnimationMath.NaturalCombatSpeed(MoveSpeedSmoothed, _config), _config), _config.FloatDamping);
             Float(Parameter.CrouchStride, EnemyAnimationMath.StrideSpeed(speed, _config.CrouchNaturalSpeed, _config), _config.FloatDamping);
             MoveDirectionRaw = EnemyAnimationMath.MovementDirection(transform.rotation, desired, velocity, requestedSpeed);
             if (MoveDirectionRaw.sqrMagnitude > .0001f)
@@ -138,7 +141,18 @@ namespace Breachpoint.Gameplay.AI
                 if (MoveDirectionSmoothed.sqrMagnitude < .0001f) MoveDirectionSmoothed = MoveDirectionRaw;
                 else MoveDirectionSmoothed = Vector2.Lerp(MoveDirectionSmoothed, MoveDirectionRaw, 1f - Mathf.Exp(-Time.deltaTime / _config.MoveDirectionDamp));
             }
-            float directionWeight = IsCrouching ? Mathf.Clamp01(MoveSpeedSmoothed / _config.WalkThreshold) : 1f;
+            float combatNaturalSpeed = _navigation.DesiredMovementTier == EnemyMovementTier.Sprint
+                ? EnemyAnimationMath.NaturalCombatSpeed(MoveSpeedSmoothed, _config)
+                : EnemyAnimationMath.NaturalCombatSpeed(MoveSpeedSmoothed, MoveDirectionSmoothed, _config);
+            Float(Parameter.CombatStride, EnemyAnimationMath.StrideSpeed(speed, combatNaturalSpeed, _config), _config.FloatDamping);
+            // Stance intent can change before the evaluated crouch pose has blended out.
+            // Keep that tree centered at rest throughout entry and exit, even if AI
+            // requests exposure while StandingToCrouch is still finishing.
+            var baseState = _animator.GetCurrentAnimatorStateInfo(0);
+            var nextBaseState = _animator.GetNextAnimatorStateInfo(0);
+            bool crouchPose = IsCrouching || UsesCrouchDirection(baseState) ||
+                _animator.IsInTransition(0) && UsesCrouchDirection(nextBaseState);
+            float directionWeight = crouchPose ? Mathf.Clamp01(MoveSpeedSmoothed / _config.WalkThreshold) : 1f;
             Float(Parameter.MoveX, MoveDirectionSmoothed.x * directionWeight, 0f);
             Float(Parameter.MoveY, MoveDirectionSmoothed.y * directionWeight, 0f);
             Bool(Parameter.IsCombat, _brain.States.Group != EnemyStateGroup.Passive || IsCrouching);
@@ -211,6 +225,8 @@ namespace Breachpoint.Gameplay.AI
             _navigation.DeferStationaryFacing(_config.TurnStableTime + _config.TurnBlendIn);
             TryPresentTurn(direction);
         }
+        private static bool UsesCrouchDirection(AnimatorStateInfo state) =>
+            state.IsName("CrouchLocomotion") || state.IsName("StandingToCrouch") || state.IsName("CrouchToStanding");
         private void TryPresentTurn(Vector3 direction)
         {
             if (!_bound || !_modern || !_animator.enabled || _actor.Health.IsDead || _navigation.IsTurning ||
@@ -249,6 +265,7 @@ namespace Breachpoint.Gameplay.AI
         {
             ApplyPresentationTurn();
             PublishSteadyMovementPhase();
+            PublishCombatMovementReadiness();
             // The Animator can write the rig target's bind pose after Update. Publish the target
             // after evaluation so the next rig synchronization reads the gameplay target.
             if (_bound && _animator.enabled && !_actor.Health.IsDead) UpdateAim();
@@ -259,6 +276,15 @@ namespace Breachpoint.Gameplay.AI
                 FootMotionDetected = Vector3.Distance(left, _lastLeftFoot) + Vector3.Distance(right, _lastRightFoot) > .003f;
                 _lastLeftFoot = left; _lastRightFoot = right;
             }
+        }
+        private void PublishCombatMovementReadiness()
+        {
+            if (!_bound || !_modern || !_animator.enabled) return;
+            var current = _animator.GetCurrentAnimatorStateInfo(0);
+            bool ready = current.IsName("StandingLocomotion") || current.IsName("CrouchLocomotion") || current.IsTag("Turn") && _brain.States.Group != EnemyStateGroup.Passive;
+            if (_animator.IsInTransition(0) && _animator.GetNextAnimatorStateInfo(0).IsName("StandingLocomotion"))
+                ready |= _animator.GetAnimatorTransitionInfo(0).normalizedTime >= CombatLocomotionReadyBlend;
+            _navigation.SetCombatMovementReady(ready);
         }
         private void PublishSteadyMovementPhase()
         {
@@ -307,7 +333,15 @@ namespace Breachpoint.Gameplay.AI
             if (direction.sqrMagnitude < 0.0001f && damage.Source != null) direction = transform.position - damage.Source.transform.position;
             bool lethal = _actor.Health.CurrentHealth <= 0f;
             float value = EnemyAnimationMath.HitDirection(transform.rotation, direction, lethal);
-            if (lethal) { _lethalDirection = value; _deathVelocity = _navigation.Velocity; return; }
+            if (lethal)
+            {
+                // DamageReceived precedes gameplay death and its navigation stop.
+                // Capture real motion here, independently of requested tier or stance.
+                _lethalDirection = value;
+                _deathVelocity = Vector3.ProjectOnPlane(_navigation.Velocity, Vector3.up);
+                DeathPlanarSpeed = _deathVelocity.magnitude;
+                return;
+            }
             if (_actor.Health.IsDead || !_animator.enabled) return;
             if (IsHit) return;
             Trigger(Parameter.Hit); Float(Parameter.HitDirection, value, 0f); _hitUntil = Time.time + 0.48f; Bool(Parameter.IsHit, true);
@@ -316,10 +350,12 @@ namespace Breachpoint.Gameplay.AI
         private void Die()
         {
             _navigation.CancelTurn(); CurrentTurn = null;
-            _ragdoll?.BeginDeath(_deathVelocity, _animator.enabled && _modern);
+            bool animateDeath = _animator.enabled && _modern && DeathPlanarSpeed <= _config.DeathAnimationMaxSpeed;
+            _ragdoll?.BeginDeath(_deathVelocity, animateDeath);
             _fireUntil = _hitUntil = 0f; ClearTurnTriggers();
             if (Has(Parameter.Hit)) _animator.ResetTrigger(Hashes[(int)Parameter.Hit]);
-            if (!_animator.enabled) return;
+            // Moving deaths never set a terminal Animator parameter or evaluate Death.
+            if (!_animator.enabled || _modern && !animateDeath) return;
             Bool(Parameter.IsFiring, false); Bool(Parameter.IsReloading, false); Bool(Parameter.IsHit, false); Bool(Parameter.Reloading, false);
             Bool(Parameter.IsCrouching, IsCrouching);
             Float(Parameter.HitDirection, _lethalDirection, 0f); Bool(Parameter.IsDead, true); Bool(Parameter.Dead, true);
@@ -332,7 +368,7 @@ namespace Breachpoint.Gameplay.AI
             _pendingTurn = Vector3.zero;
             _activeTurnProfile = null; _turnAnimationStarted = false;
             _nextFootSample = 0f; FootMotionDetected = false;
-            _nextTurn = _fireUntil = _hitUntil = _lethalDirection = 0f; _deathVelocity = Vector3.zero; _lastStateHash = _lastActionHash = _lastRecoilHash = 0; _lastLoggedMode = _brain.States.Group;
+            _nextTurn = _fireUntil = _hitUntil = _lethalDirection = DeathPlanarSpeed = 0f; _deathVelocity = Vector3.zero; _lastStateHash = _lastActionHash = _lastRecoilHash = 0; _lastLoggedMode = _brain.States.Group;
             _ragdoll?.ResetPresentation(); _animator.speed = 1f; _animator.Rebind();
             foreach (var parameter in _animator.parameters)
             {
@@ -367,7 +403,7 @@ namespace Breachpoint.Gameplay.AI
             if (!_bound) return;
             _brain.ResetCompleted -= ResetView; _navigation.FacingRequested -= PresentTurn;
             _brain.Combat.Fired -= Fire; _brain.Combat.ReloadStarted -= Reload;
-            _actor.Health.DamageReceived -= ReceiveDamage; _actor.Health.Died -= Die; _bound = false;
+            _actor.Health.DamageReceived -= ReceiveDamage; _brain.DeathCompleted -= Die; _bound = false;
         }
     }
 }

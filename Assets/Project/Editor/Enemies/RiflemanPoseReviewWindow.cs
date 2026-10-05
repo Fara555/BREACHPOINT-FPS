@@ -24,12 +24,12 @@ namespace Breachpoint.Editor.Enemies
             HumanBodyBones.LeftHand, HumanBodyBones.RightHand, HumanBodyBones.LeftFoot, HumanBodyBones.RightFoot };
         internal static AnimationClip SourceClip(string name)
         {
-            if (name == "RifleRaise") return AssetDatabase.LoadAssetAtPath<AnimationClip>("Assets/Project/Art/Enemies/Adam/Config/RifleRaise.anim");
+            if (name == "RifleRaise") return AssetDatabase.LoadAssetAtPath<AnimationClip>(EnemyAnimationAssetPaths.DerivedClip("RifleRaise.anim"));
             foreach (string guid in AssetDatabase.FindAssets("t:Model", new[] { EnemyTools.AnimationFolder }))
             {
                 string path = AssetDatabase.GUIDToAssetPath(guid);
-                if (!string.Equals(Path.GetFileNameWithoutExtension(path), name, StringComparison.OrdinalIgnoreCase)) continue;
-                return AssetDatabase.LoadAllAssetsAtPath(path).OfType<AnimationClip>().First(c => !c.name.StartsWith("__preview__"));
+                var clip = AssetDatabase.LoadAllAssetsAtPath(path).OfType<AnimationClip>().FirstOrDefault(c => string.Equals(c.name,name,StringComparison.OrdinalIgnoreCase));
+                if (clip != null) return clip;
             }
             throw new InvalidOperationException("Missing source clip: " + name);
         }
@@ -240,7 +240,7 @@ namespace Breachpoint.Editor.Enemies
                         var curve = AnimationUtility.GetEditorCurve(clip, binding);
                         report.AppendLine(binding.propertyName + ": " + string.Join(", ", Enumerable.Range(0, 9).Select(i => curve.Evaluate(clip.length * i / 8f).ToString("F3", System.Globalization.CultureInfo.InvariantCulture))));
                     }
-                    foreach (var variant in new[] { clip, AssetDatabase.LoadAssetAtPath<AnimationClip>("Assets/Project/Art/Enemies/Adam/Config/" + Path.GetFileNameWithoutExtension(path).Replace(" ", "") + "InPlace.anim") })
+                    foreach (var variant in new[] { clip, AssetDatabase.LoadAssetAtPath<AnimationClip>(EnemyAnimationAssetPaths.DerivedClip(Path.GetFileNameWithoutExtension(path).Replace(" ", "") + "InPlace.anim")) })
                     {
                         if (variant == null) continue;
                         rig.Clear(); rig.layers[0].active = rig.layers[1].active = false;

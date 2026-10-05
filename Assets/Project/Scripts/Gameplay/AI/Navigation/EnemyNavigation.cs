@@ -36,6 +36,13 @@ namespace Breachpoint.Gameplay.AI
         private float _steadyStopFraction;
         private bool _steadyCruisePose;
         private bool _steadyRestPose;
+        private float _combatStartDuration;
+        private bool _combatStarting;
+        private bool _hasCombatPresentation;
+        private bool _combatMovementReady;
+        public void ConfigureCombatStart(float duration)
+        { _combatStartDuration = duration; _hasCombatPresentation = duration > 0f; _combatMovementReady = false; }
+        public void SetCombatMovementReady(bool ready) => _combatMovementReady = ready;
         // Animation publishes its evaluated phase; NavMesh still owns all translation.
         public void SetSteadyAnimationPhase(float startFraction, float stopFraction, bool cruise, bool rest)
         {
@@ -88,7 +95,7 @@ namespace Breachpoint.Gameplay.AI
             _nextRepath = 0f; _requested = false; Result = NavigationResult.None; RepathCount = 0;
             RequestedWorldSpeed = 0f; DesiredMovementTier = EnemyMovementTier.Steady;
             MovementPhase = EnemyMovementPhase.Idle; _stoppingForArrival = false;
-            _hasSteadyAnimationPhase = false;
+            _hasSteadyAnimationPhase = false; _combatStarting = false; _combatMovementReady = false;
             CancelTurn(); _desiredFacing = Vector3.zero; _deferFacingUntil = _facingUntil = 0f;
             if (_agent == null || !NavMesh.SamplePosition(position, out NavMeshHit hit, 2f, _agent.areaMask))
             { Result = NavigationResult.Unavailable; return false; }
@@ -107,10 +114,12 @@ namespace Breachpoint.Gameplay.AI
             RequestedWorldSpeed = pace == EnemyMovePace.Sprint ? _config.SprintSpeed : pace == EnemyMovePace.Crouch ? _config.CrouchSpeed : pace == EnemyMovePace.Run ? _config.RunSpeed : _config.WalkSpeed;
             if (DesiredMovementTier == EnemyMovementTier.Steady && _config.SteadyWalkSpeed > 0f) RequestedWorldSpeed = _config.SteadyWalkSpeed;
             _agent.acceleration = DesiredMovementTier == EnemyMovementTier.Steady ? _config.SteadyAcceleration : _config.Acceleration;
-            if (DesiredMovementTier != EnemyMovementTier.Steady && MovementPhase == EnemyMovementPhase.Starting) MovementPhase = EnemyMovementPhase.Cruising;
+            if (DesiredMovementTier != EnemyMovementTier.CombatWalk && DesiredMovementTier != EnemyMovementTier.Run) _combatStarting = false;
+            if (DesiredMovementTier != EnemyMovementTier.Steady && MovementPhase == EnemyMovementPhase.Starting && !_combatStarting) MovementPhase = EnemyMovementPhase.Cruising;
             if (!_requested || MovementPhase == EnemyMovementPhase.Stopping)
             {
-                bool starting = DesiredMovementTier == EnemyMovementTier.Steady && Velocity.sqrMagnitude < .01f;
+                _combatStarting = _combatStartDuration > 0f && _brain.States.Group != EnemyStateGroup.Passive && (DesiredMovementTier == EnemyMovementTier.CombatWalk || DesiredMovementTier == EnemyMovementTier.Run) && Velocity.sqrMagnitude < .01f;
+                bool starting = (DesiredMovementTier == EnemyMovementTier.Steady || _combatStarting) && Velocity.sqrMagnitude < .01f;
                 MovementPhase = starting ? EnemyMovementPhase.Starting : EnemyMovementPhase.Cruising;
                 _phaseBegan = Time.time; _stoppingForArrival = false;
                 _agent.speed = starting ? 0f : RequestedWorldSpeed;
@@ -201,9 +210,24 @@ namespace Breachpoint.Gameplay.AI
             {
                 if (MovementPhase == EnemyMovementPhase.Starting)
                 {
-                    float progress = Mathf.Clamp01((Time.time - _phaseBegan - _config.SteadyStartDelay) / Mathf.Max(.05f, _config.SteadyStartDuration));
-                    _agent.speed = RequestedWorldSpeed * (_hasSteadyAnimationPhase ? _steadyStartFraction : Mathf.SmoothStep(0f, 1f, progress));
-                    if (_hasSteadyAnimationPhase ? _steadyCruisePose : progress >= 1f) MovementPhase = EnemyMovementPhase.Cruising;
+                    if (_combatStarting)
+                    {
+                        // Keep authored readiness intact: intent leads, but stationary Raise
+                        // cannot carry lateral translation. Ramp only once legs can contribute.
+                        if (_hasCombatPresentation && !_combatMovementReady) { _phaseBegan = Time.time; _agent.speed = 0f; }
+                        else
+                        {
+                            float startProgress = Mathf.Clamp01((Time.time - _phaseBegan) / _combatStartDuration);
+                            _agent.speed = RequestedWorldSpeed * Mathf.SmoothStep(0f, 1f, startProgress);
+                            if (startProgress >= 1f) { MovementPhase = EnemyMovementPhase.Cruising; _combatStarting = false; }
+                        }
+                    }
+                    else
+                    {
+                        float progress = Mathf.Clamp01((Time.time - _phaseBegan - _config.SteadyStartDelay) / Mathf.Max(.05f, _config.SteadyStartDuration));
+                        _agent.speed = RequestedWorldSpeed * (_hasSteadyAnimationPhase ? _steadyStartFraction : Mathf.SmoothStep(0f, 1f, progress));
+                        if (_hasSteadyAnimationPhase ? _steadyCruisePose : progress >= 1f) MovementPhase = EnemyMovementPhase.Cruising;
+                    }
                 }
                 else _agent.speed = Mathf.MoveTowards(_agent.speed, RequestedWorldSpeed, _config.Acceleration * Time.deltaTime);
                 if (!_agent.pathPending && _agent.hasPath && _agent.remainingDistance <= _agent.stoppingDistance + Velocity.magnitude * OrdinaryStopDuration(Velocity.magnitude) * .5f)

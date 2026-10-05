@@ -17,6 +17,8 @@ namespace Breachpoint.Gameplay.AI
         [field: SerializeField, Min(0.01f)] public float MoveSpeedDecelerationDamp { get; private set; } = 0.1f;
         [field: SerializeField, Min(0.01f)] public float MoveDirectionDamp { get; private set; } = 0.035f;
         [field: SerializeField, Range(0f, 1f)] public float MovementStartAnticipation { get; private set; } = 0.2f;
+        [field: SerializeField, Min(.01f), Tooltip("Speed-limit ramp after the existing combat readiness pose permits movement, in seconds.")] public float CombatStartDuration { get; private set; } = .18f;
+        [field: SerializeField, Range(0f, 1f), Tooltip("Fraction of Walk blend sent immediately during a Combat Walk/Run start.")] public float CombatStartBlend { get; private set; } = .6f;
         [field: SerializeField, Range(0f, 30f)] public float CoarseAimYawLimit { get; private set; } = 18f;
         [field: SerializeField, Range(0f, 1f)] public float CoarseAimWeight { get; private set; } = 0.8f;
         [field: SerializeField, Range(0f, 25f)] public float CoarseAimPitchLimit { get; private set; } = 18f;
@@ -29,6 +31,11 @@ namespace Breachpoint.Gameplay.AI
         public float LeftTurnAimAt(float normalizedTime) => Mathf.Clamp01(_leftTurnAim.Evaluate(Mathf.Clamp(normalizedTime, 0f, 1.2f)));
         [field: SerializeField, Min(0.01f)] public float SteadyNaturalSpeed { get; private set; } = 1.12f;
         [field: SerializeField] public Vector3 CombatNaturalSpeeds { get; private set; } = new Vector3(1.74f, 4.26f, 6.06f);
+        // Cardinal values are left, backward, right; diagonals are FL, BL, BR, FR.
+        [field: SerializeField, Tooltip("Authored m/s: X left, Y backward, Z right. Forward uses Combat Natural Speeds X.")] public Vector3 WalkCardinalNaturalSpeeds { get; private set; } = new Vector3(1.8118f, 1.7635f, 1.8085f);
+        [field: SerializeField, Tooltip("Authored m/s: X left, Y backward, Z right. Forward uses Combat Natural Speeds Y.")] public Vector3 RunCardinalNaturalSpeeds { get; private set; } = new Vector3(4.4867f, 4.5343f, 4.5109f);
+        [field: SerializeField, Tooltip("Authored m/s: X forward-left, Y backward-left, Z backward-right, W forward-right.")] public Vector4 WalkDiagonalNaturalSpeeds { get; private set; } = new Vector4(1.8081f, 1.7703f, 1.8046f, 1.7827f);
+        [field: SerializeField, Tooltip("Authored m/s: X forward-left, Y backward-left, Z backward-right, W forward-right.")] public Vector4 RunDiagonalNaturalSpeeds { get; private set; } = new Vector4(4.5260f, 4.5213f, 4.5274f, 4.3621f);
         [field: SerializeField, Min(0.01f)] public float CrouchNaturalSpeed { get; private set; } = 1.62f;
         [field: SerializeField] public Vector2 StridePlaybackLimits { get; private set; } = new Vector2(0.75f, 1.15f);
         [field: SerializeField, Min(0.01f)] public float SteadyStartSpeed { get; private set; } = 1f;
@@ -52,6 +59,7 @@ namespace Breachpoint.Gameplay.AI
         [field: SerializeField, Min(0f)] public float TurnHysteresis { get; private set; } = 8f;
         [field: SerializeField, Min(1f)] public float StationaryTurnSpeed { get; private set; } = 90f;
         [field: SerializeField, Min(0.01f)] public float StationarySpeed { get; private set; } = 0.08f;
+        [field: SerializeField, Min(0f), Tooltip("Maximum actual planar speed in m/s for an animated death. Faster deaths immediately preserve the locomotion pose as ragdoll.")] public float DeathAnimationMaxSpeed { get; private set; } = 0.08f;
         [field: SerializeField, Range(0f, 1f)] public float WalkThreshold { get; private set; } = 0.33f;
         [field: SerializeField, Range(0f, 1f)] public float RunThreshold { get; private set; } = 0.66f;
         [field: SerializeField, Range(0f, 1f)] public float SprintThreshold { get; private set; } = 1f;

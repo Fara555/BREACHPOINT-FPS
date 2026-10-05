@@ -130,7 +130,9 @@ namespace Breachpoint.Editor.Enemies
                     PlayCheck(moving != null, "Enemy has a live moving cover reservation before lethal interruption");
                     moving.GetComponent<EnemyActor>().Health.TakeDamage(new DamageInfo(100000f, moving.transform.position, Vector3.back, fixture.Target.gameObject));
                     PlayCheck(moving.States.Current == EnemyStateId.Dead && fixture.Covers.Reservation(point) == null && moving.Tactics.Member == null, "Death during cover travel atomically releases cover and squad membership");
-                    foreach (var wait in Enumerate(WatchTactical(fixture, 1.2f))) yield return wait;
+                    var deathAnimator = moving.GetComponent<EnemyAnimationBridge>().Animator;
+                    PlayCheck(moving.GetComponent<EnemyRagdollPresenter>().IsRagdoll && !deathAnimator.enabled && !deathAnimator.GetBool("IsDead") && !deathAnimator.GetCurrentAnimatorStateInfo(0).IsTag("Death"), "Actual moving cover casualty immediately becomes ragdoll without Death animation");
+                    foreach (var wait in Enumerate(WaitForDeathTakeover(moving.GetComponent<EnemyRagdollPresenter>()))) { fixture.Observe(); yield return wait; }
                     PlayCheck(moving.GetComponent<EnemyRagdollPresenter>().IsRagdoll, "Cover death still reaches existing ragdoll"); yield break;
                 }
                 float until = Time.time + (index == 7 || index == 8 ? 5f : index == 5 ? 16f : 10f);
@@ -216,10 +218,19 @@ namespace Breachpoint.Editor.Enemies
             }
             if (index == 14)
             {
-                foreach (var wait in Enumerate(WatchTactical(fixture, 1.5f))) yield return wait;
+                // Apply the casualty during actual supported travel, after authored readiness.
+                // A fixed 1.5-second wait can land between readiness and the next rifle burst.
                 EnemyBrain anchor = null; EnemyBrain mover = null;
-                foreach (var brain in fixture.Brains) { if (brain.Tactics.Member.Shooter) anchor = brain; if (brain.Tactics.Member.Mover) mover = brain; }
+                float readyDeadline = Time.time + 4f;
+                while (Time.time < readyDeadline)
+                {
+                    fixture.Observe(); anchor = mover = null;
+                    foreach (var brain in fixture.Brains) { if (brain.Tactics.Member.Shooter) anchor = brain; if (brain.Tactics.Member.Mover) mover = brain; }
+                    if (anchor != null && mover != null && fixture.PressureMovementOverlap && mover.GetComponent<EnemyActor>().Navigation.Velocity.sqrMagnitude > .1f) break;
+                    yield return null;
+                }
                 PlayCheck(anchor != null && mover != null && fixture.PressureMovementOverlap, "Casualty fixture has a live anchor and advancing supported mover");
+                PlayCheck(mover.GetComponent<EnemyActor>().Navigation.Velocity.sqrMagnitude > .1f, "Casualty is applied while the supported mover is physically advancing");
                 var squad = anchor.Tactics.Squad; anchor.GetComponent<EnemyActor>().Health.TakeDamage(new DamageInfo(100000f, anchor.transform.position, Vector3.back, fixture.Target.gameObject));
                 PlayCheck(squad.Casualties == 1 && squad.ActiveShooters == 0 && anchor.Tactics.Member == null, "Suppressor casualty immediately clears its combat slot and membership");
                 foreach (var wait in Enumerate(WatchTactical(fixture, 3f))) yield return wait;

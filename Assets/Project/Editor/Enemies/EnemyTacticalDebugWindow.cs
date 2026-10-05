@@ -8,6 +8,9 @@ namespace Breachpoint.Editor.Enemies
 {
     public sealed class EnemyTacticalDebugWindow : EditorWindow
     {
+        [SerializeField] private int _humanCase;
+        [SerializeField] private bool _repeat;
+        [SerializeField] private bool _advanced;
         private int _scenario;
         private Vector2 _scroll;
         private AnimatorController _controller;
@@ -45,87 +48,153 @@ namespace Breachpoint.Editor.Enemies
         private void OnGUI()
         {
             _scroll = EditorGUILayout.BeginScrollView(_scroll);
-            EditorGUILayout.HelpBox(_validationStatus, _validationStatus.Contains("FAIL") ? MessageType.Error : MessageType.Info);
-            EditorGUILayout.LabelField("Selected enemy", EditorStyles.boldLabel);
-            EnemyBrain brain = Selection.activeGameObject != null ? Selection.activeGameObject.GetComponentInParent<EnemyBrain>() : null;
-            if (brain == null) EditorGUILayout.HelpBox("Select a Rifleman gameplay root or child in Play Mode.", MessageType.Info);
-            else if (brain.Config != null)
+            DrawHumanReview();
+            _advanced = EditorGUILayout.Foldout(_advanced, "Advanced diagnostics and automated checks", true);
+            if (_advanced)
             {
-                EnemyActor actor = brain.GetComponent<EnemyActor>();
-                EnemyAnimationBridge bridge = brain.GetComponent<EnemyAnimationBridge>();
-                Show("Entity ID", actor.GetEntityId().ToString());
-                Show("Enemy / state", brain.name + " / " + brain.States.Current);
-                Show("Previous state", brain.States.Previous.ToString());
-                Show("Transition reason", brain.States.LastReason);
-                Show("Alert", brain.Memory.Alert.ToString("F2"));
-                ShowTactics(brain);
-                Show("Target / direct LOS", (brain.Memory.Target != null ? brain.Memory.Target.name : "none") + " / " + brain.Memory.Visible);
-                Show("Health / ammo / reload", actor.Health.CurrentHealth + " / " + brain.Combat.Ammo + " / " + brain.Combat.IsReloading);
-                Show("Movement phase / permitted speed", actor.Navigation.MovementPhase + " / " + actor.Navigation.AllowedSpeed.ToString("F3"));
-                Show("Desired tier / requested speed / NavMesh limit", actor.Navigation.DesiredMovementTier + " / " + actor.Navigation.RequestedWorldSpeed.ToString("F2") + " / " + actor.Navigation.DesiredSpeed.ToString("F2"));
-                if (bridge != null)
+                EditorGUILayout.HelpBox(_validationStatus, _validationStatus.Contains("FAIL") ? MessageType.Error : MessageType.Info);
+                EditorGUILayout.LabelField("Selected enemy", EditorStyles.boldLabel);
+                EnemyBrain brain = Selection.activeGameObject != null ? Selection.activeGameObject.GetComponentInParent<EnemyBrain>() : null;
+                if (brain == null) EditorGUILayout.HelpBox("Select a Rifleman gameplay root or child in Play Mode.", MessageType.Info);
+                else if (brain.Config != null)
                 {
-                    Show("MoveSpeed raw / smoothed", bridge.MoveSpeedRaw.ToString("F3") + " / " + bridge.MoveSpeedSmoothed.ToString("F3"));
-                    Show("Direction raw / smoothed", bridge.MoveDirectionRaw + " / " + bridge.MoveDirectionSmoothed);
-                    Show("Foot motion detected", bridge.FootMotionDetected.ToString());
-                    Show("Muzzle horizontal / vertical / total", bridge.HorizontalMuzzleErrorDegrees.ToString("F1") + " / " + bridge.VerticalMuzzleErrorDegrees.ToString("F1") + " / " + bridge.MuzzleAimErrorDegrees.ToString("F1"));
-                    Show("Body / muzzle aim error", bridge.BodyAimErrorDegrees.ToString("F1") + " / " + bridge.MuzzleAimErrorDegrees.ToString("F1"));
+                    EnemyActor actor = brain.GetComponent<EnemyActor>();
+                    EnemyAnimationBridge bridge = brain.GetComponent<EnemyAnimationBridge>();
+                    Show("Entity ID", actor.GetEntityId().ToString());
+                    Show("Enemy / state", brain.name + " / " + brain.States.Current);
+                    Show("Previous state", brain.States.Previous.ToString());
+                    Show("Transition reason", brain.States.LastReason);
+                    Show("Alert", brain.Memory.Alert.ToString("F2"));
+                    ShowTactics(brain);
+                    Show("Target / direct LOS", (brain.Memory.Target != null ? brain.Memory.Target.name : "none") + " / " + brain.Memory.Visible);
+                    Show("Health / ammo / reload", actor.Health.CurrentHealth + " / " + brain.Combat.Ammo + " / " + brain.Combat.IsReloading);
+                    Show("Movement phase / permitted speed", actor.Navigation.MovementPhase + " / " + actor.Navigation.AllowedSpeed.ToString("F3"));
+                    Show("Desired tier / requested speed / NavMesh limit", actor.Navigation.DesiredMovementTier + " / " + actor.Navigation.RequestedWorldSpeed.ToString("F2") + " / " + actor.Navigation.DesiredSpeed.ToString("F2"));
+                    if (bridge != null)
+                    {
+                        Show("MoveSpeed raw / smoothed", bridge.MoveSpeedRaw.ToString("F3") + " / " + bridge.MoveSpeedSmoothed.ToString("F3"));
+                        Show("Direction raw / smoothed", bridge.MoveDirectionRaw + " / " + bridge.MoveDirectionSmoothed);
+                        Show("Foot motion detected", bridge.FootMotionDetected.ToString());
+                        Show("Muzzle horizontal / vertical / total", bridge.HorizontalMuzzleErrorDegrees.ToString("F1") + " / " + bridge.VerticalMuzzleErrorDegrees.ToString("F1") + " / " + bridge.MuzzleAimErrorDegrees.ToString("F1"));
+                        Show("Body / muzzle aim error", bridge.BodyAimErrorDegrees.ToString("F1") + " / " + bridge.MuzzleAimErrorDegrees.ToString("F1"));
+                    }
+                    Show("World velocity", actor.Navigation.Velocity.ToString("F3"));
+                    Show("Local velocity", brain.transform.InverseTransformDirection(actor.Navigation.Velocity).ToString("F3"));
+                    Show("Desired velocity", actor.Navigation.DesiredVelocity.ToString("F3"));
+                    Show("Destination / last path result", actor.Navigation.Destination + " / " + actor.Navigation.Result);
+                    Show("Desired facing", actor.Navigation.DesiredFacing.ToString("F3"));
+                    Show("Current facing", brain.transform.forward.ToString("F3"));
+                    Show("Angular error", Vector3.SignedAngle(brain.transform.forward, actor.Navigation.DesiredFacing, Vector3.up).ToString("F1"));
+                    Show("Current turn", bridge != null ? bridge.CurrentTurn : "presentation missing");
+                    if (bridge != null && bridge.Animator != null)
+                    {
+                        Animator animator = bridge.Animator;
+                        ReadController(animator.runtimeAnimatorController as AnimatorController);
+                        for (int layer = 0; layer < animator.layerCount; layer++)
+                        {
+                            AnimatorStateInfo state = animator.GetCurrentAnimatorStateInfo(layer);
+                            AnimatorStateInfo next = animator.GetNextAnimatorStateInfo(layer);
+                            Show("Layer " + layer + " state", StateName(state.fullPathHash));
+                            Show("Next / transition", StateName(next.fullPathHash) + " / " + animator.IsInTransition(layer));
+                            Show("Effective state playback speed", (state.speed * state.speedMultiplier * animator.speed).ToString("F2"));
+                            Show("State time / layer weight", state.normalizedTime.ToString("F2") + " / " + animator.GetLayerWeight(layer).ToString("F2"));
+                            foreach (var clip in animator.GetCurrentAnimatorClipInfo(layer)) Show("Clip / tree weight", clip.clip.name + " / " + clip.weight.ToString("F2"));
+                        }
+                        foreach (var parameter in animator.parameters)
+                        {
+                            string value = parameter.type == AnimatorControllerParameterType.Float ? animator.GetFloat(parameter.nameHash).ToString("F3") :
+                                parameter.type == AnimatorControllerParameterType.Bool ? animator.GetBool(parameter.nameHash).ToString() :
+                                parameter.type == AnimatorControllerParameterType.Int ? animator.GetInteger(parameter.nameHash).ToString() : "event trigger";
+                            Show(parameter.name, value);
+                        }
+                        bool logging = EditorGUILayout.Toggle("Animation transition logs", bridge.LogsAnimationTransitions);
+                        if (logging != bridge.LogsAnimationTransitions) bridge.SetAnimationLogging(logging);
+                    }
                 }
-                Show("World velocity", actor.Navigation.Velocity.ToString("F3"));
-                Show("Local velocity", brain.transform.InverseTransformDirection(actor.Navigation.Velocity).ToString("F3"));
-                Show("Desired velocity", actor.Navigation.DesiredVelocity.ToString("F3"));
-                Show("Destination / last path result", actor.Navigation.Destination + " / " + actor.Navigation.Result);
-                Show("Desired facing", actor.Navigation.DesiredFacing.ToString("F3"));
-                Show("Current facing", brain.transform.forward.ToString("F3"));
-                Show("Angular error", Vector3.SignedAngle(brain.transform.forward, actor.Navigation.DesiredFacing, Vector3.up).ToString("F1"));
-                Show("Current turn", bridge != null ? bridge.CurrentTurn : "presentation missing");
+                EditorGUILayout.Space();
+                if (GUILayout.Button("Open live animation review")) RiflemanLiveReviewWindow.Open();
+                _global = EditorGUILayout.Toggle("Global live statistics", _global);
+                if (_global && EditorApplication.isPlaying) ShowGlobal();
+                EditorGUILayout.LabelField("Deterministic tactical scenarios", EditorStyles.boldLabel);
+                _tacticalScenario = EditorGUILayout.Popup("Tactical scenario", _tacticalScenario, EnemyValidationRunner.TacticalScenarioNames);
+                using (new EditorGUI.DisabledScope(EditorApplication.isPlayingOrWillChangePlaymode || EditorApplication.isCompiling))
+                {
+                    if (GUILayout.Button("Run selected tactical scenario")) EnemyValidationRunner.RunTacticalScenario(_tacticalScenario);
+                    if (GUILayout.Button("Run all 20 tactical scenarios")) EnemyValidationRunner.RunTacticalScenario(-1);
+                    if (GUILayout.Button("Measure 1 / 3 / 10 / 30 agents")) EnemyValidationRunner.ValidateStage(110);
+                    if (GUILayout.Button("Validate lifecycle and edge cases")) EnemyValidationRunner.ValidateStage(120);
+                }
+                EditorGUILayout.LabelField("Deterministic animation scenarios", EditorStyles.boldLabel);
+                _scenario = EditorGUILayout.Popup("Scenario", _scenario, EnemyValidationRunner.AnimationScenarioNames);
+                using (new EditorGUI.DisabledScope(EditorApplication.isPlayingOrWillChangePlaymode || EditorApplication.isCompiling))
+                {
+                    if (GUILayout.Button("Run selected scenario")) EnemyValidationRunner.RunAnimationScenario(_scenario);
+                    if (GUILayout.Button("Run complete animation matrix")) EnemyValidationRunner.RunAnimationMatrix();
+                }
+                EditorGUILayout.HelpBox("Review shows continuous motion in Game View. Slow/pause controls apply only to this review session; exit restores time and scene setup. Automated PASS verifies mechanics, not visual acceptance.", MessageType.None);
+            }
+            EditorGUILayout.EndScrollView();
+        }
+        private void DrawHumanReview()
+        {
+            EditorGUILayout.LabelField("Tactical visual review", EditorStyles.boldLabel);
+            bool running = EnemyValidationRunner.TacticalReviewRunning;
+            if (running) { _humanCase = EnemyValidationRunner.HumanTacticalIndex; _repeat = EnemyValidationRunner.HumanTacticalRepeating; }
+            int selected = EditorGUILayout.Popup("Scenario", _humanCase, EnemyValidationRunner.HumanTacticalNames);
+            if (selected != _humanCase)
+            {
+                _humanCase = selected;
+                if (running) EnemyValidationRunner.RunHumanTacticalReview(_humanCase, _repeat);
+            }
+            EditorGUILayout.HelpBox(EnemyValidationRunner.HumanTacticalPurpose(_humanCase), MessageType.None);
+            EditorGUILayout.HelpBox(EnemyValidationRunner.HumanTacticalWatch(_humanCase), MessageType.Info);
+            using (new EditorGUI.DisabledScope(EditorApplication.isCompiling || EditorApplication.isUpdating || EditorApplication.isPlayingOrWillChangePlaymode && !running))
+            {
+                EditorGUILayout.BeginHorizontal();
+                if (GUILayout.Button("Run")) { _repeat = false; EnemyValidationRunner.RunHumanTacticalReview(_humanCase,false); }
+                if (GUILayout.Button("Repeat")) { _repeat = true; EnemyValidationRunner.RunHumanTacticalReview(_humanCase,true); }
+                using (new EditorGUI.DisabledScope(!running))
+                    if (GUILayout.Button("Stop")) EnemyValidationRunner.StopHumanTacticalReview();
+                EditorGUILayout.EndHorizontal();
+                EditorGUILayout.BeginHorizontal();
+                if (GUILayout.Button("Previous")) SelectHumanCase(-1,running);
+                if (GUILayout.Button("Next")) SelectHumanCase(1,running);
+                EditorGUILayout.EndHorizontal();
+            }
+            if (running)
+            {
+                Show("Review", EnemyValidationRunner.TacticalReviewPhase + (_repeat ? " / repeating" : ""));
+                float scale = SessionState.GetFloat("EnemyTools.Review.TimeScale",1f);
+                float selectedScale = EditorGUILayout.Slider("Playback speed",scale,.25f,1f);
+                if (!Mathf.Approximately(scale,selectedScale)) SessionState.SetFloat("EnemyTools.Review.TimeScale",selectedScale);
+            }
+            EnemyBrain selectedBrain = Selection.activeGameObject != null ? Selection.activeGameObject.GetComponentInParent<EnemyBrain>() : null;
+            EnemyBrain brain = running ? EnemyValidationRunner.TacticalReviewBrain : selectedBrain;
+            if (running && selectedBrain != null && brain != null && selectedBrain.transform.parent == brain.transform.parent) brain = selectedBrain;
+            if (brain != null && brain.Config != null && brain.States != null)
+            {
+                var actor = brain.GetComponent<EnemyActor>(); var bridge = brain.GetComponent<EnemyAnimationBridge>();
+                EditorGUILayout.LabelField("Live enemy", EditorStyles.boldLabel);
+                Show("AI state", brain.States.Current.ToString());
+                Show("Intent", running && (_humanCase < 12 || _humanCase >= 32) ? "Controlled presentation" : brain.Tactics?.Current.Intent.ToString());
+                Show("Movement tier / speed", actor.Navigation.DesiredMovementTier + " / " + actor.Navigation.Velocity.magnitude.ToString("F2") + " m/s");
+                Show("Local direction", bridge != null ? bridge.MoveDirectionSmoothed.ToString("F2") : "none");
+                Show("Cover", brain.Tactics?.CurrentCover != null ? brain.Tactics.CurrentCover.name + " / " + brain.Tactics.CoverPhase : "none");
+                Show("Combat", brain.Combat.IsReloading ? "Reloading" : (bridge != null && bridge.Animator.GetBool("IsFiring") ? "Firing" : "Ready") + " / ammo " + brain.Combat.Ammo);
                 if (bridge != null && bridge.Animator != null)
                 {
-                    Animator animator = bridge.Animator;
-                    ReadController(animator.runtimeAnimatorController as AnimatorController);
-                    for (int layer = 0; layer < animator.layerCount; layer++)
-                    {
-                        AnimatorStateInfo state = animator.GetCurrentAnimatorStateInfo(layer);
-                        AnimatorStateInfo next = animator.GetNextAnimatorStateInfo(layer);
-                        Show("Layer " + layer + " state", StateName(state.fullPathHash));
-                        Show("Next / transition", StateName(next.fullPathHash) + " / " + animator.IsInTransition(layer));
-                        Show("Effective state playback speed", (state.speed * state.speedMultiplier * animator.speed).ToString("F2"));
-                        Show("State time / layer weight", state.normalizedTime.ToString("F2") + " / " + animator.GetLayerWeight(layer).ToString("F2"));
-                        foreach (var clip in animator.GetCurrentAnimatorClipInfo(layer)) Show("Clip / tree weight", clip.clip.name + " / " + clip.weight.ToString("F2"));
-                    }
-                    foreach (var parameter in animator.parameters)
-                    {
-                        string value = parameter.type == AnimatorControllerParameterType.Float ? animator.GetFloat(parameter.nameHash).ToString("F3") :
-                            parameter.type == AnimatorControllerParameterType.Bool ? animator.GetBool(parameter.nameHash).ToString() :
-                            parameter.type == AnimatorControllerParameterType.Int ? animator.GetInteger(parameter.nameHash).ToString() : "event trigger";
-                        Show(parameter.name, value);
-                    }
-                    bool logging = EditorGUILayout.Toggle("Animation transition logs", bridge.LogsAnimationTransitions);
-                    if (logging != bridge.LogsAnimationTransitions) bridge.SetAnimationLogging(logging);
+                    Show("Locomotion", EnemyAnimationStateNames.Get(bridge.Animator.GetCurrentAnimatorStateInfo(0).fullPathHash));
+                    if (bridge.Animator.IsInTransition(0)) Show("Transition to", EnemyAnimationStateNames.Get(bridge.Animator.GetNextAnimatorStateInfo(0).fullPathHash));
                 }
             }
+            else EditorGUILayout.HelpBox("Run a scenario to inspect it in Game View. Repeat loops until Stop; Next/Previous replaces the running scenario.", MessageType.None);
+            EditorGUILayout.HelpBox("The first 12 cases use controlled routes to isolate locomotion; the remaining cases run autonomous tactical AI. Automated checks verify mechanics. Final visual acceptance is yours.", MessageType.None);
             EditorGUILayout.Space();
-            if (GUILayout.Button("Open live animation review")) RiflemanLiveReviewWindow.Open();
-            _global = EditorGUILayout.Toggle("Global live statistics", _global);
-            if (_global && EditorApplication.isPlaying) ShowGlobal();
-            EditorGUILayout.LabelField("Deterministic tactical scenarios", EditorStyles.boldLabel);
-            _tacticalScenario = EditorGUILayout.Popup("Tactical scenario", _tacticalScenario, EnemyValidationRunner.TacticalScenarioNames);
-            using (new EditorGUI.DisabledScope(EditorApplication.isPlayingOrWillChangePlaymode || EditorApplication.isCompiling))
-            {
-                if (GUILayout.Button("Run selected tactical scenario")) EnemyValidationRunner.RunTacticalScenario(_tacticalScenario);
-                if (GUILayout.Button("Run all 20 tactical scenarios")) EnemyValidationRunner.RunTacticalScenario(-1);
-                if (GUILayout.Button("Measure 1 / 3 / 10 / 30 agents")) EnemyValidationRunner.ValidateStage(110);
-                if (GUILayout.Button("Validate lifecycle and edge cases")) EnemyValidationRunner.ValidateStage(120);
-            }
-            EditorGUILayout.LabelField("Deterministic animation scenarios", EditorStyles.boldLabel);
-            _scenario = EditorGUILayout.Popup("Scenario", _scenario, EnemyValidationRunner.AnimationScenarioNames);
-            using (new EditorGUI.DisabledScope(EditorApplication.isPlayingOrWillChangePlaymode || EditorApplication.isCompiling))
-            {
-                if (GUILayout.Button("Run selected scenario")) EnemyValidationRunner.RunAnimationScenario(_scenario);
-                if (GUILayout.Button("Run complete animation matrix")) EnemyValidationRunner.RunAnimationMatrix();
-            }
-            EditorGUILayout.HelpBox("Review shows continuous motion in Game View. Slow/pause controls apply only to this review session; exit restores time and scene setup. Automated PASS verifies mechanics, not visual acceptance.", MessageType.None);
-            EditorGUILayout.EndScrollView();
+        }
+        private void SelectHumanCase(int offset, bool running)
+        {
+            _humanCase = (_humanCase + offset + EnemyValidationRunner.HumanTacticalNames.Length) % EnemyValidationRunner.HumanTacticalNames.Length;
+            if (running) EnemyValidationRunner.RunHumanTacticalReview(_humanCase,_repeat);
         }
         private static void ShowTactics(EnemyBrain brain)
         {

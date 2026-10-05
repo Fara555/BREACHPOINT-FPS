@@ -119,7 +119,7 @@ namespace Breachpoint.Editor.Enemies
             foreach (var pair in new[] { ("turn 180 left", "CombatTurn180Left"), ("turn 180 right", "CombatTurn180Right"), ("crouching turn 180 left", "CrouchTurn180Left"), ("crouching turn 180 right", "CrouchTurn180Right") })
             {
                 var source = SourceClip(pair.Item1);
-                var derived = AssetDatabase.LoadAssetAtPath<AnimationClip>("Assets/Project/Art/Enemies/Adam/Config/" + pair.Item1.Replace(" ", "") + "InPlace.anim");
+                var derived = AssetDatabase.LoadAssetAtPath<AnimationClip>(EnemyAnimationAssetPaths.DerivedClip(pair.Item1.Replace(" ", "") + "InPlace.anim"));
                 var profile = config.GetTurnProfile(pair.Item2);
                 report.AppendLine(FormattableString.Invariant($"TURN {pair.Item2} source={source.length:F4} derived={derived.length:F4} profile={profile.Duration:F4} p55={profile.Evaluate(.55f):F4} p92={profile.Evaluate(.92f):F4}"));
                 foreach (var clip in new[] { source, derived })

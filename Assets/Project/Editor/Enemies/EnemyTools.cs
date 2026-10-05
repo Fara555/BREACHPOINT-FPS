@@ -32,7 +32,28 @@ namespace Breachpoint.Editor.Enemies
             Directory.CreateDirectory(Evidence);
             try
             {
-                if (command == "final-short-stop") EnemyValidationRunner.RepairEarlySteadyCancellation();
+                if (command.StartsWith("crouch-probe-", StringComparison.Ordinal)) { SessionState.SetString("EnemyTools.CrouchDeath.Label", command.Substring(13)); EnemyValidationRunner.ValidateStage(175); }
+                else if (command.StartsWith("death-probe-", StringComparison.Ordinal)) { SessionState.SetString("EnemyTools.CrouchDeath.Label", command.Substring(12)); EnemyValidationRunner.ValidateStage(176); }
+                else if (command.StartsWith("crouch-death-capture:",StringComparison.Ordinal))
+                {
+                    EnemyValidationRunner.RunHumanTacticalReview(int.Parse(command.Substring("crouch-death-capture:".Length)),false);
+                    SessionState.SetBool("EnemyTools.CrouchDeath.Capture",true);
+                }
+                else if (command == "crouch-death-tests") EnemyValidationRunner.ValidateStage(177);
+                else if (command == "death-classification-tests") EnemyValidationRunner.ValidateStage(178);
+                else if (command == "moving-death-momentum-settings") ConfigureMovingDeathMomentum();
+                else if (command == "animation-inventory") InventoryEnemyAnimations();
+                else if (command == "animation-organize") OrganizeEnemyAnimations();
+                else if (command == "animation-deduplicate") ConsolidateDirectionalDeathSources();
+                else if (command == "death-polish-settings") ConfigureDeathPolish();
+                else if (command == "tactical-review-open") EnemyTacticalDebugWindow.Open();
+                else if (command == "tactical-review-stop") EnemyValidationRunner.StopHumanTacticalReview();
+                else if (command == "strafe-review-tests") EnemyValidationRunner.ValidateStage(174);
+                else if (command.StartsWith("tactical-review-repeat:", StringComparison.Ordinal)) EnemyValidationRunner.RunHumanTacticalReview(int.Parse(command.Substring(23)), true);
+                else if (command.StartsWith("tactical-review:", StringComparison.Ordinal)) EnemyValidationRunner.RunHumanTacticalReview(int.Parse(command.Substring(16)), false);
+                else if (command == "strafe-audit") EnemyValidationRunner.AuditCombatStrafe();
+                else if (command.StartsWith("strafe-probe-", StringComparison.Ordinal)) { SessionState.SetString("EnemyTools.Strafe.Label", command.Substring(13)); SessionState.SetBool("EnemyTools.Strafe.Acceptance", command.Substring(13) != "before"); EnemyValidationRunner.ValidateStage(171); }
+                else if (command == "final-short-stop") EnemyValidationRunner.RepairEarlySteadyCancellation();
                 else if (command == "final-short-review") EnemyValidationRunner.ValidateStage(170);
                 else if (command == "final-review") EnemyValidationRunner.ValidateStage(169);
                 else if (command == "final-calibrate") EnemyValidationRunner.CalibrateFinalSteadyTransitions();
@@ -98,6 +119,7 @@ namespace Breachpoint.Editor.Enemies
                 else if (command == "squad-test") EnemyValidationRunner.ValidateStage(90);
                 else if (command == "animation-test") EnemyValidationRunner.RunAnimationMatrix();
                 else if (command.StartsWith("animation-case:", StringComparison.Ordinal)) EnemyValidationRunner.RunAnimationScenario(int.Parse(command.Substring(15)));
+                else if (command.StartsWith("animation-from:", StringComparison.Ordinal)) EnemyValidationRunner.RunAnimationRange(int.Parse(command.Substring(15)));
                 else throw new InvalidOperationException("Unknown enemy-tool command: " + command);
                 File.WriteAllText(Evidence + "/status.txt", command + (command == "refresh" || EditorApplication.isPlayingOrWillChangePlaymode ? ": DISPATCHED\n" : ": PASS\n") + DateTime.UtcNow.ToString("O") + "\n" + EnemyValidationRunner.ConsoleCounts());
             }

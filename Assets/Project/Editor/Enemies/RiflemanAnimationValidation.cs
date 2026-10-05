@@ -34,6 +34,12 @@ namespace Breachpoint.Editor.Enemies
             SessionState.SetInt("EnemyTools.AnimationScenario", index);
             ValidateStage(70);
         }
+        public static void RunAnimationRange(int first)
+        {
+            if (first < 0 || first >= AnimationScenarioNames.Length) throw new ArgumentOutOfRangeException(nameof(first));
+            SessionState.SetInt("EnemyTools.AnimationScenario", 1000 + first);
+            ValidateStage(70);
+        }
         private static IEnumerator RiflemanAnimationTests(GameLifetimeScope scope, EnemyWorld world)
         {
             Directory.CreateDirectory(EnemyTools.Evidence);
@@ -61,7 +67,7 @@ namespace Breachpoint.Editor.Enemies
             {
                 for (int index = 0; index < AnimationScenarioNames.Length; index++)
                 {
-                    if (selected >= 0 && index != selected) continue;
+                    if (selected >= 1000 ? index < selected - 1000 : selected >= 0 && index != selected) continue;
                     enemy.SetActive(false); enemy.transform.SetPositionAndRotation(AnimationStart, Quaternion.identity); enemy.SetActive(true);
                     yield return null;
                     brain.ResetForSpawn(); brain.enabled = false;
@@ -226,6 +232,11 @@ namespace Breachpoint.Editor.Enemies
                 PlayCheck(index == 1 ? StateMatches(animator, "SteadyStartWalk") : StateMatches(animator, "SteadyWalk"), "Steady locomotion responds without idle exit-time delay (state=" + EnemyAnimationStateNames.Get(animator.GetCurrentAnimatorStateInfo(0).fullPathHash) + ", normalized=" + animator.GetCurrentAnimatorStateInfo(0).normalizedTime + ", next=" + EnemyAnimationStateNames.Get(animator.GetNextAnimatorStateInfo(0).fullPathHash) + ")");
                 if (index == 3)
                 {
+                    // Stop Walk requires cruise, not the user's still-blending StartWalk.
+                    // Keep the actual stop-response assertion and its 0.4-second deadline.
+                    float cruiseDeadline = Time.time + 3f;
+                    while (Time.time < cruiseDeadline && (!animator.GetCurrentAnimatorStateInfo(0).IsName("SteadyWalk") || animator.IsInTransition(0))) yield return null;
+                    PlayCheck(animator.GetCurrentAnimatorStateInfo(0).IsName("SteadyWalk") && !animator.IsInTransition(0), "Stop probe begins from settled authored Steady cruise");
                     actor.Navigation.Stop();
                     float stopDeadline = Time.time + 0.4f;
                     while (Time.time < stopDeadline && !StateMatches(animator, "SteadyStopWalk")) yield return null;
@@ -378,16 +389,19 @@ namespace Breachpoint.Editor.Enemies
                 bridge.SetCrouching(index == 37); foreach (var wait in WaitEnumerable(1.3f)) yield return wait;
                 if (index == 38) { IEnumerator move = MoveAnimation(actor, Vector3.forward, EnemyMovePace.Run); while (move.MoveNext()) yield return move.Current; }
                 Vector3 direction = index == 34 ? Vector3.forward : index == 35 ? Vector3.right : index == 36 ? Vector3.left : Vector3.back;
+                var ragdoll = enemy.GetComponent<EnemyRagdollPresenter>();
+                if (index == 38) PlayCheck(actor.Navigation.Velocity.magnitude > bridge.Config.DeathAnimationMaxSpeed, "Moving death fixture has real running velocity");
                 actor.Health.TakeDamage(new DamageInfo(100000f, actor.Eyes.position, direction, target.gameObject));
                 PlayCheck(brain.States.Current == EnemyStateId.Dead && enemy.GetComponent<UnityEngine.AI.NavMeshAgent>().isStopped, "Lethal damage immediately stops gameplay | state=" + brain.States.Current + " | velocity=" + actor.Navigation.Velocity + " | stopped=" + enemy.GetComponent<UnityEngine.AI.NavMeshAgent>().isStopped + " | rigPresenter=" + enemy.GetComponent<EnemyRigPresenter>().enabled);
+                if (index == 38) PlayCheck(ragdoll.IsRagdoll && !animator.enabled && !animator.GetBool("IsDead") && !animator.GetCurrentAnimatorStateInfo(0).IsTag("Death"), "Running lethal hit immediately bypasses directional Death animation");
                 Vector3 stoppedPosition = enemy.transform.position; yield return null; yield return null;
                 PlayCheck(actor.Navigation.Velocity.sqrMagnitude < 0.001f && Vector3.Distance(stoppedPosition, enemy.transform.position) < 0.01f, "Death stops translation on the next navigation update");
                 foreach (var wait in WaitEnumerable(0.22f)) yield return wait;
-                PlayCheck(animator.GetCurrentAnimatorStateInfo(0).IsTag("Death") && animator.GetLayerWeight(1) == 0f && animator.GetLayerWeight(2) == 0f, "Death has highest priority and upper-body actions are disabled");
+                if (index != 38) PlayCheck(animator.GetCurrentAnimatorStateInfo(0).IsTag("Death") && animator.GetLayerWeight(1) == 0f && animator.GetLayerWeight(2) == 0f, "Stationary death has highest priority and upper-body actions are disabled");
                 SampleAnimation(animator);
-                            foreach (var wait in WaitEnumerable(1.1f)) yield return wait;
-                var ragdoll = enemy.GetComponent<EnemyRagdollPresenter>();
-                PlayCheck(ragdoll.IsRagdoll && !animator.enabled && !animator.GetComponent<RigBuilder>().enabled && enemy.GetComponentsInChildren<Rigidbody>(true).All(body => !body.isKinematic), "Existing pose-preserving timed ragdoll takeover succeeds");
+                // Takeover now follows clip phase rather than the former fixed one-second timer.
+                foreach (var wait in Enumerate(WaitForDeathTakeover(ragdoll))) yield return wait;
+                PlayCheck(ragdoll.IsRagdoll && !animator.enabled && !animator.GetComponent<RigBuilder>().enabled && enemy.GetComponentsInChildren<Rigidbody>(true).All(body => !body.isKinematic), "Pose-preserving ragdoll takeover succeeds for the selected death flow");
                 enemy.SetActive(false); enemy.SetActive(true); yield return null; brain.ResetForSpawn();
                 PlayCheck(animator.enabled && animator.GetComponent<RigBuilder>().enabled && !ragdoll.IsRagdoll && enemy.GetComponentsInChildren<Rigidbody>(true).All(body => body.isKinematic) && !animator.GetBool("IsDead"), "Pool reset restores Animator, rigs, bodies and terminal parameters");
                 yield break;

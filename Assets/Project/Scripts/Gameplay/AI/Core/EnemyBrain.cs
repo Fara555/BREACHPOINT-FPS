@@ -21,6 +21,7 @@ namespace Breachpoint.Gameplay.AI
         public EnemyCombat Combat => _context?.Combat;
         public EnemyArchetypeConfig Config => _context?.Config;
         public event Action ResetCompleted;
+        public event Action DeathCompleted;
 
         [Inject]
         public void Construct(EnemyContext context, EnemyPerception perception, EnemyDecisionPolicy policy, EnemyStateMachine states)
@@ -77,6 +78,7 @@ namespace Breachpoint.Gameplay.AI
         {
             _context.Now = Time.time; _perception.Stop(); Tactics?.Suspend();
             States.Change(EnemyStateId.Dead, "health depleted");
+            DeathCompleted?.Invoke();
         }
         private void Unsubscribe()
         {
