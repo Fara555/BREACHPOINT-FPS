@@ -31,6 +31,7 @@ namespace Breachpoint.Editor.Enemies
         public static void RunAnimationMatrix() => RunAnimationScenario(-1);
         public static void RunAnimationScenario(int index)
         {
+            if (index < -1 || index >= AnimationScenarioNames.Length) throw new ArgumentOutOfRangeException(nameof(index));
             SessionState.SetInt("EnemyTools.AnimationScenario", index);
             ValidateStage(70);
         }
@@ -94,7 +95,14 @@ namespace Breachpoint.Editor.Enemies
         }
         private static void SampleAnimation(Animator animator)
         {
-            if (!animator.enabled) return;
+            var active = animator.GetComponentInParent<EnemyActiveRagdoll>();
+            var ragdoll = animator.GetComponentInParent<EnemyRagdollPresenter>();
+            if (ragdoll != null && ragdoll.IsRagdoll)
+            {
+                if (active == null || !active.IsActive) return;
+                animator = active.PoseAnimator;
+            }
+            if (!animator.enabled && (active == null || animator != active.PoseAnimator || !active.IsActive)) return;
             for (int layer = 0; layer < animator.layerCount; layer++)
             {
                 if (animator.GetLayerWeight(layer) <= 0.01f && layer > 0) continue;
@@ -155,7 +163,7 @@ namespace Breachpoint.Editor.Enemies
                 PlayCheck(animator.GetCurrentAnimatorStateInfo(1).IsTag("Reload"), "After hit the ongoing reload presentation resumes");
                 actor.Health.TakeDamage(new DamageInfo(100000f, actor.Eyes.position, Vector3.back, target.gameObject));
                 foreach (var wait in WaitEnumerable(0.25f)) yield return wait;
-                PlayCheck(animator.GetCurrentAnimatorStateInfo(0).IsTag("Death") && animator.GetLayerWeight(1) == 0f && animator.GetLayerWeight(2) == 0f && !brain.Combat.IsReloading && !animator.GetComponent<RigBuilder>().layers[0].active, "Death interrupts reload/hit and releases aim rig");
+                PlayCheck(enemy.GetComponent<EnemyActiveRagdoll>().DeathTargetClip != null && !animator.enabled && !brain.Combat.IsReloading && !animator.GetComponent<RigBuilder>().enabled, "Death interrupts reload/hit and releases aim rig");
                 enemy.SetActive(false); enemy.SetActive(true); yield return null; brain.ResetForSpawn(); brain.enabled = false;
                 brain.States.Change(EnemyStateId.Combat, "turn interruption");
                 foreach (var wait in WaitEnumerable(1.3f)) yield return wait;
@@ -397,9 +405,9 @@ namespace Breachpoint.Editor.Enemies
                 Vector3 stoppedPosition = enemy.transform.position; yield return null; yield return null;
                 PlayCheck(actor.Navigation.Velocity.sqrMagnitude < 0.001f && Vector3.Distance(stoppedPosition, enemy.transform.position) < 0.01f, "Death stops translation on the next navigation update");
                 foreach (var wait in WaitEnumerable(0.22f)) yield return wait;
-                if (index != 38) PlayCheck(animator.GetCurrentAnimatorStateInfo(0).IsTag("Death") && animator.GetLayerWeight(1) == 0f && animator.GetLayerWeight(2) == 0f, "Stationary death has highest priority and upper-body actions are disabled");
+                if (index != 38) PlayCheck(enemy.GetComponent<EnemyActiveRagdoll>().DeathTargetClip != null && !animator.enabled && enemy.GetComponent<EnemyActiveRagdoll>().PoseAnimator.GetLayerWeight(1) == 0f && enemy.GetComponent<EnemyActiveRagdoll>().PoseAnimator.GetLayerWeight(2) == 0f, "Stationary physical death target has highest priority and upper-body actions are disabled");
                 SampleAnimation(animator);
-                // Takeover now follows clip phase rather than the former fixed one-second timer.
+                // Physical authority starts immediately; the isolated target supplies temporary muscle control.
                 foreach (var wait in Enumerate(WaitForDeathTakeover(ragdoll))) yield return wait;
                 PlayCheck(ragdoll.IsRagdoll && !animator.enabled && !animator.GetComponent<RigBuilder>().enabled && enemy.GetComponentsInChildren<Rigidbody>(true).All(body => !body.isKinematic), "Pose-preserving ragdoll takeover succeeds for the selected death flow");
                 enemy.SetActive(false); enemy.SetActive(true); yield return null; brain.ResetForSpawn();

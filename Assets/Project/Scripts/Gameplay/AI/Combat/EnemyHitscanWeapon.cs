@@ -42,7 +42,7 @@ namespace Breachpoint.Gameplay.AI
                 PerceptionTarget member = hit.collider.GetComponentInParent<PerceptionTarget>();
                 if (member != null && !Factions.AreHostile(_actor.Target.Faction, member.Faction)) return false;
                 if (member != null)
-                    member.Health.TakeDamage(new DamageInfo(_config.Damage, hit.point, direction, gameObject));
+                    member.Health.TakeDamage(new DamageInfo(_config.Damage, hit.point, direction, gameObject, hit.collider));
             }
             Attacked?.Invoke(new WeaponShotResult(origin, hasHit ? hit.point : origin + direction * _config.Range,
                 hasHit ? hit.normal : Vector3.zero, hasHit ? hit.collider : null));

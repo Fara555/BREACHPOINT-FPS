@@ -17,41 +17,6 @@ namespace Breachpoint.Editor.Enemies
 {
     public static partial class EnemyValidationRunner
     {
-        internal static void RepairEarlySteadyCancellation()
-        {
-            if (EditorApplication.isPlayingOrWillChangePlaymode) throw new InvalidOperationException("Exit Play Mode before targeted authoring.");
-            var controller = AssetDatabase.LoadAssetAtPath<UnityEditor.Animations.AnimatorController>(ControllerPath);
-            var state = controller.layers[0].stateMachine.states.Single(s => s.state.name == "SteadyStartWalk").state;
-            var transition = state.transitions.Single(t => t.destinationState != null && t.destinationState.name == "SteadyIdle");
-            var conditions = transition.conditions;
-            if (conditions.Length != 1 || conditions[0].parameter != "MoveSpeed" || conditions[0].mode != UnityEditor.Animations.AnimatorConditionMode.Less)
-                throw new InvalidOperationException("Current early-cancel transition has unexpected user-authored conditions; inspect before changing it.");
-            float before = conditions[0].threshold;
-            Undo.RecordObject(transition, "Repair early Steady cancellation");
-            conditions[0].threshold = .015f; transition.conditions = conditions; EditorUtility.SetDirty(transition);
-            AssetDatabase.SaveAssetIfDirty(controller);
-            File.WriteAllText(EnemyTools.Evidence + "/final-short-stop-transition.txt", FormattableString.Invariant($"SteadyStartWalk -> SteadyIdle: MoveSpeed Less {before:R} -> .015; zero is unreachable for this non-negative blend. Cancel before the first committed step instead of playing a full stopping stride at .2 m/s. Existing .25-second blend, exit/offset/priority and all other values preserved.\n"));
-        }
-        internal static void CalibrateFinalSteadyTransitions()
-        {
-            if (EditorApplication.isPlayingOrWillChangePlaymode) throw new InvalidOperationException("Exit Play Mode before targeted authoring.");
-            var controller = AssetDatabase.LoadAssetAtPath<UnityEditor.Animations.AnimatorController>(ControllerPath);
-            var states = controller.layers[0].stateMachine.states;
-            var report = new StringBuilder(DateTime.UtcNow.ToString("O") + "\n");
-            void Duration(string from, string to, float duration, string reason)
-            {
-                var transition = states.Single(s => s.state.name == from).state.transitions.Single(t => t.destinationState != null && t.destinationState.name == to);
-                report.AppendLine(FormattableString.Invariant($"{from} -> {to}: duration {transition.duration:R} -> {duration:R}; {reason}"));
-                Undo.RecordObject(transition, "Calibrate measured Steady phase"); transition.duration = duration; EditorUtility.SetDirty(transition);
-            }
-            Duration("SteadyIdle", "SteadyStartWalk", .16f, "One-second blend conceals first foot commitment while the old navigation timer accelerates");
-            var startExit = states.Single(s => s.state.name == "SteadyStartWalk").state.transitions.Single(t => t.destinationState != null && t.destinationState.name == "SteadyWalk");
-            report.AppendLine(FormattableString.Invariant($"SteadyStartWalk -> SteadyWalk: exitTime {startExit.exitTime:R} -> .28; missed .001867 exit holds Start for a whole non-looping cycle; blended Walk plants the first advancing foot"));
-            Undo.RecordObject(startExit, "Calibrate measured Steady phase"); startExit.exitTime = .28f; EditorUtility.SetDirty(startExit);
-            Duration("SteadyStopWalk", "SteadyIdle", .16f, "Existing .49458 exit selects the first stopping stride; a 1.155-second outgoing blend exposed the next recovery step after world rest");
-            AssetDatabase.SaveAssetIfDirty(controller);
-            File.WriteAllText(EnemyTools.Evidence + "/final-transitions.txt", report.ToString());
-        }
         private static IEnumerator FinalShortReview(GameLifetimeScope scope, EnemyWorld world)
         {
             SessionState.SetString("EnemyTools.Review.RecordGroup", "FinalShort");

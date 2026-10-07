@@ -11,13 +11,20 @@ namespace Breachpoint.Editor.Enemies
         [SerializeField] private int _humanCase;
         [SerializeField] private bool _repeat;
         [SerializeField] private bool _advanced;
-        private int _scenario;
+        [SerializeField] private int _scenario;
         private Vector2 _scroll;
         private AnimatorController _controller;
         private readonly Dictionary<int, string> _states = new Dictionary<int, string>();
-        private int _tacticalScenario;
-        private bool _global;
+        [SerializeField] private int _tacticalScenario;
+        [SerializeField] private bool _global;
+        private readonly EnemyValidationReport _report = new EnemyValidationReport();
         private string _validationStatus = "No validation selected";
+        private readonly int[] _stateCounts = new int[System.Enum.GetValues(typeof(EnemyStateId)).Length];
+        private readonly int[] _intentCounts = new int[System.Enum.GetValues(typeof(EnemyTacticalIntent)).Length];
+        private readonly HashSet<EnemySquad> _squads = new HashSet<EnemySquad>();
+        private readonly HashSet<EnemyCoverPoint> _covers = new HashSet<EnemyCoverPoint>();
+        private int _enemyCount, _invalidPaths, _partialPaths, _shooters, _movers, _measured;
+        private double _decisionMilliseconds;
         private double _nextSnapshot;
         private double _lastSnapshot;
         private EnemyBrain[] _brains = new EnemyBrain[0];
@@ -25,24 +32,23 @@ namespace Breachpoint.Editor.Enemies
         private float _checksRate, _decisionsRate, _repathsRate;
         [MenuItem("Breachpoint/Enemies/AI Test / Tactical Debug/Open debug and scenarios")]
         public static void Open() => GetWindow<EnemyTacticalDebugWindow>("Enemy AI / Tactical");
+        private void OnEnable()
+        {
+            minSize = new Vector2(440f, 420f);
+            _humanCase = Mathf.Clamp(_humanCase, 0, EnemyValidationRunner.HumanTacticalNames.Length - 1);
+            _scenario = Mathf.Clamp(_scenario, 0, EnemyValidationRunner.AnimationScenarioNames.Length - 1);
+            _tacticalScenario = Mathf.Clamp(_tacticalScenario, 0, EnemyValidationRunner.TacticalScenarioNames.Length - 1);
+            _nextSnapshot = _lastSnapshot = 0;
+            _checksRate = _decisionsRate = _repathsRate = 0f;
+        }
+        private void OnDisable()
+        {
+            _brains = System.Array.Empty<EnemyBrain>(); _squads.Clear(); _covers.Clear();
+            _controller = null; _states.Clear();
+        }
         private void OnInspectorUpdate()
         {
-            int stage = SessionState.GetInt("EnemyTools.Validation.Stage", 70);
-            string path = "Logs/EnemyValidation/validation.txt";
-            if (System.IO.File.Exists(path))
-            {
-                string[] lines = System.IO.File.ReadAllLines(path);
-                string result = "RUNNING";
-                string checkpoint = "";
-                foreach (string line in lines)
-                {
-                    if (line.StartsWith("RESULT:")) result = line;
-                    if (line.StartsWith("SCENARIO ") || line.StartsWith("TACTICAL SCENARIO ") || line.StartsWith("MEASUREMENT ")) checkpoint = line;
-                    if (line.StartsWith("FAIL ")) checkpoint = line;
-                }
-                _validationStatus = "Stage " + stage + " | " + result + "\n" + checkpoint;
-            }
-            else _validationStatus = "No current validation report";
+            _validationStatus = _report.Refresh(EnemyTools.Evidence + "/validation.txt", SessionState.GetInt("EnemyTools.Validation.Stage", 70), SessionState.GetBool("EnemyTools.Validation", false));
             Repaint();
         }
         private void OnGUI()
@@ -89,7 +95,9 @@ namespace Breachpoint.Editor.Enemies
                     if (bridge != null && bridge.Animator != null)
                     {
                         Animator animator = bridge.Animator;
-                        ReadController(animator.runtimeAnimatorController as AnimatorController);
+                        RuntimeAnimatorController controller = animator.runtimeAnimatorController;
+                        if (controller is AnimatorOverrideController overrides) controller = overrides.runtimeAnimatorController;
+                        ReadController(controller as AnimatorController);
                         for (int layer = 0; layer < animator.layerCount; layer++)
                         {
                             AnimatorStateInfo state = animator.GetCurrentAnimatorStateInfo(layer);
@@ -123,6 +131,9 @@ namespace Breachpoint.Editor.Enemies
                     if (GUILayout.Button("Run all 20 tactical scenarios")) EnemyValidationRunner.RunTacticalScenario(-1);
                     if (GUILayout.Button("Measure 1 / 3 / 10 / 30 agents")) EnemyValidationRunner.ValidateStage(110);
                     if (GUILayout.Button("Validate lifecycle and edge cases")) EnemyValidationRunner.ValidateStage(120);
+                    if (GUILayout.Button("Validate moving Hit to ragdoll")) EnemyValidationRunner.ValidateStage(181);
+                    if (GUILayout.Button("Validate active death physics")) EnemyValidationRunner.ValidateStage(179);
+                    if (GUILayout.Button("Validate physical death animation tracking")) { SessionState.SetString("EnemyTools.DeathTracking.Label", "after"); EnemyValidationRunner.ValidateStage(180); }
                 }
                 EditorGUILayout.LabelField("Deterministic animation scenarios", EditorStyles.boldLabel);
                 _scenario = EditorGUILayout.Popup("Scenario", _scenario, EnemyValidationRunner.AnimationScenarioNames);
@@ -140,11 +151,19 @@ namespace Breachpoint.Editor.Enemies
             EditorGUILayout.LabelField("Tactical visual review", EditorStyles.boldLabel);
             bool running = EnemyValidationRunner.TacticalReviewRunning;
             if (running) { _humanCase = EnemyValidationRunner.HumanTacticalIndex; _repeat = EnemyValidationRunner.HumanTacticalRepeating; }
-            int selected = EditorGUILayout.Popup("Scenario", _humanCase, EnemyValidationRunner.HumanTacticalNames);
-            if (selected != _humanCase)
+            _humanCase = Mathf.Clamp(_humanCase, 0, EnemyValidationRunner.HumanTacticalNames.Length - 1);
+            using (new EditorGUI.DisabledScope(EditorApplication.isCompiling || EditorApplication.isUpdating || EditorApplication.isPlayingOrWillChangePlaymode && !running))
             {
-                _humanCase = selected;
-                if (running) EnemyValidationRunner.RunHumanTacticalReview(_humanCase, _repeat);
+                int group = EnemyTacticalReviewCatalog.GroupFor(_humanCase);
+                int selectedGroup = EditorGUILayout.Popup("Review group", group, EnemyTacticalReviewCatalog.GroupNames);
+                int scenario = selectedGroup == group ? System.Array.IndexOf(EnemyTacticalReviewCatalog.Cases[group], _humanCase) : 0;
+                int selected = EditorGUILayout.Popup("Scenario", scenario, EnemyTacticalReviewCatalog.Names[selectedGroup]);
+                int globalIndex = EnemyTacticalReviewCatalog.Cases[selectedGroup][selected];
+                if (globalIndex != _humanCase)
+                {
+                    _humanCase = globalIndex;
+                    if (running) EnemyValidationRunner.RunHumanTacticalReview(_humanCase, _repeat);
+                }
             }
             EditorGUILayout.HelpBox(EnemyValidationRunner.HumanTacticalPurpose(_humanCase), MessageType.None);
             EditorGUILayout.HelpBox(EnemyValidationRunner.HumanTacticalWatch(_humanCase), MessageType.Info);
@@ -164,6 +183,8 @@ namespace Breachpoint.Editor.Enemies
             if (running)
             {
                 Show("Review", EnemyValidationRunner.TacticalReviewPhase + (_repeat ? " / repeating" : ""));
+                bool paused = SessionState.GetBool("EnemyTools.Review.Paused", false);
+                if (GUILayout.Button(paused ? "Resume" : "Pause")) SessionState.SetBool("EnemyTools.Review.Paused", !paused);
                 float scale = SessionState.GetFloat("EnemyTools.Review.TimeScale",1f);
                 float selectedScale = EditorGUILayout.Slider("Playback speed",scale,.25f,1f);
                 if (!Mathf.Approximately(scale,selectedScale)) SessionState.SetFloat("EnemyTools.Review.TimeScale",selectedScale);
@@ -179,6 +200,18 @@ namespace Breachpoint.Editor.Enemies
                 Show("Intent", running && (_humanCase < 12 || _humanCase >= 32) ? "Controlled presentation" : brain.Tactics?.Current.Intent.ToString());
                 Show("Movement tier / speed", actor.Navigation.DesiredMovementTier + " / " + actor.Navigation.Velocity.magnitude.ToString("F2") + " m/s");
                 Show("Local direction", bridge != null ? bridge.MoveDirectionSmoothed.ToString("F2") : "none");
+                var ragdoll = brain.GetComponent<EnemyRagdollPresenter>();
+                var active = brain.GetComponent<EnemyActiveRagdoll>();
+                if (ragdoll != null && ragdoll.IsRagdoll && active != null)
+                {
+                    Show("Death physics", active.IsActive ? "Active muscle support" : "Passive ragdoll");
+                    Show("Feet supported / target speed", active.HasSupport + " / " + active.TargetPlaybackSpeed.ToString("F2"));
+                    Show("Leg / torso strength", active.LegStrength.ToString("F2") + " / " + active.UpperBodyStrength.ToString("F2"));
+                    Show("Muscle torque", active.LastMotorTorque.ToString("F2") + " N*m");
+                    if (!active.IsStationaryDeath && !active.IsMovingHitDeath) Show("Fallback fatal hit / local impulse / angular kick", (active.HitBody != null ? active.HitBody.name : "no geometry") + " / " + active.AppliedHitImpulse.magnitude.ToString("F2") + " N*s / " + active.AppliedMovingHitAngularChange.magnitude.ToString("F2") + " rad/s");
+                    Show("Death target", active.IsStationaryDeath ? (active.DeathTargetClip != null ? active.DeathTargetClip.name : "Directional reaction") : active.IsMovingHitDeath ? "Moving Hit → passive ragdoll" : "Locomotion fallback");
+                    if (active.IsMovingHitDeath) Show("Hit clip / weight", (active.HitTargetClip != null ? active.HitTargetClip.name : "Blending in") + " / " + active.HitTargetWeight.ToString("F2"));
+                }
                 Show("Cover", brain.Tactics?.CurrentCover != null ? brain.Tactics.CurrentCover.name + " / " + brain.Tactics.CoverPhase : "none");
                 Show("Combat", brain.Combat.IsReloading ? "Reloading" : (bridge != null && bridge.Animator.GetBool("IsFiring") ? "Firing" : "Ready") + " / ammo " + brain.Combat.Ammo);
                 if (bridge != null && bridge.Animator != null)
@@ -188,12 +221,12 @@ namespace Breachpoint.Editor.Enemies
                 }
             }
             else EditorGUILayout.HelpBox("Run a scenario to inspect it in Game View. Repeat loops until Stop; Next/Previous replaces the running scenario.", MessageType.None);
-            EditorGUILayout.HelpBox("The first 12 cases use controlled routes to isolate locomotion; the remaining cases run autonomous tactical AI. Automated checks verify mechanics. Final visual acceptance is yours.", MessageType.None);
+            EditorGUILayout.HelpBox("Movement, crouch and death reviews use controlled routes. Tactical AI cases run autonomous enemies. Next/Previous cycles within the selected group; Stop restores your scenes.", MessageType.None);
             EditorGUILayout.Space();
         }
         private void SelectHumanCase(int offset, bool running)
         {
-            _humanCase = (_humanCase + offset + EnemyValidationRunner.HumanTacticalNames.Length) % EnemyValidationRunner.HumanTacticalNames.Length;
+            _humanCase = EnemyTacticalReviewCatalog.Step(_humanCase, offset);
             if (running) EnemyValidationRunner.RunHumanTacticalReview(_humanCase,_repeat);
         }
         private static void ShowTactics(EnemyBrain brain)
@@ -235,49 +268,51 @@ namespace Breachpoint.Editor.Enemies
         private void ShowGlobal()
         {
             double now = EditorApplication.timeSinceStartup;
-            if (now >= _nextSnapshot)
-            {
-                _nextSnapshot = now + 1;
-                _brains = Object.FindObjectsByType<EnemyBrain>();
-                int checks = 0, decisions = 0, repaths = 0;
-                foreach (var brain in _brains)
-                {
-                    checks += brain.PerceptionCheckCount; decisions += brain.Tactics != null ? brain.Tactics.DecisionCount : 0;
-                    repaths += brain.GetComponent<EnemyActor>().Navigation.RepathCount;
-                }
-                if (_lastSnapshot > 0)
-                {
-                    float seconds = (float)(now - _lastSnapshot);
-                    _checksRate = Mathf.Max(0, checks - _lastChecks) / seconds;
-                    _decisionsRate = Mathf.Max(0, decisions - _lastDecisions) / seconds;
-                    _repathsRate = Mathf.Max(0, repaths - _lastRepaths) / seconds;
-                }
-                _lastSnapshot = now; _lastChecks = checks; _lastDecisions = decisions; _lastRepaths = repaths;
-            }
-            var states = new int[8]; var intents = new int[11]; var squads = new HashSet<EnemySquad>(); var covers = new HashSet<EnemyCoverPoint>();
-            int invalid = 0, partial = 0, shooters = 0, movers = 0, measured = 0;
-            double milliseconds = 0;
+            if (now >= _nextSnapshot) RefreshGlobal(now);
+            Show("Enemies / squads", _enemyCount + " / " + _squads.Count);
+            Show("Shooters / movers / covers", _shooters + " / " + _movers + " / " + _covers.Count);
+            Show("Perception / decisions / repaths per sec", _checksRate.ToString("F1") + " / " + _decisionsRate.ToString("F1") + " / " + _repathsRate.ToString("F1"));
+            Show("Invalid / partial paths", _invalidPaths + " / " + _partialPaths);
+            Show("Mean measured tactical decision", _measured > 0 ? (_decisionMilliseconds / _measured).ToString("F3") + " ms" : "measurement disabled");
+            for (int i = 0; i < _stateCounts.Length; i++) if (_stateCounts[i] > 0) Show(((EnemyStateId)i).ToString(), _stateCounts[i].ToString());
+            for (int i = 0; i < _intentCounts.Length; i++) if (_intentCounts[i] > 0) Show(((EnemyTacticalIntent)i).ToString(), _intentCounts[i].ToString());
+        }
+        private void RefreshGlobal(double now)
+        {
+            _nextSnapshot = now + 1;
+            _brains = Object.FindObjectsByType<EnemyBrain>();
+            System.Array.Clear(_stateCounts, 0, _stateCounts.Length);
+            System.Array.Clear(_intentCounts, 0, _intentCounts.Length);
+            _squads.Clear(); _covers.Clear();
+            _enemyCount = _invalidPaths = _partialPaths = _shooters = _movers = _measured = 0;
+            _decisionMilliseconds = 0;
+            int checks = 0, decisions = 0, repaths = 0;
             foreach (var brain in _brains)
             {
                 if (brain == null || brain.States == null) continue;
-                states[(int)brain.States.Current]++;
-                var nav = brain.GetComponent<EnemyActor>().Navigation;
-                if (nav.Result == NavigationResult.Partial) partial++;
-                if (nav.Result == NavigationResult.Invalid || nav.Result == NavigationResult.Unavailable || nav.Result == NavigationResult.Stuck) invalid++;
+                var actor = brain.GetComponent<EnemyActor>();
+                if (actor == null || actor.Navigation == null) continue;
+                _enemyCount++; _stateCounts[(int)brain.States.Current]++;
+                checks += brain.PerceptionCheckCount;
+                var nav = actor.Navigation; repaths += nav.RepathCount;
+                if (nav.Result == NavigationResult.Partial) _partialPaths++;
+                if (nav.Result == NavigationResult.Invalid || nav.Result == NavigationResult.Unavailable || nav.Result == NavigationResult.Stuck) _invalidPaths++;
                 var tactics = brain.Tactics; if (tactics == null) continue;
-                if (tactics.Current.Valid) intents[(int)tactics.Current.Intent]++;
-                if (tactics.Member != null) { if (tactics.Member.Shooter) shooters++; if (tactics.Member.Mover) movers++; }
-                if (tactics.Squad != null) squads.Add(tactics.Squad);
-                if (tactics.CurrentCover != null) covers.Add(tactics.CurrentCover);
-                measured += tactics.MeasuredDecisions; milliseconds += tactics.DecisionMilliseconds;
+                decisions += tactics.DecisionCount;
+                if (tactics.Current.Valid) _intentCounts[(int)tactics.Current.Intent]++;
+                if (tactics.Member != null) { if (tactics.Member.Shooter) _shooters++; if (tactics.Member.Mover) _movers++; }
+                if (tactics.Squad != null) _squads.Add(tactics.Squad);
+                if (tactics.CurrentCover != null) _covers.Add(tactics.CurrentCover);
+                _measured += tactics.MeasuredDecisions; _decisionMilliseconds += tactics.DecisionMilliseconds;
             }
-            Show("Enemies / squads", _brains.Length + " / " + squads.Count);
-            Show("Shooters / movers / covers", shooters + " / " + movers + " / " + covers.Count);
-            Show("Perception / decisions / repaths per sec", _checksRate.ToString("F1") + " / " + _decisionsRate.ToString("F1") + " / " + _repathsRate.ToString("F1"));
-            Show("Invalid / partial paths", invalid + " / " + partial);
-            Show("Mean measured tactical decision", measured > 0 ? (milliseconds / measured).ToString("F3") + " ms" : "measurement disabled");
-            for (int i = 0; i < states.Length; i++) if (states[i] > 0) Show(((EnemyStateId)i).ToString(), states[i].ToString());
-            for (int i = 0; i < intents.Length; i++) if (intents[i] > 0) Show(((EnemyTacticalIntent)i).ToString(), intents[i].ToString());
+            if (_lastSnapshot > 0)
+            {
+                float seconds = (float)(now - _lastSnapshot);
+                _checksRate = Mathf.Max(0, checks - _lastChecks) / seconds;
+                _decisionsRate = Mathf.Max(0, decisions - _lastDecisions) / seconds;
+                _repathsRate = Mathf.Max(0, repaths - _lastRepaths) / seconds;
+            }
+            _lastSnapshot = now; _lastChecks = checks; _lastDecisions = decisions; _lastRepaths = repaths;
         }
         private static void Show(string label, string value) => EditorGUILayout.LabelField(label, value ?? "none");
         private string StateName(int hash) => _states.TryGetValue(hash, out string name) ? name : hash == 0 ? "none" : hash.ToString();

@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.Animations.Rigging;
+using Breachpoint.Gameplay.Combat;
 
 namespace Breachpoint.Gameplay.AI
 {
@@ -9,12 +10,12 @@ namespace Breachpoint.Gameplay.AI
         [SerializeField] private Animator _animator;
         [SerializeField] private RigBuilder _rigBuilder;
         [SerializeField] private Transform _skeletonRoot;
-        [SerializeField, Min(0f)] private float _takeoverDelay = 1f;
+        [SerializeField, Min(0f), Tooltip("Minimum animated duration for passive fallback. Active deaths start physics immediately.")] private float _takeoverDelay = 1f;
         [SerializeField, Range(0f, 1f)] private float _momentumScale = 1f;
         [SerializeField, Range(.1f, .9f)] private float _takeoverNormalizedTime = .5f;
         [SerializeField, Min(.1f)] private float _maximumAnimationWait = 4f;
         [SerializeField, Min(0f)] private float _maximumHorizontalMomentum = 1.2f;
-        [SerializeField, Tooltip("Actual planar speed (m/s) to initial ragdoll speed (m/s). Walk 1.5 -> 2, Run 3.2 -> 4.2, Sprint 4.8 -> 6.5. Used only for immediate takeover.")] private AnimationCurve _movingDeathSpeed = new AnimationCurve(
+        [SerializeField, Tooltip("Actual planar speed (m/s) to initial ragdoll speed (m/s). Walk 1.5 -> 2, Run 3.2 -> 4.2, Sprint 4.8 -> 6.5. Used only for passive fallback; active muscles preserve actual velocity.")] private AnimationCurve _movingDeathSpeed = new AnimationCurve(
             new Keyframe(0f, 0f), new Keyframe(1.5f, 2f), new Keyframe(3.2f, 4.2f), new Keyframe(4.8f, 6.5f));
         [SerializeField, Min(0f)] private float _maximumMovingDeathSpeed = 6.5f;
         [SerializeField, Min(0f)] private float _maximumDepenetrationSpeed = 1f;
@@ -36,7 +37,10 @@ namespace Breachpoint.Gameplay.AI
         private float _animationDeadline;
         private bool _waitForAnimation;
         private Vector3 _deathVelocity;
+        private EnemyActiveRagdoll _activeRagdoll;
+        private bool _activeReady;
         public bool IsRagdoll { get; private set; }
+        public bool IsActiveRagdoll => _activeRagdoll != null && _activeRagdoll.IsActive;
         public float MaximumAnimationWait => _maximumAnimationWait;
         public float TakeoverNormalizedTime { get; private set; }
         public float TakeoverTime { get; private set; }
@@ -67,29 +71,40 @@ namespace Breachpoint.Gameplay.AI
             _rootColliderEnabled = new bool[_rootColliders.Length];
             for (int i = 0; i < _rootColliders.Length; i++) _rootColliderEnabled[i] = _rootColliders[i].enabled;
             _initialized = true;
+            _activeRagdoll = GetComponent<EnemyActiveRagdoll>();
+            _activeReady = _activeRagdoll != null && _activeRagdoll.Initialize(_animator, _skeletonRoot);
             IgnoreSelfCollisions();
             FreezeBodies();
         }
 
-        public void BeginDeath(Vector3 velocity, bool hasDeathAnimation)
+        public void BeginDeath(Vector3 velocity, bool hasDeathAnimation, DamageInfo damage = default, float deathDirection = 0f)
         {
             Initialize();
             if (!_initialized || _pending || IsRagdoll) return;
             Vector3 planarVelocity = Vector3.ProjectOnPlane(velocity, Vector3.up);
             float actualSpeed = planarVelocity.magnitude;
-            if (hasDeathAnimation)
+            bool active = _activeReady && _activeRagdoll.enabled && _animator != null && _animator.enabled;
+            if (active)
+                _deathVelocity = Vector3.ClampMagnitude(planarVelocity, _maximumMovingDeathSpeed);
+            else if (hasDeathAnimation)
                 _deathVelocity = Vector3.ClampMagnitude(planarVelocity * _momentumScale, _maximumHorizontalMomentum);
             else
             {
                 float launchSpeed = Mathf.Clamp(_movingDeathSpeed.Evaluate(actualSpeed), 0f, _maximumMovingDeathSpeed);
                 _deathVelocity = actualSpeed > .0001f ? planarVelocity * (launchSpeed / actualSpeed) : Vector3.zero;
             }
-            _takeoverAt = Time.time + (hasDeathAnimation ? _takeoverDelay : 0f);
+            _takeoverAt = Time.time + (hasDeathAnimation && !active ? _takeoverDelay : 0f);
             _animationDeadline = Time.time + _maximumAnimationWait;
-            _waitForAnimation = hasDeathAnimation;
+            _waitForAnimation = hasDeathAnimation && !active;
             _pending = true;
             for (int i = 0; i < _rootColliders.Length; i++) _rootColliders[i].enabled = false;
-            if (!hasDeathAnimation) TakeOver();
+            if (active)
+            {
+                _activeRagdoll.Begin(_animator, planarVelocity, hasDeathAnimation, deathDirection);
+                TakeOver();
+                _activeRagdoll.ApplyHit(damage.HitCollider, damage.Point, damage.Direction);
+            }
+            else if (!hasDeathAnimation) TakeOver();
         }
 
         private void LateUpdate()
@@ -139,6 +154,7 @@ namespace Breachpoint.Gameplay.AI
             if (!_initialized) return;
             _pending = false;
             IsRagdoll = false;
+            _activeRagdoll?.ResetPresentation();
             _deathVelocity = Vector3.zero;
             TakeoverNormalizedTime = TakeoverTime = 0f; AppliedMomentum = Vector3.zero;
             FreezeBodies();
@@ -205,6 +221,7 @@ namespace Breachpoint.Gameplay.AI
         private void OnDisable()
         {
             _pending = false;
+            _activeRagdoll?.ResetPresentation();
             if (_initialized) FreezeBodies();
         }
     }

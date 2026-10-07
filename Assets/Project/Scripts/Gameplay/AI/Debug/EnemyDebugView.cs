@@ -38,7 +38,9 @@ namespace Breachpoint.Gameplay.AI
         }
         private void OnDisable()
         {
-            if (_animationOwned && _animation != null) _animation.SetAnimationLogging(false); _animationOwned = false;
+            if (_animationOwned && _animation != null) _animation.SetAnimationLogging(false);
+            _animationOwned = false;
+            ClearObservation();
             if (!_bound) return;
             _brain.States.Changed -= StateChanged;
             _brain.ResetCompleted -= Reset;
@@ -56,7 +58,18 @@ namespace Breachpoint.Gameplay.AI
             var category = state == EnemyStateId.Dead ? EnemyDebugCategory.Death : EnemyDebugCategory.State;
             if (Logs(category)) Write(category, _brain.States.Previous + " -> " + state + " | " + reason);
         }
-        private void Reset() { if (Logs(EnemyDebugCategory.Reset)) Write(EnemyDebugCategory.Reset, "Spawn state and resources reset"); }
+        private void Reset()
+        {
+            ClearObservation();
+            if (Logs(EnemyDebugCategory.Reset)) Write(EnemyDebugCategory.Reset, "Spawn state and resources reset");
+        }
+        private void ClearObservation()
+        {
+            _nextSample = _shotUntil = 0f;
+            _visible = _lane = false;
+            _navigation = NavigationResult.None; _cover = null; _role = default;
+            _locomotionClips.Clear();
+        }
         private void Fired() { if (Logs(EnemyDebugCategory.Combat)) Write(EnemyDebugCategory.Combat, "Shot | ammo=" + _brain.Combat.Ammo); }
         private void ShotResolved(Breachpoint.Gameplay.Weapons.WeaponShotResult shot)
         { _shotOrigin = shot.Origin; _shotDirection = (shot.EndPoint - shot.Origin).normalized; _shotUntil = Time.time + .5f; }
@@ -68,7 +81,7 @@ namespace Breachpoint.Gameplay.AI
         private void Update()
         {
             bool animationLogs = Logs(EnemyDebugCategory.Animation);
-            if (_animation != null && (_animationOwned || animationLogs)) _animation.SetAnimationLogging(animationLogs);
+            if (_animation != null && _animationOwned != animationLogs) _animation.SetAnimationLogging(animationLogs);
             _animationOwned = animationLogs;
             if (!_settings.Enabled || !_bound || Time.time < _nextSample) return;
             _nextSample = Time.time + 0.25f;

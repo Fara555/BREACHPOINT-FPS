@@ -17,23 +17,6 @@ namespace Breachpoint.Editor.Enemies
 {
     public static partial class EnemyValidationRunner
     {
-        [MenuItem("Breachpoint/Enemies/Animator Authoring/Repair verified Steady synchronization transitions")]
-        internal static void RepairSynchronizationTransitions()
-        {
-            if (EditorApplication.isPlayingOrWillChangePlaymode) throw new InvalidOperationException("Exit Play Mode before targeted authoring.");
-            var controller = AssetDatabase.LoadAssetAtPath<AnimatorController>(ControllerPath);
-            var states = controller.layers[0].stateMachine.states;
-            var changes = new StringBuilder();
-            foreach (var setting in new[] { ("SteadyIdle", "SteadyStartWalk", .16f), ("SteadyStartWalk", "SteadyWalk", .18f), ("SteadyStartWalk", "SteadyStopWalk", .18f), ("SteadyWalk", "SteadyStopWalk", .2f), ("SteadyStopWalk", "SteadyIdle", .2f) })
-            {
-                var transition = states.First(s => s.state.name == setting.Item1).state.transitions.Single(t => t.destinationState != null && t.destinationState.name == setting.Item2);
-                changes.AppendLine(FormattableString.Invariant($"{setting.Item1} -> {setting.Item2}: duration {transition.duration:R} -> {setting.Item3:R}; exit={transition.exitTime:R}, offset={transition.offset:R}, all other values preserved"));
-                Undo.RecordObject(transition, "Repair verified Steady synchronization"); transition.duration = setting.Item3; EditorUtility.SetDirty(transition);
-            }
-            AssetDatabase.SaveAssetIfDirty(controller);
-            File.WriteAllText(EnemyTools.Evidence + "/synchronization-transitions.txt", changes.ToString());
-        }
-
         [MenuItem("Breachpoint/Enemies/Animation Review/Diagnostics/Record movement synchronization trace")]
         internal static void RunSynchronizationProbe() => ValidateStage(163);
 

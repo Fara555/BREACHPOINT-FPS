@@ -26,6 +26,7 @@ namespace Breachpoint.Gameplay.AI
         private float _hitUntil;
         private float _lethalDirection;
         private Vector3 _deathVelocity;
+        private DamageInfo _lethalDamage;
         public float DeathPlanarSpeed { get; private set; }
         private int _lastStateHash;
         private int _lastActionHash;
@@ -338,6 +339,7 @@ namespace Breachpoint.Gameplay.AI
                 // DamageReceived precedes gameplay death and its navigation stop.
                 // Capture real motion here, independently of requested tier or stance.
                 _lethalDirection = value;
+                _lethalDamage = damage;
                 _deathVelocity = Vector3.ProjectOnPlane(_navigation.Velocity, Vector3.up);
                 DeathPlanarSpeed = _deathVelocity.magnitude;
                 return;
@@ -351,7 +353,7 @@ namespace Breachpoint.Gameplay.AI
         {
             _navigation.CancelTurn(); CurrentTurn = null;
             bool animateDeath = _animator.enabled && _modern && DeathPlanarSpeed <= _config.DeathAnimationMaxSpeed;
-            _ragdoll?.BeginDeath(_deathVelocity, animateDeath);
+            _ragdoll?.BeginDeath(_deathVelocity, animateDeath, _lethalDamage, _lethalDirection);
             _fireUntil = _hitUntil = 0f; ClearTurnTriggers();
             if (Has(Parameter.Hit)) _animator.ResetTrigger(Hashes[(int)Parameter.Hit]);
             // Moving deaths never set a terminal Animator parameter or evaluate Death.
@@ -370,6 +372,7 @@ namespace Breachpoint.Gameplay.AI
             _nextFootSample = 0f; FootMotionDetected = false;
             _nextTurn = _fireUntil = _hitUntil = _lethalDirection = DeathPlanarSpeed = 0f; _deathVelocity = Vector3.zero; _lastStateHash = _lastActionHash = _lastRecoilHash = 0; _lastLoggedMode = _brain.States.Group;
             _ragdoll?.ResetPresentation(); _animator.speed = 1f; _animator.Rebind();
+            _lethalDamage = default;
             foreach (var parameter in _animator.parameters)
             {
                 if (parameter.type == AnimatorControllerParameterType.Trigger) _animator.ResetTrigger(parameter.nameHash);

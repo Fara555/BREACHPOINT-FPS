@@ -18,7 +18,10 @@ namespace Breachpoint.Editor.Enemies
             "Single Rifleman baseline", "Three simultaneous contacts", "Suppressor and mover", "Suppressor and flanker", "Low cover", "High cover", "Competing for one cover", "All covers reserved", "Unreachable cover", "Ally blocks firing line", "Reload under pressure", "Player rushes cover", "Lost contact and group search", "Narrow passage", "Suppressor casualty", "Death during cover transition", "Reset and reuse", "Ten-agent stress", "Thirty-agent stress", "No valid tactical position"
         };
         public static void RunTacticalScenario(int index)
-        { SessionState.SetInt("EnemyTools.TacticalScenario", index); ValidateStage(100); }
+        {
+            if (index < -1 || index >= TacticalScenarioNames.Length) throw new ArgumentOutOfRangeException(nameof(index));
+            SessionState.SetInt("EnemyTools.TacticalScenario", index); ValidateStage(100);
+        }
         public static void RunTacticalRange(int first)
         {
             if (first < 0 || first >= TacticalScenarioNames.Length) throw new ArgumentOutOfRangeException(nameof(first));

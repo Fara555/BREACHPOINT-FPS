@@ -20,6 +20,8 @@ namespace Breachpoint.Editor.Enemies
         private const string RunningKey = "EnemyTools.Validation";
         private const string ScenesKey = RunningKey + ".Scenes";
         private const string StageKey = RunningKey + ".Stage";
+        private static readonly HashSet<int> SupportedStages = new HashSet<int> { 50, 60, 70, 80, 90, 100, 110, 120, 130, 131, 150, 151, 152, 160, 161, 162, 163, 164, 165, 166, 167, 168, 169, 170, 171, 173, 174, 175, 176, 177, 178, 179, 180, 181 };
+        internal static bool IsSupportedStage(int stage) => SupportedStages.Contains(stage);
         private static IEnumerator _tests;
         private static double _deadline;
         private static readonly List<string> _runtimeErrors = new List<string>();
@@ -32,6 +34,7 @@ namespace Breachpoint.Editor.Enemies
 
         public static void ValidateStage(int stage)
         {
+            if (!IsSupportedStage(stage)) throw new ArgumentOutOfRangeException(nameof(stage), stage, "Unknown enemy validation stage.");
             if (EditorApplication.isCompiling || EditorApplication.isUpdating) throw new InvalidOperationException("Wait for Unity compilation and import before validation.");
             if (EditorApplication.isPlayingOrWillChangePlaymode) throw new InvalidOperationException("Exit Play Mode before validation.");
             for (int i = 0; i < UnityEngine.SceneManagement.SceneManager.sceneCount; i++)
@@ -57,10 +60,11 @@ namespace Breachpoint.Editor.Enemies
                 _priorTimeScale = Time.timeScale;
                 Time.timeScale = 1f;
                 Application.runInBackground = true;
-                _tests = PresentationTests(SessionState.GetInt(StageKey, 4));
+                _tests = PresentationTests(SessionState.GetInt(StageKey, 70));
                 _deadline = EditorApplication.timeSinceStartup + (SessionState.GetInt(StageKey, 70) >= 100 ? 600 : SessionState.GetInt(StageKey, 70) == 70 ? 360 : 100);
                 EditorApplication.update += ValidationTick;
                 if (SessionState.GetBool("EnemyTools.Review.ControlTest", false)) StartReviewControlChecks();
+                if (SessionState.GetBool(HumanControlKey, false)) StartHumanControlChecks();
             }
             if (state == PlayModeStateChange.ExitingPlayMode)
             {
@@ -81,8 +85,9 @@ namespace Breachpoint.Editor.Enemies
                 SessionState.SetBool(RunningKey, false);
                 SavedScenes saved = JsonUtility.FromJson<SavedScenes>(SessionState.GetString(ScenesKey, ""));
                 EditorSceneManager.RestoreSceneManagerSetup(saved.scenes);
-                AppendResult("Editor scene setup restored.");
                 if (SessionState.GetBool("EnemyTools.Review.ControlStopping", false)) CompleteReviewControlChecks();
+                if (SessionState.GetBool(HumanControlKey, false)) CompleteHumanControlChecks();
+                AppendResult("Editor scene setup restored.");
             }
         }
 
@@ -143,9 +148,51 @@ namespace Breachpoint.Editor.Enemies
             foreach (EnemyBrain existing in Object.FindObjectsByType<EnemyBrain>()) existing.gameObject.SetActive(false);
             GameLifetimeScope scope = Object.FindAnyObjectByType<GameLifetimeScope>();
             EnemyWorld world = scope.Container.Resolve<EnemyWorld>();
-            IEnumerator scenario = stage == 178 ? DeathClassificationChecks(scope, world) : stage == 177 ? CrouchDeathChecks(scope, world) : stage == 176 ? DeathPhysicsProbe(scope, world) : stage == 175 ? CrouchEntryProbe(scope, world) : stage == 174 ? HumanTacticalReview(scope, world, true) : stage == 173 ? HumanTacticalReview(scope, world, false) : stage == 171 ? CombatStrafeProbe(scope, world) : stage == 170 ? FinalShortReview(scope, world) : stage == 169 ? FinalReviewSuite(scope, world) : stage == 168 ? FinalPresentationProbe(scope, world) : stage == 167 ? FinalSourceAnalysis(scope) : stage == 166 ? SourceTurnReview(scope) : stage == 165 ? SynchronizationTests(scope, world) : stage == 164 ? SynchronizationSourceProbe(scope) : stage == 163 ? SynchronizationProbe(scope, world) : stage == 162 ? SteadyMovementProbe(scope) : stage == 161 ? MovementPolishTests(scope, world) : stage == 160 ? MovementPoseAudit(scope) : stage == 152 ? FrozenPoseTests(scope, true) : stage == 151 ? FrozenPoseTests(scope, false) : stage == 150 ? PoseIsolationTests(scope) : stage >= 130 ? LiveReviewTests(scope, world, stage == 131) : stage == 50 ? OriginalGameplayTests() : stage == 60 ? WeaponEffectsTests(scope, world) : stage == 80 ? CoverFoundationTests(scope, world) : stage == 90 ? SquadFoundationTests(scope, world) : stage == 100 ? RiflemanTacticalTests(scope, world) : stage == 110 ? RiflemanPerformanceTests(scope, world) : stage == 120 ? RiflemanEdgeTests(scope, world) : RiflemanAnimationTests(scope, world);
+            IEnumerator scenario = CreateStageRoutine(stage, scope, world);
             try { while (scenario.MoveNext()) yield return scenario.Current; }
             finally { (scenario as IDisposable)?.Dispose(); }
+        }
+
+        private static IEnumerator CreateStageRoutine(int stage, GameLifetimeScope scope, EnemyWorld world)
+        {
+            switch (stage)
+            {
+                case 50: return OriginalGameplayTests();
+                case 60: return WeaponEffectsTests(scope, world);
+                case 70: return RiflemanAnimationTests(scope, world);
+                case 80: return CoverFoundationTests(scope, world);
+                case 90: return SquadFoundationTests(scope, world);
+                case 100: return RiflemanTacticalTests(scope, world);
+                case 110: return RiflemanPerformanceTests(scope, world);
+                case 120: return RiflemanEdgeTests(scope, world);
+                case 130: return LiveReviewTests(scope, world, false);
+                case 131: return LiveReviewTests(scope, world, true);
+                case 150: return PoseIsolationTests(scope);
+                case 151: return FrozenPoseTests(scope, false);
+                case 152: return FrozenPoseTests(scope, true);
+                case 160: return MovementPoseAudit(scope);
+                case 161: return MovementPolishTests(scope, world);
+                case 162: return SteadyMovementProbe(scope);
+                case 163: return SynchronizationProbe(scope, world);
+                case 164: return SynchronizationSourceProbe(scope);
+                case 165: return SynchronizationTests(scope, world);
+                case 166: return SourceTurnReview(scope);
+                case 167: return FinalSourceAnalysis(scope);
+                case 168: return FinalPresentationProbe(scope, world);
+                case 169: return FinalReviewSuite(scope, world);
+                case 170: return FinalShortReview(scope, world);
+                case 171: return CombatStrafeProbe(scope, world);
+                case 173: return HumanTacticalReview(scope, world, false);
+                case 174: return HumanTacticalReview(scope, world, true);
+                case 175: return CrouchEntryProbe(scope, world);
+                case 176: return DeathPhysicsProbe(scope, world);
+                case 177: return CrouchDeathChecks(scope, world);
+                case 178: return DeathClassificationChecks(scope, world);
+                case 179: return ActiveDeathChecks(scope, world);
+                case 180: return DeathTrackingChecks(scope, world);
+                case 181: return MovingImpactChecks(scope, world);
+                default: throw new ArgumentOutOfRangeException(nameof(stage), stage, "Unknown enemy validation stage.");
+            }
         }
 
         private static IEnumerable<object> WaitEnumerable(float seconds)

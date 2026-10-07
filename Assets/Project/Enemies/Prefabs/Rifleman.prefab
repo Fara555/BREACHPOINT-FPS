@@ -56,6 +56,7 @@ GameObject:
   - component: {fileID: 5733180673363011792}
   - component: {fileID: 8511453650133764361}
   - component: {fileID: 439694564581976170}
+  - component: {fileID: 7942069966506335772}
   m_Layer: 8
   m_Name: Rifleman
   m_TagString: Untagged
@@ -7341,6 +7342,51 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Breachpoint.Gameplay.AI.EnemyRigPresenter
   _aimRig: {fileID: 2985058084422813585}
   _leftHandRig: {fileID: 1983681242184433332}
+--- !u!114 &7942069966506335772
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3550899458896878222}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9be0f90944436a747960243d8a784eb5, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Assembly-CSharp::Breachpoint.Gameplay.AI.EnemyActiveRagdoll
+  _activeDuration: 0.85
+  _upperBodyDuration: 0.3
+  _legDuration: 0.7
+  _muscleSpring: 100
+  _muscleDamping: 12
+  _maximumMuscleTorque: 60
+  _balanceTorque: 20
+  _balanceLossAngle: 55
+  _supportProbeDistance: 0.3
+  _supportMask:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  _hitImpulse: 1.5
+  _stationaryDuration: 3.5
+  _positionSpring: 240
+  _positionDamping: 30
+  _maximumPoseAcceleration: 45
+  _stationaryReleaseStart: 0.4
+  _stationaryReleaseEnd: 0.8
+  _maximumPoseSeparation: 0.65
+  _useMovingHitAnimation: 1
+  _movingHitDuration: 0.6
+  _movingHitReleaseStart: 0.25
+  _movingHitReleaseEnd: 0.45
+  _movingDeathImpact:
+    _linearVelocityChange: 1.4
+    _maximumImpulse: 6
+    _angularSpeed: 2.2
+    _maximumAngularChange: 3
+    _muscleReleaseDuration: 0.14
+    _muscleRecoveryDuration: 0.12
+    _hitMuscleStrength: 0.1
+    _torsoHeadReaction: 0.6
 --- !u!1 &4064107889328024927
 GameObject:
   m_ObjectHideFlags: 0

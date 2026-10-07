@@ -174,7 +174,8 @@ namespace Breachpoint.Gameplay.Weapons
                     Config.Damage,
                     hit.point,
                     direction,
-                    source));
+                    source,
+                    hit.collider));
         }
 
         private bool CanFire()

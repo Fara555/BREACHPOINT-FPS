@@ -109,12 +109,18 @@ namespace Breachpoint.Editor.Enemies
             var hips = animator.GetBoneTransform(HumanBodyBones.Hips);
             var bodies = brain.GetComponentsInChildren<Rigidbody>(true);
             Vector3 initialCentre = RagdollCentre(bodies);
-            Vector3 lastPose = hips.position;
             bool capture = TacticalReviewRunning && SessionState.GetBool("EnemyTools.CrouchDeath.Capture",false);
-            bool capturedReaction = false, capturedPhysics = false, capturedSettled = false;
-            TacticalReviewPhase = moving ? "Immediate locomotion → ragdoll" : "Authored death reaction";
+            bool capturedPhysics = false, capturedSettled = false;
+            var active = brain.GetComponent<EnemyActiveRagdoll>();
+            TacticalReviewPhase = moving ? "Physical death / moving Hit target" : "Physical death / directional target";
             fixture.Target.transform.position = brain.transform.position - travel * 8f;
-            actor.Health.TakeDamage(new DamageInfo(100000,actor.Eyes.position,travel,fixture.Target.gameObject));
+            var lethal = new DamageInfo(100000,actor.Eyes.position,travel,fixture.Target.gameObject);
+            if (moving)
+            {
+                var geometry = MovingImpactShot(brain, animator, 0);
+                lethal = new DamageInfo(100000,geometry.point,travel,fixture.Target.gameObject,geometry.collider);
+            }
+            actor.Health.TakeDamage(lethal);
             PlayCheck(brain.States.Current == EnemyStateId.Dead && brain.GetComponent<UnityEngine.AI.NavMeshAgent>().isStopped && !nav.HasMovementRequest && Mathf.Abs(bridge.DeathPlanarSpeed-speed)<.0001f,$"Lethal damage snapshots actual speed and stops navigation authority | state={brain.States.Current} before={speed:F6} captured={bridge.DeathPlanarSpeed:F6} ragdoll={ragdoll.IsRagdoll}");
             if (moving)
             {
@@ -127,31 +133,30 @@ namespace Breachpoint.Editor.Enemies
             }
             else
             {
-                PlayCheck(animator.GetFloat("HitDirection") == expectedDirection,"Real lethal damage selects the attacker-relative death direction");
+                PlayCheck(active.IsStationaryDeath && active.PoseAnimator.GetFloat("HitDirection") == expectedDirection,"Real lethal damage selects the attacker-relative physical animation target");
+                PlayCheck(ragdoll.IsRagdoll && ragdoll.IsActiveRagdoll && !animator.enabled && ragdoll.TakeoverTime==hitAt,"Stationary death starts physics immediately with an isolated death target");
+                PlayCheck(transforms.Select((t,i)=>Vector3.Distance(t.localPosition,poses[i].position)<.0001f && Quaternion.Angle(t.localRotation,poses[i].rotation)<.01f).All(v=>v),"Stationary physical takeover preserves the live bone and weapon pose");
                 foreach (var wait in WaitEnumerable(.3f)) yield return wait;
-                PlayCheck(animator.GetCurrentAnimatorStateInfo(0).IsTag("Death") && animator.GetCurrentAnimatorClipInfo(0).Any(c=>c.clip.name==expected && c.weight>.99f),"Expected directional death clip dominates before physics: "+expected);
-                PlayCheck(!ragdoll.IsRagdoll && Vector3.Distance(root,brain.transform.position)<.02f,"Authored reaction remains readable while gameplay navigation is stopped");
-                float deadlineAt = hitAt + ragdoll.MaximumAnimationWait + .3f;
-                while (!ragdoll.IsRagdoll && Time.time < deadlineAt)
-                {
-                    lastPose = hips.position;
-                    if (capture && !capturedReaction && animator.GetCurrentAnimatorStateInfo(0).normalizedTime >= .45f)
-                    {
-                        capturedReaction = true;
-                        ScreenCapture.CaptureScreenshot(EnemyTools.Evidence+"/death-review-"+index+"-authored.png");
-                    }
-                    yield return null;
-                }
-                PlayCheck(ragdoll.IsRagdoll && ragdoll.TakeoverNormalizedTime >= .49f && !animator.enabled,"Ragdoll begins after the configured readable portion of the selected death");
+                PlayCheck(active.DeathTargetClip != null && active.DeathTargetClip.name==expected && active.DeathTargetWeight>.99f,"Expected directional clip drives the isolated target: "+expected);
+                PlayCheck(Vector3.Distance(root,brain.transform.position)<.02f,"Physical authored reaction preserves stopped gameplay root");
+                if (capture) ScreenCapture.CaptureScreenshot(EnemyTools.Evidence+"/death-review-"+index+"-authored.png");
             }
-            PlayCheck((moving || Vector3.Distance(lastPose,hips.position)<.08f) && Mathf.Abs(ragdoll.AppliedMomentum.y)<.0001f && ragdoll.AppliedMomentum.magnitude<=(moving ? ragdoll.MaximumMovingDeathSpeed+.01f : 1.21f),"Takeover preserves pose and applies bounded horizontal momentum for the selected death flow");
+            PlayCheck(Mathf.Abs(ragdoll.AppliedMomentum.y)<.0001f && ragdoll.AppliedMomentum.magnitude<=(moving ? ragdoll.MaximumMovingDeathSpeed+.01f : 1.21f),"Takeover preserves pose and applies bounded horizontal momentum for the selected death flow");
             if (moving) PlayCheck(Vector3.Dot(ragdoll.AppliedMomentum.normalized,actualVelocity.normalized)>.999f,"Moving death impulse follows actual travel, independently of incoming damage direction");
-            TacticalReviewPhase = "Ragdoll settling";
+            TacticalReviewPhase = "Physical support → passive settling";
             float initialY = hips.position.y, maximumY = initialY, maximumAngular = 0f, maximumSpan = 0f;
             float forwardTravel = 0f;
-            float end = Time.time + 1.4f;
+            bool movingHitObserved = false;
+            float end = Time.time + (moving ? 1.4f : active.ActiveDuration + .2f);
             while (Time.time < end)
             {
+                if (moving && !movingHitObserved && Time.time >= ragdoll.TakeoverTime + .18f)
+                {
+                    movingHitObserved = true;
+                    PlayCheck(active.IsMovingHitDeath && active.HitTargetClip != null && active.HitTargetClip.name.ToLowerInvariant().Contains("hit") && active.HitTargetWeight > .1f,
+                        "Moving fatality visibly targets existing Hit animation before passive physics: " + active.HitTargetClip?.name);
+                    AppendResult("MOVING HIT TARGET: clip=" + active.HitTargetClip.name + " weight=" + active.HitTargetWeight + " time=" + active.PoseAnimator.GetCurrentAnimatorStateInfo(1).normalizedTime);
+                }
                 maximumY = Mathf.Max(maximumY,hips.position.y);
                 forwardTravel = Mathf.Max(forwardTravel,Vector3.Dot(RagdollCentre(bodies)-initialCentre,actualVelocity.normalized));
                 foreach (var body in bodies) { maximumAngular=Mathf.Max(maximumAngular,body.angularVelocity.magnitude); maximumSpan=Mathf.Max(maximumSpan,Vector3.Distance(body.position,hips.position)); }
@@ -160,7 +165,7 @@ namespace Breachpoint.Editor.Enemies
                     capturedPhysics = true;
                     ScreenCapture.CaptureScreenshot(EnemyTools.Evidence+"/death-review-"+index+"-ragdoll.png");
                 }
-                if (capture && !capturedSettled && Time.time >= ragdoll.TakeoverTime+1.2f)
+                if (capture && !capturedSettled && Time.time >= ragdoll.TakeoverTime+(moving ? 1.2f : active.ActiveDuration+.1f))
                 {
                     capturedSettled = true;
                     ScreenCapture.CaptureScreenshot(EnemyTools.Evidence+"/death-review-"+index+"-settled.png");
@@ -170,6 +175,8 @@ namespace Breachpoint.Editor.Enemies
             if (capture) SessionState.SetBool("EnemyTools.CrouchDeath.Capture",false);
             PlayCheck(maximumY-initialY < .12f && brain.States.Current==EnemyStateId.Dead && actor.Muzzle.IsChildOf(weapon),"Corpse remains terminal, attached and does not launch upward");
             PlayCheck(maximumSpan<2.2f,"Ragdoll limbs remain within human body dimensions during settling");
+            PlayCheck(!active.IsActive && active.LegStrength==0f && active.UpperBodyStrength==0f, "Physical muscles fully relax before reuse");
+            if (moving) PlayCheck(active.DeathTargetClip==null && !active.IsStationaryDeath, "Moving target never evaluates a directional Death clip");
             if (moving) PlayCheck(forwardTravel>.15f,"Moving corpse visibly continues in its real travel direction: "+forwardTravel.ToString("F3")+" m");
             AppendResult($"DEATH MEASUREMENTS: speed={speed:F4} threshold={bridge.Config.DeathAnimationMaxSpeed:F4} animated={!moving} takeover={ragdoll.TakeoverTime-hitAt:F4}s momentum={ragdoll.AppliedMomentum} travel={forwardTravel:F4} rise={maximumY-initialY:F4} span={maximumSpan:F4} angular={maximumAngular:F3}");
             brain.gameObject.SetActive(false); brain.gameObject.SetActive(true); yield return null; brain.ResetForSpawn(); brain.enabled=false;
@@ -240,13 +247,14 @@ namespace Breachpoint.Editor.Enemies
                     bool animated=index==0 || index==2;
                     actor.Health.TakeDamage(new DamageInfo(100000,actor.Eyes.position,Vector3.back,fixture.Target.gameObject));
                     PlayCheck(Mathf.Abs(bridge.DeathPlanarSpeed-speed)<.0001f && brain.States.Current==EnemyStateId.Dead,"Classification captures lethal-time actual speed before stop: "+names[index]);
-                    PlayCheck(animated ? !ragdoll.IsRagdoll && animator.enabled && animator.GetBool("IsDead") : ragdoll.IsRagdoll && !animator.enabled && !animator.GetBool("IsDead"),"Actual speed overrides requested motion: "+names[index]);
+                    var active=brain.GetComponent<EnemyActiveRagdoll>();
+                    PlayCheck(ragdoll.IsActiveRagdoll && ragdoll.IsRagdoll && !animator.enabled && active.IsStationaryDeath==animated,"Actual speed overrides requested motion for physical target selection: "+names[index]);
                     if (animated)
                     {
                         foreach (var wait in WaitEnumerable(.3f)) yield return wait;
-                        PlayCheck(animator.GetCurrentAnimatorStateInfo(0).IsTag("Death"),"Effectively stationary actor reaches its authored death");
+                        PlayCheck(active.DeathTargetClip!=null,"Effectively stationary actor drives its authored death target");
                         foreach (var wait in Enumerate(WaitForDeathTakeover(ragdoll))) yield return wait;
-                        PlayCheck(ragdoll.IsRagdoll && ragdoll.TakeoverNormalizedTime>=.49f,"Boundary stationary death retains its readable reaction before physics");
+                        PlayCheck(ragdoll.IsRagdoll && !animator.enabled,"Boundary stationary reaction retains physical authority");
                     }
                     AppendResult($"CLASSIFICATION: {names[index]} speed={speed:F5} threshold={bridge.Config.DeathAnimationMaxSpeed:F5} animated={animated}");
                 }
@@ -389,36 +397,4 @@ namespace Breachpoint.Editor.Enemies
         }
     }
 
-    public static partial class EnemyTools
-    {
-        private static void ConfigureMovingDeathMomentum()
-        {
-            if (EditorApplication.isPlayingOrWillChangePlaymode) throw new InvalidOperationException("Exit Play Mode before authoring.");
-            var prefab=PrefabUtility.LoadPrefabContents(EnemyValidationRunner.RiflemanPath);
-            try
-            {
-                var data=new SerializedObject(prefab.GetComponent<EnemyRagdollPresenter>());
-                data.FindProperty("_movingDeathSpeed").animationCurveValue=new AnimationCurve(new Keyframe(0,0),new Keyframe(1.5f,2f),new Keyframe(3.2f,4.2f),new Keyframe(4.8f,6.5f));
-                data.FindProperty("_maximumMovingDeathSpeed").floatValue=6.5f;
-                data.ApplyModifiedPropertiesWithoutUndo();
-                PrefabUtility.SaveAsPrefabAsset(prefab,EnemyValidationRunner.RiflemanPath);
-            }
-            finally { PrefabUtility.UnloadPrefabContents(prefab); }
-        }
-
-        private static void ConfigureDeathPolish()
-        {
-            if (EditorApplication.isPlayingOrWillChangePlaymode) throw new InvalidOperationException("Exit Play Mode before authoring.");
-            var prefab = PrefabUtility.LoadPrefabContents(EnemyValidationRunner.RiflemanPath);
-            try
-            {
-                var data = new SerializedObject(prefab.GetComponent<EnemyRagdollPresenter>());
-                data.FindProperty("_takeoverDelay").floatValue = 1.2f;
-                data.FindProperty("_momentumScale").floatValue = .25f;
-                data.ApplyModifiedPropertiesWithoutUndo();
-                PrefabUtility.SaveAsPrefabAsset(prefab, EnemyValidationRunner.RiflemanPath);
-            }
-            finally { PrefabUtility.UnloadPrefabContents(prefab); }
-        }
-    }
 }

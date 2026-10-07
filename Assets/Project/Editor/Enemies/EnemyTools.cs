@@ -27,11 +27,17 @@ namespace Breachpoint.Editor.Enemies
             if (EditorApplication.timeSinceStartup < _nextPoll || EditorApplication.isCompiling || EditorApplication.isUpdating) return;
             _nextPoll = EditorApplication.timeSinceStartup + 1;
             if (!File.Exists(Request)) return;
-            string command = File.ReadAllText(Request).Trim();
-            File.Delete(Request);
-            Directory.CreateDirectory(Evidence);
+            string command;
             try
             {
+                command = File.ReadAllText(Request).Trim();
+                if (command.Length == 0) return;
+                File.Delete(Request);
+            }
+            catch (IOException) { return; }
+            try
+            {
+                Directory.CreateDirectory(Evidence);
                 if (command.StartsWith("crouch-probe-", StringComparison.Ordinal)) { SessionState.SetString("EnemyTools.CrouchDeath.Label", command.Substring(13)); EnemyValidationRunner.ValidateStage(175); }
                 else if (command.StartsWith("death-probe-", StringComparison.Ordinal)) { SessionState.SetString("EnemyTools.CrouchDeath.Label", command.Substring(12)); EnemyValidationRunner.ValidateStage(176); }
                 else if (command.StartsWith("crouch-death-capture:",StringComparison.Ordinal))
@@ -39,13 +45,17 @@ namespace Breachpoint.Editor.Enemies
                     EnemyValidationRunner.RunHumanTacticalReview(int.Parse(command.Substring("crouch-death-capture:".Length)),false);
                     SessionState.SetBool("EnemyTools.CrouchDeath.Capture",true);
                 }
+                else if (command == "active-death-settings") ConfigureActiveDeath();
+                else if (command.StartsWith("death-tracking-", StringComparison.Ordinal)) { SessionState.SetString("EnemyTools.DeathTracking.Label", command.Substring(15)); EnemyValidationRunner.ValidateStage(180); }
+                else if (command == "moving-impact-tests") EnemyValidationRunner.ValidateStage(181);
+                else if (command == "editor-tools-test") ValidateEditorTools();
+                else if (command == "human-review-control-test") EnemyValidationRunner.ValidateHumanReviewControls();
+                else if (command == "active-death-tests") EnemyValidationRunner.ValidateStage(179);
                 else if (command == "crouch-death-tests") EnemyValidationRunner.ValidateStage(177);
                 else if (command == "death-classification-tests") EnemyValidationRunner.ValidateStage(178);
-                else if (command == "moving-death-momentum-settings") ConfigureMovingDeathMomentum();
                 else if (command == "animation-inventory") InventoryEnemyAnimations();
                 else if (command == "animation-organize") OrganizeEnemyAnimations();
                 else if (command == "animation-deduplicate") ConsolidateDirectionalDeathSources();
-                else if (command == "death-polish-settings") ConfigureDeathPolish();
                 else if (command == "tactical-review-open") EnemyTacticalDebugWindow.Open();
                 else if (command == "tactical-review-stop") EnemyValidationRunner.StopHumanTacticalReview();
                 else if (command == "strafe-review-tests") EnemyValidationRunner.ValidateStage(174);
@@ -53,15 +63,12 @@ namespace Breachpoint.Editor.Enemies
                 else if (command.StartsWith("tactical-review:", StringComparison.Ordinal)) EnemyValidationRunner.RunHumanTacticalReview(int.Parse(command.Substring(16)), false);
                 else if (command == "strafe-audit") EnemyValidationRunner.AuditCombatStrafe();
                 else if (command.StartsWith("strafe-probe-", StringComparison.Ordinal)) { SessionState.SetString("EnemyTools.Strafe.Label", command.Substring(13)); SessionState.SetBool("EnemyTools.Strafe.Acceptance", command.Substring(13) != "before"); EnemyValidationRunner.ValidateStage(171); }
-                else if (command == "final-short-stop") EnemyValidationRunner.RepairEarlySteadyCancellation();
                 else if (command == "final-short-review") EnemyValidationRunner.ValidateStage(170);
                 else if (command == "final-review") EnemyValidationRunner.ValidateStage(169);
-                else if (command == "final-calibrate") EnemyValidationRunner.CalibrateFinalSteadyTransitions();
                 else if (command == "final-source") EnemyValidationRunner.ValidateStage(167);
                 else if (command.StartsWith("final-probe-", StringComparison.Ordinal)) { SessionState.SetString("EnemyTools.Final.Label", command.Substring(12)); EnemyValidationRunner.ValidateStage(168); }
                 else if (command == "sync-source-review") EnemyValidationRunner.RunSourceTurnReview();
                 else if (command == "sync-test") EnemyValidationRunner.ValidateStage(165);
-                else if (command == "sync-transitions") EnemyValidationRunner.RepairSynchronizationTransitions();
                 else if (command == "sync-source") EnemyValidationRunner.ValidateStage(164);
                 else if (command == "sync-curves") EnemyValidationRunner.AuditSynchronizationCurves();
                 else if (command == "sync-probe") EnemyValidationRunner.ValidateStage(163);

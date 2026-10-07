@@ -116,6 +116,9 @@ namespace Breachpoint.Editor.Enemies
             bool passed = restored && error.Length == 0 && console.Contains("errors=0") && console.Contains("warnings=0");
             File.WriteAllText(EnemyTools.Evidence + "/review-controls.txt", (passed ? "RESULT: PASS" : "RESULT: FAIL") + "\n" + DateTime.UtcNow.ToString("O") + "\nPause, frozen simulation, 0.5x, next, 1x, stop while paused, scene/resource restoration\nRestored scale=" + Time.timeScale + ", background=" + Application.runInBackground + " (expected .75/true)\n" + error + "\n" + console);
             RestoreReviewControlEnvironment();
+            AppendResult(passed ? "PASS: Live review pause/speed/next/stop controls and restoration" : "FAIL: Live review controls | " + error);
+            AppendResult(passed ? "RESULT: PASS" : "RESULT: FAIL");
+            AppendResult(console);
         }
 
         private static void RestoreReviewControlEnvironment()
@@ -126,6 +129,7 @@ namespace Breachpoint.Editor.Enemies
 
         internal static void RunReview(int index, bool interactive)
         {
+            if (index < -1 || index >= ReviewNames.Length || interactive && index < 0) throw new ArgumentOutOfRangeException(nameof(index));
             _nextReviewCapture = 0f; _lastReviewCaptureFrame = -1;
             SessionState.SetFloat("EnemyTools.Review.PriorScale", Time.timeScale);
             SessionState.SetBool("EnemyTools.Review.Disposed", false);
@@ -323,6 +327,12 @@ namespace Breachpoint.Editor.Enemies
     {
         [SerializeField] private int _scenario;
         [SerializeField] private bool _advanced;
+        private Vector2 _scroll;
+        private void OnEnable() => minSize = new Vector2(440f, 420f);
+        private void OnInspectorUpdate()
+        {
+            if (EditorApplication.isPlaying && SessionState.GetInt("EnemyTools.Validation.Stage", 0) == 131) Repaint();
+        }
         private static readonly int[] TargetedScenarios = { 0, 30, 27, 68, 69, 70, 71, 72, 73, 10, 11 };
         private static readonly string[] TargetedNames = TargetedScenarios.Select(i => EnemyValidationRunner.ReviewNames[i]).ToArray();
         [MenuItem("Breachpoint/Enemies/Animation Review/Live review")]
@@ -330,6 +340,8 @@ namespace Breachpoint.Editor.Enemies
 
         private void OnGUI()
         {
+            _scenario = Mathf.Clamp(_scenario, 0, EnemyValidationRunner.ReviewNames.Length - 1);
+            _scroll = EditorGUILayout.BeginScrollView(_scroll);
             EditorGUILayout.HelpBox("Continuous Game View playback. Inspect pose transitions, elbows, foot motion and body facing at both speeds. Mechanical PASS does not certify visual quality.", MessageType.Info);
             bool owned = EditorApplication.isPlaying && SessionState.GetBool("EnemyTools.Validation", false) && SessionState.GetInt("EnemyTools.Validation.Stage", 0) == 131;
             var actor = EnemyValidationRunner.ReviewActor;
@@ -385,6 +397,7 @@ namespace Breachpoint.Editor.Enemies
                 EditorGUILayout.EndHorizontal();
                 if (GUILayout.Button("Stop / restore scene")) EditorApplication.isPlaying = false;
             }
+            EditorGUILayout.EndScrollView();
         }
     }
 }

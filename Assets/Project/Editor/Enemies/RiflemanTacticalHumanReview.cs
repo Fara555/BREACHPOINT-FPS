@@ -33,11 +33,12 @@ namespace Breachpoint.Editor.Enemies
                 "Cover — player rush / abandon", "Contact loss — shared search / timeout", "Navigation — narrow obstacle passage",
                 "Squad — suppressor casualty", "Death — during cover travel", "Lifecycle — reset and reuse",
                 "Stress — ten agents", "Stress — thirty agents", "Fallback — no useful tactical position"
-            }.Concat(CrouchDeathNames).ToArray();
+            }.Concat(CrouchDeathNames).Concat(MovingImpactNames).ToArray();
         }
         internal static string HumanTacticalPurpose(int index)
         {
-            if (index >= 32) return index < 38 ? "Controlled crouch entry and stop. Observe idle centering, feet, left hand and weapon through stance changes." : index <= 41 || index == 44 ? "Stationary lethal hit: readable authored death → pose-preserving ragdoll and reset." : "Moving lethal hit: immediate ragdoll from current locomotion pose, without entering any Death animation.";
+            if (index >= 49) return "Moving fatal Hit: play the existing directional/stance Hit reaction, preserve travel inertia, then smoothly release every body into passive ragdoll.";
+            if (index >= 32) return index < 38 ? "Controlled crouch entry and stop. Observe idle centering, feet, left hand and weapon through stance changes." : index <= 41 || index == 44 ? "Stationary lethal hit: physical muscles follow a directional death target, then fully relax." : "Moving lethal hit: existing Hit animation guides the dynamic body, preserving travel inertia, then every muscle releases into passive ragdoll.";
             if (index < 4) return "Controlled Combat locomotion: a long lateral move followed by an ordinary stop.";
             if (index < 6) return "Controlled Combat locomotion: readiness entry, short movement, stop and restart.";
             if (index < 8) return "Controlled Combat locomotion: forward → lateral → forward without stopping between directions.";
@@ -111,13 +112,13 @@ namespace Breachpoint.Editor.Enemies
                     using (var fixture = new RiflemanTacticalFixture(scope, world, count, "HumanReview", tactical == 2 || tactical == 3 || tactical == 14 ? 1 : 2, tactical == 10 ? 2 : -1))
                     {
                         TacticalReviewBrain = fixture.Brains[0];
-                        IEnumerator review = index >= 32 ? HumanCrouchDeath(index-32,fixture) : index < 12 ? HumanCombatMotion(index, fixture) : TacticalCase(tactical, fixture, world);
+                        IEnumerator review = index >= 49 ? HumanMovingImpact(index-49,fixture,camera) : index >= 32 ? HumanCrouchDeath(index-32,fixture) : index < 12 ? HumanCombatMotion(index, fixture) : TacticalCase(tactical, fixture, world);
                         try
                         {
                             while ((focusedChecks || revision == SessionState.GetInt(TacticalReviewKey + ".Revision", 0)) && review.MoveNext())
                             {
                                 fixture.Observe();
-                                if (camera != null)
+                                if (camera != null && index < 49)
                                 {
                                     if (index == 16 || index == 18)
                                     {
