@@ -77,7 +77,7 @@ namespace Breachpoint.Gameplay.AI
                 CurrentCoverRating = _covers.Evaluate(facts.CurrentCover, _context, facts.ThreatAim, _config.Cover, _allies, allies, _config.PreferredSpacing, _areaMask);
                 // Brief ally crossings do not discard a committed, protected cover action.
                 RecordCover(facts.CurrentCover, CurrentCoverRating);
-                if (!CurrentCoverRating.Valid && facts.IntentAge < _config.PositionTimeout &&
+                if (!CurrentCoverRating.Valid && facts.IntentAge < (_context.Tactics != null ? _context.Tactics.CoverCommitmentDuration : _config.PositionTimeout) &&
                     (CurrentCoverRating.Rejection == EnemyCoverRejection.NoFiringLane || CurrentCoverRating.Rejection == EnemyCoverRejection.Crowded))
                     CurrentCoverRating = new EnemyCoverRating { Valid = true, Score = facts.Current.Score - _config.CommittedCoverBonus, Rejection = CurrentCoverRating.Rejection };
                 if (CurrentCoverRating.Valid) { bestCover = facts.CurrentCover; bestScore = CurrentCoverRating.Score + _config.CommittedCoverBonus - (facts.IntentAge >= _config.RepositionAfter ? 50f : 0f); }

@@ -32,6 +32,12 @@ namespace Breachpoint.Editor.Enemies
         private float _checksRate, _decisionsRate, _repathsRate;
         [MenuItem("Breachpoint/Enemies/AI Test / Tactical Debug/Open debug and scenarios")]
         public static void Open() => GetWindow<EnemyTacticalDebugWindow>("Enemy AI / Tactical");
+        internal static void OpenHighCoverReview()
+        {
+            var window = GetWindow<EnemyTacticalDebugWindow>("Enemy AI / Tactical");
+            window._humanCase = EnemyValidationRunner.HighCoverReviewStart;
+            window.Show();
+        }
         private void OnEnable()
         {
             minSize = new Vector2(440f, 420f);
@@ -131,6 +137,8 @@ namespace Breachpoint.Editor.Enemies
                     if (GUILayout.Button("Run all 20 tactical scenarios")) EnemyValidationRunner.RunTacticalScenario(-1);
                     if (GUILayout.Button("Measure 1 / 3 / 10 / 30 agents")) EnemyValidationRunner.ValidateStage(110);
                     if (GUILayout.Button("Validate lifecycle and edge cases")) EnemyValidationRunner.ValidateStage(120);
+                    SessionState.SetBool(EnemyValidationRunner.HighCoverCaptureKey, EditorGUILayout.Toggle("Capture High Cover images on next review", SessionState.GetBool(EnemyValidationRunner.HighCoverCaptureKey, false)));
+                    if (GUILayout.Button("Validate High Cover animations and gameplay")) EnemyValidationRunner.ValidateStage(182);
                     if (GUILayout.Button("Validate moving Hit to ragdoll")) EnemyValidationRunner.ValidateStage(181);
                     if (GUILayout.Button("Validate active death physics")) EnemyValidationRunner.ValidateStage(179);
                     if (GUILayout.Button("Validate physical death animation tracking")) { SessionState.SetString("EnemyTools.DeathTracking.Label", "after"); EnemyValidationRunner.ValidateStage(180); }
@@ -197,7 +205,7 @@ namespace Breachpoint.Editor.Enemies
                 var actor = brain.GetComponent<EnemyActor>(); var bridge = brain.GetComponent<EnemyAnimationBridge>();
                 EditorGUILayout.LabelField("Live enemy", EditorStyles.boldLabel);
                 Show("AI state", brain.States.Current.ToString());
-                Show("Intent", running && (_humanCase < 12 || _humanCase >= 32) ? "Controlled presentation" : brain.Tactics?.Current.Intent.ToString());
+                Show("Intent", running && (_humanCase < 12 || _humanCase >= 32 && _humanCase < EnemyValidationRunner.HighCoverReviewStart) ? "Controlled presentation" : brain.Tactics?.Current.Intent.ToString());
                 Show("Movement tier / speed", actor.Navigation.DesiredMovementTier + " / " + actor.Navigation.Velocity.magnitude.ToString("F2") + " m/s");
                 Show("Local direction", bridge != null ? bridge.MoveDirectionSmoothed.ToString("F2") : "none");
                 var ragdoll = brain.GetComponent<EnemyRagdollPresenter>();
@@ -241,6 +249,17 @@ namespace Breachpoint.Editor.Enemies
                 Show("Shooter / mover / flank sector", tactics.Member?.Shooter + " / " + tactics.Member?.Mover + " / " + tactics.Member?.FlankSide);
                 Show("Cover / phase / score", (tactics.CurrentCover != null ? tactics.CurrentCover.name : "none") + " / " + tactics.CoverPhase + " / " + tactics.CoverRating.Score.ToString("F1"));
                 Show("Cover rejection", tactics.CoverRating.Rejection.ToString());
+                if(tactics.CurrentCover != null && tactics.CurrentCover.Kind == EnemyCoverKind.High)
+                {
+                    Show("High Cover edge", tactics.CurrentCover.ExposesRight ? "Right" : "Left");
+                    if(brain.TryGetComponent<EnemyHighCoverPresentation>(out var contact))
+                    {
+                        Show("Cover visual offset",contact.AppliedOffset.ToString("F3"));
+                        Show("Cover authored phase",contact.NormalizedMotion.ToString("F3"));
+                        Show("Physical ground",contact.GroundHeight.ToString("F3"));
+                    }
+                    Show("Distance to corner", Vector3.ProjectOnPlane(brain.transform.position-tactics.CurrentCover.ProtectedPosition,Vector3.up).magnitude.ToString("F2") + " m");
+                }
                 var reservation = tactics.Reservation(tactics.CurrentCover);
                 Show("Reservation / expires", reservation != null ? reservation.Owner.Actor.name + " / " + reservation.Phase + " / " + reservation.ExpiresAt.ToString("F1") : "none");
                 Show("Last decision / count", tactics.LastDecisionAt.ToString("F2") + " / " + tactics.DecisionCount);

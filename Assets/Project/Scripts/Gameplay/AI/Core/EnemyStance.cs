@@ -17,6 +17,8 @@ namespace Breachpoint.Gameplay.AI
         private float _standingAgentHeight;
         private bool _initialized;
         public bool IsCrouching { get; private set; }
+        public Vector3 BodyCenterForCurrentStance => IsCrouching ? new Vector3(_standingCenter.x, _crouchHeight * .5f, _standingCenter.z) : _standingCenter;
+        public Vector3 EyesPositionForCurrentStance => IsCrouching ? new Vector3(_standingEyes.x, _crouchEyeHeight, _standingEyes.z) : _standingEyes;
 
         private void Awake() => Initialize();
         private void Initialize()

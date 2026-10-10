@@ -10,6 +10,10 @@ namespace Breachpoint.Gameplay.AI
     [RequireComponent(typeof(NavMeshAgent))]
     public sealed class EnemyNavigation : MonoBehaviour
     {
+        private const float PreciseArrivalTolerance = .08f;
+        private const float PreciseStoppingDistance = .02f;
+        private const float PreciseRemainingTolerance = .04f;
+        private const float PreciseSlowdownRate = 3f;
         private NavMeshAgent _agent;
         private EnemyMovementConfig _config;
         private NavMeshPath _path;
@@ -17,6 +21,9 @@ namespace Breachpoint.Gameplay.AI
         private float _lastProgressTime;
         private Vector3 _lastProgressPosition;
         private bool _requested;
+        private bool _preciseArrival;
+        private bool _presentationMotion;
+        private Vector3 _presentationVelocity;
         private Vector3 _desiredFacing;
         private float _facingUntil;
         private Quaternion _turnStart;
@@ -54,17 +61,18 @@ namespace Breachpoint.Gameplay.AI
         public EnemyMovementPhase MovementPhase { get; private set; }
         public float AllowedSpeed => Ready ? _agent.speed : 0f;
         public NavigationResult Result { get; private set; }
-        public Vector3 Velocity => Ready ? _agent.velocity : Vector3.zero;
-        public Vector3 DesiredVelocity => Ready ? _agent.desiredVelocity : Vector3.zero;
+        public Vector3 Velocity => Ready ? _presentationMotion ? _presentationVelocity : _agent.velocity : Vector3.zero;
+        public Vector3 DesiredVelocity => Ready ? _presentationMotion ? _presentationVelocity : _agent.desiredVelocity : Vector3.zero;
         public float DesiredSpeed => Ready ? _agent.speed : 0f;
         public EnemyMovementTier DesiredMovementTier { get; private set; }
         public float RequestedWorldSpeed { get; private set; }
-        public bool HasMovementRequest => _requested && MovementPhase != EnemyMovementPhase.Stopping && Result == NavigationResult.Moving;
+        public bool HasMovementRequest => _presentationMotion ? _presentationVelocity.sqrMagnitude > .0001f : _requested && MovementPhase != EnemyMovementPhase.Stopping && Result == NavigationResult.Moving;
         public Vector3 PresentationDesiredVelocity
         {
             get
             {
                 if (!HasMovementRequest || !Ready) return Vector3.zero;
+                if (_presentationMotion) return _presentationVelocity;
                 Vector3 velocity = _agent.desiredVelocity;
                 if (velocity.sqrMagnitude > 0.0001f) return velocity;
                 Vector3 direction = _agent.steeringTarget - transform.position; direction.y = 0f;
@@ -77,7 +85,7 @@ namespace Breachpoint.Gameplay.AI
         public Vector3 Destination { get; private set; }
         public bool Ready => _agent != null && _agent.enabled && _agent.isOnNavMesh;
         public bool Failed => Result == NavigationResult.Unavailable || Result == NavigationResult.Invalid || Result == NavigationResult.Partial || Result == NavigationResult.Stuck;
-        public bool Arrived => Result == NavigationResult.Arrived || Ready && _requested && MovementPhase != EnemyMovementPhase.Stopping && !_agent.pathPending && _agent.remainingDistance <= _agent.stoppingDistance + 0.15f;
+        public bool Arrived => Result == NavigationResult.Arrived || Ready && _requested && MovementPhase != EnemyMovementPhase.Stopping && !_agent.pathPending && _agent.remainingDistance <= _agent.stoppingDistance + (_preciseArrival ? PreciseRemainingTolerance : .15f);
         public int RepathCount { get; private set; }
         public int CopyPathCorners(Vector3[] buffer) => _requested && _path != null ? _path.GetCornersNonAlloc(buffer) : 0;
 
@@ -92,6 +100,7 @@ namespace Breachpoint.Gameplay.AI
         }
         public bool ResetAt(Vector3 position)
         {
+            _presentationMotion = false; _presentationVelocity = Vector3.zero;
             _nextRepath = 0f; _requested = false; Result = NavigationResult.None; RepathCount = 0;
             RequestedWorldSpeed = 0f; DesiredMovementTier = EnemyMovementTier.Steady;
             MovementPhase = EnemyMovementPhase.Idle; _stoppingForArrival = false;
@@ -104,15 +113,20 @@ namespace Breachpoint.Gameplay.AI
             return success;
         }
         public void MoveTo(Vector3 point, bool run, float now) => MoveTo(point, run ? EnemyMovePace.Run : EnemyMovePace.Walk, now);
-        public void MoveTo(Vector3 point, EnemyMovePace pace, float now)
+        public void MoveTo(Vector3 point, EnemyMovePace pace, float now, float speedOverride = 0f, bool preciseArrival = false)
         {
             if (!Ready) { Result = NavigationResult.Unavailable; return; }
-            if (Result == NavigationResult.Arrived && (point - Destination).sqrMagnitude < .01f) return;
+            EndPresentationMotion();
+            if (Result == NavigationResult.Arrived && (point - Destination).sqrMagnitude < .01f &&
+                (!preciseArrival || Vector3.ProjectOnPlane(transform.position - point, Vector3.up).magnitude <= PreciseArrivalTolerance)) return;
+            _preciseArrival = preciseArrival;
+            _agent.stoppingDistance = preciseArrival ? PreciseStoppingDistance : _config.StoppingDistance;
             // Repeated patrol ticks must not restart a destination's braking phase.
-            if (_stoppingForArrival && MovementPhase == EnemyMovementPhase.Stopping && (point - Destination).sqrMagnitude < .01f) return;
+            if (!preciseArrival && _stoppingForArrival && MovementPhase == EnemyMovementPhase.Stopping && (point - Destination).sqrMagnitude < .01f) return;
             DesiredMovementTier = pace == EnemyMovePace.Crouch ? EnemyMovementTier.Crouch : pace == EnemyMovePace.Sprint ? EnemyMovementTier.Sprint : pace == EnemyMovePace.Run ? EnemyMovementTier.Run : _brain.States.Group == EnemyStateGroup.Passive ? EnemyMovementTier.Steady : EnemyMovementTier.CombatWalk;
             RequestedWorldSpeed = pace == EnemyMovePace.Sprint ? _config.SprintSpeed : pace == EnemyMovePace.Crouch ? _config.CrouchSpeed : pace == EnemyMovePace.Run ? _config.RunSpeed : _config.WalkSpeed;
             if (DesiredMovementTier == EnemyMovementTier.Steady && _config.SteadyWalkSpeed > 0f) RequestedWorldSpeed = _config.SteadyWalkSpeed;
+            if (speedOverride > 0f) RequestedWorldSpeed = speedOverride;
             _agent.acceleration = DesiredMovementTier == EnemyMovementTier.Steady ? _config.SteadyAcceleration : _config.Acceleration;
             if (DesiredMovementTier != EnemyMovementTier.CombatWalk && DesiredMovementTier != EnemyMovementTier.Run) _combatStarting = false;
             if (DesiredMovementTier != EnemyMovementTier.Steady && MovementPhase == EnemyMovementPhase.Starting && !_combatStarting) MovementPhase = EnemyMovementPhase.Cruising;
@@ -141,16 +155,38 @@ namespace Breachpoint.Gameplay.AI
             { Stop(); _nextRepath = now + _config.RepathInterval; Result = NavigationResult.Stuck; }
             if (Arrived) Result = NavigationResult.Arrived;
         }
+        // Short authored actions supply their evaluated travel, while the agent
+        // still constrains the root to the existing navigation mesh.
+        public void BeginPresentationMotion()
+        {
+            Stop(); _presentationMotion = true; _presentationVelocity = Vector3.zero;
+            DesiredMovementTier = EnemyMovementTier.CombatWalk; _combatStarting = false;
+        }
+        public void ApplyPresentationMotion(Vector3 worldPosition, Vector3 bodyVelocity, float deltaTime)
+        {
+            if (!Ready || !_presentationMotion || deltaTime <= 0f) return;
+            Vector3 before = transform.position;
+            Vector3 delta = worldPosition - before; delta.y = 0f;
+            _agent.Move(delta); transform.position = _agent.nextPosition;
+            _presentationVelocity = Vector3.ProjectOnPlane(bodyVelocity, Vector3.up);
+            RequestedWorldSpeed = _presentationVelocity.magnitude;
+            MovementPhase = RequestedWorldSpeed > .03f ? EnemyMovementPhase.Cruising : EnemyMovementPhase.Idle;
+            Result = RequestedWorldSpeed > .03f ? NavigationResult.Moving : NavigationResult.Arrived;
+            Destination = worldPosition;
+        }
+        public void EndPresentationMotion()
+        { _presentationMotion = false; _presentationVelocity = Vector3.zero; }
         public void Stop()
         {
             if (Ready && (_requested || !_agent.isStopped || _agent.velocity.sqrMagnitude > 0.0001f))
             { _agent.ResetPath(); _agent.velocity = Vector3.zero; _agent.isStopped = true; }
-            _requested = false; _nextRepath = 0f;
+            _requested = false; _nextRepath = 0f; _preciseArrival = false; _presentationVelocity = Vector3.zero;
             RequestedWorldSpeed = 0f;
             MovementPhase = EnemyMovementPhase.Idle; _stoppingForArrival = false;
             if (Ready)
             {
                 _agent.speed = 0f;
+                if (_config != null) _agent.stoppingDistance = _config.StoppingDistance;
                 if (_config != null) _agent.acceleration = DesiredMovementTier == EnemyMovementTier.Steady ? _config.SteadyAcceleration : _config.Acceleration;
             }
         }
@@ -230,8 +266,16 @@ namespace Breachpoint.Gameplay.AI
                     }
                 }
                 else _agent.speed = Mathf.MoveTowards(_agent.speed, RequestedWorldSpeed, _config.Acceleration * Time.deltaTime);
-                if (!_agent.pathPending && _agent.hasPath && _agent.remainingDistance <= _agent.stoppingDistance + Velocity.magnitude * OrdinaryStopDuration(Velocity.magnitude) * .5f)
-                    RequestStop(true);
+                if (!_agent.pathPending && _agent.hasPath)
+                {
+                    if (_preciseArrival)
+                    {
+                        _agent.speed = Mathf.Min(_agent.speed, Mathf.Max(.05f, _agent.remainingDistance * PreciseSlowdownRate));
+                        if (_agent.remainingDistance <= PreciseStoppingDistance + PreciseRemainingTolerance) { Stop(); Result = NavigationResult.Arrived; }
+                    }
+                    else if (_agent.remainingDistance <= _agent.stoppingDistance + Velocity.magnitude * OrdinaryStopDuration(Velocity.magnitude) * .5f)
+                        RequestStop(true);
+                }
             }
             if (IsTurning)
             {

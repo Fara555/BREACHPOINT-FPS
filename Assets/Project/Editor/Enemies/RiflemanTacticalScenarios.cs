@@ -95,6 +95,22 @@ namespace Breachpoint.Editor.Enemies
             if (index >= 4 && index <= 8 || index == 11 || index == 15 || index == 16)
             {
                 var point = fixture.AddCover(index == 5 ? EnemyCoverKind.High : EnemyCoverKind.Low, 8f, index == 8 ? -19.5f : -5.9f);
+                if (index == 4 || index == 5 || index == 11 || index == 15 || index == 16)
+                {
+                    // These cases validate cover execution, not ownership competition.
+                    // Start the nearest autonomous owner before its pressure allies join;
+                    // otherwise native entity IDs/tick order can assign a distant owner
+                    // whose allies block each other before the intended probe begins.
+                    fixture.Brains[0].enabled = fixture.Brains[1].enabled = false;
+                    try
+                    {
+                        float claimedBy = Time.time + 3f;
+                        while (fixture.Brains[2].Tactics.CurrentCover != point && Time.time < claimedBy)
+                        { fixture.Observe(); yield return null; }
+                        PlayCheck(fixture.Brains[2].Tactics.CurrentCover == point, "Focused cover fixture establishes its nearest owner before pressure allies join");
+                    }
+                    finally { fixture.Brains[0].enabled = fixture.Brains[1].enabled = true; }
+                }
                 EnemyContext holder = index == 7 ? fixture.Contexts[3] : null;
                 if (holder != null) { fixture.Brains[3].enabled = false; PlayCheck(fixture.Covers.Reserve(point, holder, fixture.Brains[0].Config.Tactics.Cover, Time.time), "External holder reserves all available cover"); }
                 Physics.SyncTransforms();
@@ -138,7 +154,8 @@ namespace Breachpoint.Editor.Enemies
                     foreach (var wait in Enumerate(WaitForDeathTakeover(moving.GetComponent<EnemyRagdollPresenter>()))) { fixture.Observe(); yield return wait; }
                     PlayCheck(moving.GetComponent<EnemyRagdollPresenter>().IsRagdoll, "Cover death still reaches existing ragdoll"); yield break;
                 }
-                float until = Time.time + (index == 7 || index == 8 ? 5f : index == 5 ? 16f : 10f);
+                float highAnimationTime = index == 5 ? fixture.Brains[0].GetComponent<EnemyAnimationBridge>().Config.HighCoverTakeDuration * 2f + fixture.Brains[0].GetComponent<EnemyAnimationBridge>().Config.HighCoverLeaveDuration : 0f;
+                float until = Time.time + (index == 7 || index == 8 ? 5f : index == 5 ? 16f + highAnimationTime : 10f);
                 while (Time.time < until)
                 { if (holder != null) fixture.Covers.Pulse(point, holder, fixture.Brains[0].Config.Tactics.Cover, Time.time, false); fixture.Observe(); yield return null; }
                 PlayCheck(fixture.Shots > 0, "Covered/all-reserved/unreachable engagement retains actual pressure fire");

@@ -35,7 +35,7 @@ namespace Breachpoint.Editor.Enemies
             try { EnemyValidationRunner.ValidateStage(999); }
             catch (ArgumentOutOfRangeException) { rejected = true; }
             Check(rejected && beforeStage == SessionState.GetInt("EnemyTools.Validation.Stage", 0) && beforeRunning == SessionState.GetBool("EnemyTools.Validation", false), "Invalid validation stage is rejected without modifying the editor session");
-            Check(EnemyValidationRunner.IsSupportedStage(181) && !EnemyValidationRunner.IsSupportedStage(132), "Only explicit validation stages are supported");
+            Check(EnemyValidationRunner.IsSupportedStage(181) && EnemyValidationRunner.IsSupportedStage(182) && !EnemyValidationRunner.IsSupportedStage(183) && EnemyValidationRunner.IsSupportedStage(184) && !EnemyValidationRunner.IsSupportedStage(132), "Only explicit validation stages are supported");
             string fixture = Path.Combine(Evidence, "debug-tool-reader-fixture.tmp");
             try
             {

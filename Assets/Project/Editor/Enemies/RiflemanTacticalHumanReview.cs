@@ -33,10 +33,11 @@ namespace Breachpoint.Editor.Enemies
                 "Cover — player rush / abandon", "Contact loss — shared search / timeout", "Navigation — narrow obstacle passage",
                 "Squad — suppressor casualty", "Death — during cover travel", "Lifecycle — reset and reuse",
                 "Stress — ten agents", "Stress — thirty agents", "Fallback — no useful tactical position"
-            }.Concat(CrouchDeathNames).Concat(MovingImpactNames).ToArray();
+            }.Concat(CrouchDeathNames).Concat(MovingImpactNames).Concat(HighCoverReviewNames).ToArray();
         }
         internal static string HumanTacticalPurpose(int index)
         {
+            if (index >= HighCoverReviewStart) return "High Cover: take cover, idle against the wall, leave, aim/fire outside the barrier and return. Includes interruption and reuse checks.";
             if (index >= 49) return "Moving fatal Hit: play the existing directional/stance Hit reaction, preserve travel inertia, then smoothly release every body into passive ragdoll.";
             if (index >= 32) return index < 38 ? "Controlled crouch entry and stop. Observe idle centering, feet, left hand and weapon through stance changes." : index <= 41 || index == 44 ? "Stationary lethal hit: physical muscles follow a directional death target, then fully relax." : "Moving lethal hit: existing Hit animation guides the dynamic body, preserving travel inertia, then every muscle releases into passive ragdoll.";
             if (index < 4) return "Controlled Combat locomotion: a long lateral move followed by an ordinary stop.";
@@ -47,7 +48,7 @@ namespace Breachpoint.Editor.Enemies
             if (index == 11) return "Controlled movement with real rifle fire: stationary fire → move/fire → stop/fire → immediate reposition.";
             return _tacticalPurposes[index - 12];
         }
-        internal static string HumanTacticalWatch(int index) => index >= 32 ? "Watch the close Game View: smooth stance, correct impact direction, no pose flash, no upward launch, attached weapon and natural settling." : index < 12
+        internal static string HumanTacticalWatch(int index) => index >= HighCoverReviewStart ? "Watch body alignment to the wall, entry/exit feet, actual muzzle clearance, protected idle and return after firing. Review left and right exposures separately." : index >= 32 ? "Watch the close Game View: smooth stance, correct impact direction, no pose flash, no upward launch, attached weapon and natural settling." : index < 12
             ? "Expect responsive direction, feet before obvious translation, matched cadence and a clean stop. Watch feet, body and muzzle in Game View."
             : _tacticalWatch[index - 12];
         private static readonly string[] _tacticalPurposes = {
@@ -108,11 +109,11 @@ namespace Breachpoint.Editor.Enemies
                     UnityEngine.Random.InitState(4700 + Mathf.Max(0,index-12));
                     AppendResult("HUMAN REVIEW: " + HumanTacticalNames[index]);
                     int tactical = index >= 32 ? -1 : index - 12;
-                    int count = tactical < 0 || tactical == 0 || tactical == 9 || tactical == 19 ? 1 : tactical == 2 || tactical == 3 || tactical == 14 ? 2 : tactical == 6 || tactical == 7 ? 4 : tactical == 17 ? 10 : tactical == 18 ? 30 : 3;
-                    using (var fixture = new RiflemanTacticalFixture(scope, world, count, "HumanReview", tactical == 2 || tactical == 3 || tactical == 14 ? 1 : 2, tactical == 10 ? 2 : -1))
+                    int count = index >= HighCoverReviewStart ? 1 : tactical < 0 || tactical == 0 || tactical == 9 || tactical == 19 ? 1 : tactical == 2 || tactical == 3 || tactical == 14 ? 2 : tactical == 6 || tactical == 7 ? 4 : tactical == 17 ? 10 : tactical == 18 ? 30 : 3;
+                    using (var fixture = new RiflemanTacticalFixture(scope, world, count, "HumanReview", tactical == 2 || tactical == 3 || tactical == 14 ? 1 : 2, tactical == 10 ? 2 : index == HighCoverReviewStart + 1 ? 0 : -1))
                     {
                         TacticalReviewBrain = fixture.Brains[0];
-                        IEnumerator review = index >= 49 ? HumanMovingImpact(index-49,fixture,camera) : index >= 32 ? HumanCrouchDeath(index-32,fixture) : index < 12 ? HumanCombatMotion(index, fixture) : TacticalCase(tactical, fixture, world);
+                        IEnumerator review = index >= HighCoverReviewStart ? HumanHighCover(index - HighCoverReviewStart, fixture, camera) : index >= 49 ? HumanMovingImpact(index-49,fixture,camera) : index >= 32 ? HumanCrouchDeath(index-32,fixture) : index < 12 ? HumanCombatMotion(index, fixture) : TacticalCase(tactical, fixture, world);
                         try
                         {
                             while ((focusedChecks || revision == SessionState.GetInt(TacticalReviewKey + ".Revision", 0)) && review.MoveNext())

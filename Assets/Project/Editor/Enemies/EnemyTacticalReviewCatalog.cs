@@ -6,15 +6,15 @@ namespace Breachpoint.Editor.Enemies
     // Global scenario IDs remain stable for automation; the UI displays focused groups.
     internal static class EnemyTacticalReviewCatalog
     {
-        internal static readonly string[] GroupNames = { "Combat movement", "Tactical AI", "Crouch transitions", "Stationary death", "Moving Hit / death" };
+        internal static readonly string[] GroupNames = { "Combat movement", "Tactical AI", "Crouch transitions", "Stationary death", "Moving Hit / death", "High Cover" };
         internal static readonly int[][] Cases = BuildCases();
         internal static readonly string[][] Names = BuildNames();
 
         private static int[][] BuildCases()
         {
             var moving = new List<int> { 42, 43 };
-            for (int index = 45; index < EnemyValidationRunner.HumanTacticalNames.Length; index++) moving.Add(index);
-            return new[] { Range(0, 12), Range(12, 20), Range(32, 6), new[] { 38, 39, 40, 41, 44 }, moving.ToArray() };
+            for (int index = 45; index < EnemyValidationRunner.HighCoverReviewStart; index++) moving.Add(index);
+            return new[] { Range(0, 12), Range(12, 20), Range(32, 6), new[] { 38, 39, 40, 41, 44 }, moving.ToArray(), Range(EnemyValidationRunner.HighCoverReviewStart, EnemyValidationRunner.HighCoverReviewNames.Length) };
         }
         private static int[] Range(int start, int count)
         {

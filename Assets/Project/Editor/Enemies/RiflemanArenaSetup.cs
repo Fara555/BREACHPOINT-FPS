@@ -54,20 +54,46 @@ namespace Breachpoint.Editor.Enemies
                 var points = new List<EnemyCoverPoint>();
                 AddArenaPoint(group.transform, "Low north", EnemyCoverKind.Low, low, new Vector3(-7, 0, 2.9f), Vector3.back, null, points);
                 AddArenaPoint(group.transform, "Low south", EnemyCoverKind.Low, low, new Vector3(-7, 0, -2.9f), Vector3.forward, null, points);
-                AddArenaPoint(group.transform, "High north left", EnemyCoverKind.High, high, new Vector3(0, 0, 2.3f), Vector3.back, new Vector3(-4.4f, 0, 2.3f), points);
-                AddArenaPoint(group.transform, "High south left", EnemyCoverKind.High, high, new Vector3(0, 0, -0.3f), Vector3.forward, new Vector3(-4.4f, 0, -0.3f), points);
+                foreach (bool north in new[] { true, false })
+                    foreach (var side in new[] { EnemyHighCoverSide.Left, EnemyHighCoverSide.Right })
+                    {
+                        string name = "High " + (north ? "north " : "south ") + (side == EnemyHighCoverSide.Left ? "left" : "right");
+                        AddArenaPoint(group.transform, name, EnemyCoverKind.High, high, new Vector3(0, 0, north ? 2.3f : -.3f), north ? Vector3.back : Vector3.forward, Vector3.zero, points);
+                        var point = points[points.Count - 1];
+                        point.ConfigureHighEdge(high, side);
+                        FitHighCornerToNavMesh(point);
+                        point.transform.Find("Exposure").position = point.ExposurePosition;
+                    }
                 var serialized = new SerializedObject(scope);
                 var property = serialized.FindProperty("_coverPoints"); property.arraySize = points.Count;
                 for (int i = 0; i < points.Count; i++) property.GetArrayElementAtIndex(i).objectReferenceValue = points[i];
                 serialized.ApplyModifiedPropertiesWithoutUndo();
                 EditorSceneManager.MarkSceneDirty(scene);
                 if (!EditorSceneManager.SaveScene(scene)) throw new InvalidOperationException("EnemyArena save failed.");
-                File.WriteAllText(Evidence + "/arena-cover-setup.txt", "Added four local authored points for the two existing in-bounds barriers. GameLifetimeScope references all four. Existing geometry, actor placement, authored rigs, navigation data and other scene roots are preserved. No navigation rebake required.\n" + EnemyValidationRunner.ConsoleCounts());
+                File.WriteAllText(Evidence + "/arena-cover-setup.txt", "Wired two Low Cover points and four High Cover edge points (both sides on both faces). GameLifetimeScope references all six. Existing geometry, actor placement, authored rigs, navigation data and other scene roots are preserved. High Cover clearance is fitted to the existing baked NavMesh boundary. No navigation rebake required.\n" + EnemyValidationRunner.ConsoleCounts());
             }
             finally
             {
                 if (temporary) { EditorSceneManager.CloseScene(scene, true); EditorSceneManager.RestoreSceneManagerSetup(setup); }
             }
+        }
+        private static void FitHighCornerToNavMesh(EnemyCoverPoint point)
+        {
+            Vector3 goal = point.ProtectedPosition;
+            if (!UnityEngine.AI.NavMesh.SamplePosition(goal, out var hit, .6f, UnityEngine.AI.NavMesh.AllAreas))
+                throw new InvalidOperationException(point.name + ": no nearby baked navigation for High Cover.");
+            float awayFromWall = Vector3.Dot(goal - hit.position, point.Normal);
+            if (awayFromWall > .01f)
+            {
+                var serialized = new SerializedObject(point);
+                serialized.FindProperty("_wallClearance").floatValue += awayFromWall + .01f;
+                serialized.ApplyModifiedPropertiesWithoutUndo();
+            }
+            goal = point.ProtectedPosition;
+            if (!UnityEngine.AI.NavMesh.SamplePosition(goal, out hit, .6f, UnityEngine.AI.NavMesh.AllAreas) ||
+                Vector3.ProjectOnPlane(hit.position - goal, Vector3.up).magnitude > .08f)
+                throw new InvalidOperationException(point.name + ": the corner needs manual navigation/geometry authoring.");
+            point.transform.position = goal;
         }
         private static void AddArenaPoint(Transform parent, string name, EnemyCoverKind kind, Collider protection, Vector3 position, Vector3 normal, Vector3? exposurePosition, List<EnemyCoverPoint> points)
         {

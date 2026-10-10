@@ -17,8 +17,6 @@ namespace Breachpoint.Editor.Enemies
 {
     public static partial class EnemyValidationRunner
     {
-        [MenuItem("Breachpoint/Enemies/Animation Review/Diagnostics/Record movement synchronization trace")]
-        internal static void RunSynchronizationProbe() => ValidateStage(163);
 
         [MenuItem("Breachpoint/Enemies/Animation Review/Diagnostics/Record source 180 turns without rigs")]
         internal static void RunSourceTurnReview() => ValidateStage(166);
@@ -122,114 +120,6 @@ namespace Breachpoint.Editor.Enemies
                 }
             }
             File.WriteAllText(EnemyTools.Evidence + "/synchronization-curves.txt", report.ToString());
-        }
-
-        private static IEnumerator SynchronizationProbe(GameLifetimeScope scope, EnemyWorld world)
-        {
-            GameObject enemy;
-            using (LifetimeScope.EnqueueParent(scope)) enemy = Object.Instantiate(AssetDatabase.LoadAssetAtPath<GameObject>(RiflemanPath), AnimationStart, Quaternion.identity);
-            var player = new GameObject("Synchronization target"); player.layer = 6;
-            player.AddComponent<Health>().Configure(1000000f, false);
-            var target = player.AddComponent<PerceptionTarget>(); target.Initialize(world, Faction.Player);
-            yield return null;
-            var brain = enemy.GetComponent<EnemyBrain>(); brain.enabled = false;
-            var actor = enemy.GetComponent<EnemyActor>(); var bridge = enemy.GetComponent<EnemyAnimationBridge>(); var animator = bridge.Animator;
-            var foot = animator.GetBoneTransform(HumanBodyBones.LeftFoot); var otherFoot = animator.GetBoneTransform(HumanBodyBones.RightFoot);
-            var rows = new StringBuilder("Phase,Time,Tier,Requested,Limit,Actual,Raw,Smoothed,Stride,State,Normalized,Transition,Clip,EffectiveSpeed,WorldYaw,FootMotion,Horizontal,Vertical,Total,MovementPhase,AllowedSpeed,FootMotionDetected\n");
-            var report = new StringBuilder(DateTime.UtcNow.ToString("O") + "\n");
-            Vector3 lastFoot = Vector3.zero, lastOther = Vector3.zero; float nextSample = 0;
-            void Trace(string phase)
-            {
-                if (Time.time < nextSample) return; nextSample = Time.time + .02f;
-                var state = animator.GetCurrentAnimatorStateInfo(0); var clips = animator.GetCurrentAnimatorClipInfo(0);
-                string clip = clips.Length == 0 ? "None" : clips.OrderByDescending(c => c.weight).First().clip.name;
-                var left = enemy.transform.InverseTransformPoint(foot.position); var right = enemy.transform.InverseTransformPoint(otherFoot.position);
-                float feet = Vector3.Distance(lastFoot, left) + Vector3.Distance(lastOther, right); lastFoot = left; lastOther = right;
-                Vector3 direction = (target.AimPosition - actor.Muzzle.position).normalized;
-                float horizontal = Vector3.SignedAngle(Vector3.ProjectOnPlane(actor.Muzzle.forward, Vector3.up), Vector3.ProjectOnPlane(direction, Vector3.up), Vector3.up);
-                float vertical = Mathf.Asin(Mathf.Clamp(actor.Muzzle.forward.y, -1, 1)) * Mathf.Rad2Deg - Mathf.Asin(Mathf.Clamp(direction.y, -1, 1)) * Mathf.Rad2Deg;
-                rows.AppendLine(FormattableString.Invariant($"{phase},{Time.time:F4},{actor.Navigation.DesiredMovementTier},{actor.Navigation.RequestedWorldSpeed:F4},{actor.Navigation.DesiredSpeed:F4},{actor.Navigation.Velocity.magnitude:F4},{bridge.MoveSpeedRaw:F4},{bridge.MoveSpeedSmoothed:F4},{state.speedMultiplier:F4},{EnemyAnimationStateNames.Get(state.fullPathHash)},{state.normalizedTime:F4},{animator.IsInTransition(0)},{clip},{state.speed * state.speedMultiplier:F4},{enemy.transform.eulerAngles.y:F3},{feet:F5},{horizontal:F3},{vertical:F3},{bridge.MuzzleAimErrorDegrees:F3},{actor.Navigation.MovementPhase},{actor.Navigation.AllowedSpeed:F4},{bridge.FootMotionDetected}"));
-            }
-            try
-            {
-                foreach (var wait in WaitEnumerable(.6f)) yield return wait;
-                var goal = AnimationStart + Vector3.forward * 11;
-                float until = Time.time + 8f;
-                while (Time.time < until) { actor.Navigation.MoveTo(goal, EnemyMovePace.Walk, Time.time); Trace("SteadyCruise"); yield return null; }
-                actor.Navigation.RequestStop(); until = Time.time + 2.8f;
-                while (Time.time < until) { Trace("SteadyStop"); yield return null; }
-                actor.Navigation.StopAndClearFacing(); brain.ResetForSpawn(); brain.enabled = false; actor.Navigation.ResetAt(AnimationStart); enemy.transform.rotation = Quaternion.identity;
-                brain.States.Change(EnemyStateId.Combat, "deceleration trace"); foreach (var wait in WaitEnumerable(1.8f)) yield return wait;
-                foreach (var pace in new[] { EnemyMovePace.Walk, EnemyMovePace.Run, EnemyMovePace.Sprint, EnemyMovePace.Run, EnemyMovePace.Walk })
-                {
-                    until = Time.time + 1.2f;
-                    while (Time.time < until) { actor.Navigation.MoveTo(AnimationStart + Vector3.forward * 22, pace, Time.time); actor.Navigation.Face(enemy.transform.position + Vector3.forward * 20, Time.deltaTime); Trace("Ramp" + pace); yield return null; }
-                }
-                actor.Navigation.RequestStop(); until = Time.time + 1.2f; while (Time.time < until) { Trace("RampStop"); yield return null; }
-                foreach (bool crouch in new[] { false, true }) foreach (float angle in new[] { -175f, 175f })
-                {
-                    actor.Navigation.StopAndClearFacing(); brain.ResetForSpawn(); brain.enabled = false; actor.Navigation.ResetAt(AnimationStart); enemy.transform.rotation = Quaternion.identity;
-                    brain.States.Change(EnemyStateId.Combat, "left-right trace"); brain.Memory.Target = target; brain.Memory.Visible = brain.Memory.HasContact = true; player.transform.position = AnimationStart + Vector3.forward * 10; bridge.SetCrouching(crouch); foreach (var wait in WaitEnumerable(2.8f)) yield return wait;
-                    actor.Navigation.Face(enemy.transform.position + Quaternion.Euler(0, angle, 0) * Vector3.forward * 10, Time.deltaTime);
-                    until = Time.time + 3.5f; while (Time.time < until) { Trace((crouch ? "Crouch" : "Combat") + (angle < 0 ? "Left" : "Right")); yield return null; }
-                }
-                actor.Navigation.StopAndClearFacing(); brain.ResetForSpawn(); brain.enabled = false;
-                brain.States.Change(EnemyStateId.Combat, "vertical aim trace"); brain.Memory.Target = target; brain.Memory.Visible = brain.Memory.HasContact = true;
-                foreach (bool crouch in new[] { false, true }) foreach (float height in new[] { -1f, 0f, 1f }) foreach (float yaw in new[] { -25f, 0f, 25f })
-                {
-                    bridge.SetCrouching(crouch); until = Time.time + 1.5f;
-                    while (Time.time < until) { player.transform.position = enemy.transform.position + Quaternion.Euler(0, yaw, 0) * Vector3.forward * 10 + Vector3.up * height; actor.Navigation.Face(enemy.transform.position + Vector3.forward * 20, Time.deltaTime); if (Time.time > until - .2f) Trace("Aim" + (crouch ? "Crouch" : "Stand") + height + "Y" + yaw); yield return null; }
-                }
-                PlayCheck(true, "Recorded current synchronization, left/right turns and signed horizontal/vertical aim without changing production tuning");
-            }
-            finally { File.WriteAllText(EnemyTools.Evidence + "/synchronization-trace.csv", rows.ToString()); File.WriteAllText(EnemyTools.Evidence + "/synchronization-probe.txt", report.ToString()); Object.Destroy(enemy); Object.Destroy(player); }
-        }
-
-        private static IEnumerator SynchronizationSourceProbe(GameLifetimeScope scope)
-        {
-            GameObject enemy;
-            using (LifetimeScope.EnqueueParent(scope)) enemy = Object.Instantiate(AssetDatabase.LoadAssetAtPath<GameObject>(RiflemanPath), AnimationStart, Quaternion.identity);
-            yield return null;
-            enemy.GetComponent<EnemyBrain>().enabled = false;
-            var bridge = enemy.GetComponent<EnemyAnimationBridge>(); bridge.enabled = false;
-            enemy.GetComponent<EnemyRigPresenter>().enabled = false;
-            var animator = bridge.Animator; var rig = animator.GetComponent<RigBuilder>();
-            var controller = new AnimatorOverrideController(animator.runtimeAnimatorController);
-            var bones = PoseBones.Where(b => animator.GetBoneTransform(b) != null).ToArray();
-            var report = new StringBuilder(DateTime.UtcNow.ToString("O") + "\n");
-            var footRows = new StringBuilder("Clip,Seconds,LeftX,LeftY,LeftZ,RightX,RightY,RightZ,HipsX,HipsY,HipsZ,MaxBoneStep\n");
-            try
-            {
-                foreach (int mode in new[] { 0, 1, 2, 3 })
-                {
-                    rig.layers[0].active = (mode & 1) != 0; rig.layers[1].active = (mode & 2) != 0;
-                    IEnumerator pose = SampleSourcePose(animator, rig, controller, SourceClip("Rifle Idle"), .5f); while (pose.MoveNext()) yield return pose.Current;
-                    var before = bones.Select(b => animator.GetBoneTransform(b).rotation).ToArray();
-                    var muzzleBefore = enemy.GetComponent<EnemyActor>().Muzzle.rotation;
-                    pose = SampleSourcePose(animator, rig, controller, SourceClip("RifleRaise"), 0f); while (pose.MoveNext()) yield return pose.Current;
-                    report.AppendLine("READINESS mode=" + mode + " (None/Aim/Hand/Both)");
-                    for (int bone = 0; bone < bones.Length; bone++) report.AppendLine(FormattableString.Invariant($"  {bones[bone]} delta={Quaternion.Angle(before[bone], animator.GetBoneTransform(bones[bone]).rotation):F3}"));
-                    report.AppendLine(FormattableString.Invariant($"  Muzzle delta={Quaternion.Angle(muzzleBefore, enemy.GetComponent<EnemyActor>().Muzzle.rotation):F3}"));
-                }
-                rig.layers[0].active = rig.layers[1].active = false;
-                foreach (string name in new[] { "Rifle start walking", "Rifle stop walking", "Rifle Walk", "turn 180 left", "turn 180 right", "crouching turn 180 left", "crouching turn 180 right" })
-                {
-                    var clip = SourceClip(name); Quaternion[] previous = null; float maximum = 0, at = 0;
-                    for (int frame = 0; frame <= 60; frame++)
-                    {
-                        IEnumerator pose = SampleSourcePose(animator, rig, controller, clip, frame / 60f); while (pose.MoveNext()) yield return pose.Current;
-                        var rotations = bones.Select(b => animator.GetBoneTransform(b).rotation).ToArray();
-                        float step = previous == null ? 0 : rotations.Select((q, i) => Quaternion.Angle(previous[i], q)).Max();
-                        if (step > maximum) { maximum = step; at = clip.length * frame / 60f; }
-                        previous = rotations;
-                        Vector3 left = enemy.transform.InverseTransformPoint(animator.GetBoneTransform(HumanBodyBones.LeftFoot).position), right = enemy.transform.InverseTransformPoint(animator.GetBoneTransform(HumanBodyBones.RightFoot).position), hips = enemy.transform.InverseTransformPoint(animator.GetBoneTransform(HumanBodyBones.Hips).position);
-                        footRows.AppendLine(FormattableString.Invariant($"{name},{clip.length * frame / 60f:F4},{left.x:F4},{left.y:F4},{left.z:F4},{right.x:F4},{right.y:F4},{right.z:F4},{hips.x:F4},{hips.y:F4},{hips.z:F4},{step:F4}"));
-                    }
-                    report.AppendLine(FormattableString.Invariant($"SOURCE {name} length={clip.length:F4} maxBoneStep={maximum:F3} at={at:F4}"));
-                }
-                PlayCheck(true, "Compared readiness in all four authored rig modes and measured source foot phases and left/right continuity");
-            }
-            finally { File.WriteAllText(EnemyTools.Evidence + "/synchronization-source.txt", report.ToString()); File.WriteAllText(EnemyTools.Evidence + "/synchronization-feet.csv", footRows.ToString()); rig.Clear(); Object.Destroy(enemy); Object.Destroy(controller); }
         }
 
         private static IEnumerator SynchronizationTests(GameLifetimeScope scope, EnemyWorld world)

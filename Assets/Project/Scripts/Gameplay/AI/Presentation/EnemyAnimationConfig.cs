@@ -72,6 +72,11 @@ namespace Breachpoint.Gameplay.AI
         [field: SerializeField] public Vector4 CrouchTurnDurations { get; private set; } = new Vector4(1.266667f, 1.233333f, 1.433333f, 1.233333f);
         [field: SerializeField, Min(0f)] public float AimSmoothing { get; private set; } = 12f;
         [field: SerializeField, Min(0.1f)] public float RestAimDistance { get; private set; } = 8f;
+        [field: SerializeField, Min(.1f), Tooltip("Authored High Cover entry length. Navigation owns the final approach.")] public float HighCoverTakeDuration { get; private set; } = 2.266667f;
+        [field: SerializeField, Min(.1f)] public float HighCoverLeaveDuration { get; private set; } = .9333334f;
+        [field: SerializeField, Min(.1f)] public float HighCoverEntryDistance { get; private set; } = 1.35f;
+        [field: SerializeField, Min(.1f)] public float HighCoverEntrySpeed { get; private set; } = .65f;
+        [field: SerializeField, Min(.1f)] public float HighCoverExitSpeed { get; private set; } = .9f;
         [field: SerializeField, Min(0f)] public float FireHoldDuration { get; private set; } = 0.18f;
     }
 

@@ -81,6 +81,7 @@ namespace Breachpoint.Editor.Enemies
             AssetDatabase.SaveAssetIfDirty(_controller); AssetDatabase.SaveAssetIfDirty(mask);
             AssetDatabase.ImportAsset(EnemyTools.ControllerPath);
             WriteTurnProfiles();
+            RiflemanHighCoverAuthoring.Connect();
             EnemyTools.Audit();
         }
 

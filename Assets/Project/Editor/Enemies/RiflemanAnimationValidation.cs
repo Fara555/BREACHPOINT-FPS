@@ -368,7 +368,9 @@ namespace Breachpoint.Editor.Enemies
                         else
                         {
                             foreach (var wait in WaitEnumerable(bridge.Config.ActionBlendIn + .04f)) yield return wait;
-                            PlayCheck(animator.GetCurrentAnimatorStateInfo(2).IsTag("Fire") && animator.GetLayerWeight(2) > 0f, "Real firing selects fire action while locomotion remains on base layer | current=" + EnemyAnimationStateNames.Get(animator.GetCurrentAnimatorStateInfo(2).fullPathHash) + " | next=" + EnemyAnimationStateNames.Get(animator.GetNextAnimatorStateInfo(2).fullPathHash) + " | transition=" + animator.IsInTransition(2) + " | weight=" + animator.GetLayerWeight(2) + " | firing=" + animator.GetBool("IsFiring") + " | dt=" + Time.deltaTime);
+                            // A positively evaluated incoming Fire blend already contributes
+                            // recoil. Keep the same deadline; a merely queued state cannot pass.
+                            PlayCheck(HasActionPose(animator, "Fire", 2) && animator.GetLayerWeight(2) > 0f, "Real firing selects fire action while locomotion remains on base layer | current=" + EnemyAnimationStateNames.Get(animator.GetCurrentAnimatorStateInfo(2).fullPathHash) + " | next=" + EnemyAnimationStateNames.Get(animator.GetNextAnimatorStateInfo(2).fullPathHash) + " | transition=" + animator.IsInTransition(2) + " | weight=" + animator.GetLayerWeight(2) + " | firing=" + animator.GetBool("IsFiring") + " | progress=" + animator.GetAnimatorTransitionInfo(2).normalizedTime + " | dt=" + Time.deltaTime);
                             actor.Navigation.Stop(); foreach (var wait in WaitEnumerable(0.4f)) yield return wait;
                             PlayCheck(StateMatches(animator, "None", 2), "Fire action stops shortly after gameplay shot");
                         }

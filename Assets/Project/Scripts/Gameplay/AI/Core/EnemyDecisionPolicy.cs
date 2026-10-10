@@ -13,7 +13,7 @@ namespace Breachpoint.Gameplay.AI
                 reason = inRange ? "visible target in range" : "visible target out of range";
                 return inRange ? EnemyStateId.Combat : EnemyStateId.Chase;
             }
-            if (b.HasContact && c.Now - b.LastSeenTime <= c.Config.Perception.MemoryDuration)
+            if (b.HasContact && c.Now - b.LastSeenTime <= (c.Tactics != null ? c.Tactics.ContactMemoryDuration : c.Config.Perception.MemoryDuration))
             { reason = "last known target position"; return EnemyStateId.Chase; }
             if (b.HasContact) { reason = "contact lost"; return EnemyStateId.Search; }
             if (b.HasNoise && c.Now - b.NoiseTime <= c.Config.Decision.InvestigateDuration)

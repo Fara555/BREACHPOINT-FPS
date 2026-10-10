@@ -11,7 +11,7 @@ namespace Breachpoint.Gameplay.AI
         private static Dictionary<int, string> Build()
         {
             var names = new Dictionary<int, string>();
-            foreach (string state in new[] { "SteadyIdle", "SteadyStartWalk", "SteadyWalk", "SteadyStopWalk", "StandingLocomotion", "CrouchLocomotion", "RaiseWeapon", "LowerWeapon", "StandingToCrouch", "CrouchToStanding", "Death", "CrouchDeath" })
+            foreach (string state in new[] { "SteadyIdle", "SteadyStartWalk", "SteadyWalk", "SteadyStopWalk", "StandingLocomotion", "CrouchLocomotion", "RaiseWeapon", "LowerWeapon", "StandingToCrouch", "CrouchToStanding", "Death", "CrouchDeath", "TakingHighCover", "HighCoverIdle", "LeavingHighCover" })
                 names.Add(Animator.StringToHash("Base Layer." + state), "Base Layer/" + state);
             foreach (string mode in new[] { "Steady", "Combat", "Crouch" })
                 foreach (string turn in new[] { "Turn90Left", "Turn90Right", "Turn180Left", "Turn180Right" })

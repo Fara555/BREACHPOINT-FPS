@@ -7,7 +7,10 @@ namespace Breachpoint.Gameplay.AI
     public sealed class EnemyAnimationBridge : MonoBehaviour
     {
         private const float CombatLocomotionReadyBlend = .25f;
-        private enum Parameter { MoveSpeed, MoveX, MoveY, IsCombat, IsCrouching, IsFiring, IsReloading, IsHit, IsDead, HitDirection, ReloadSpeed, Turn90Left, Turn90Right, Turn180Left, Turn180Right, Hit, Speed, Dead, Reloading, Attack, SteadyStride, CombatStride, CrouchStride }
+        private const float HighCoverExitAimStart = .55f;
+        private const float HighCoverExitAimReady = .9f;
+        private const float HighCoverExitStandAt = .95f;
+        private enum Parameter { MoveSpeed, MoveX, MoveY, IsCombat, IsCrouching, IsFiring, IsReloading, IsHit, IsDead, HitDirection, ReloadSpeed, Turn90Left, Turn90Right, Turn180Left, Turn180Right, Hit, Speed, Dead, Reloading, Attack, SteadyStride, CombatStride, CrouchStride, HighCoverPhase, HighCoverMirror, HighCoverSide }
         private static readonly int[] Hashes = CreateHashes();
         [SerializeField] private Animator _animator;
         [SerializeField] private Transform _aimTarget;
@@ -53,6 +56,29 @@ namespace Breachpoint.Gameplay.AI
         public float MuzzleAimErrorDegrees => _aimTarget == null || _actor == null ? 0f : Vector3.Angle(_actor.Muzzle.forward, _aimTarget.position - _actor.Muzzle.position);
         public float HorizontalMuzzleErrorDegrees => _aimTarget == null || _actor == null ? 0f : Vector3.SignedAngle(Vector3.ProjectOnPlane(_actor.Muzzle.forward, Vector3.up), Vector3.ProjectOnPlane(_aimTarget.position - _actor.Muzzle.position, Vector3.up), Vector3.up);
         public float VerticalMuzzleErrorDegrees => _aimTarget == null || _actor == null ? 0f : Mathf.Asin(Mathf.Clamp(_actor.Muzzle.forward.y, -1f, 1f)) * Mathf.Rad2Deg - Mathf.Asin(Mathf.Clamp((_aimTarget.position - _actor.Muzzle.position).normalized.y, -1f, 1f)) * Mathf.Rad2Deg;
+        public bool SupportsHighCover => _bound && Has(Parameter.HighCoverPhase) &&
+            _animator.HasState(0, UnityEngine.Animator.StringToHash("Base Layer.TakingHighCover")) &&
+            _animator.HasState(0, UnityEngine.Animator.StringToHash("Base Layer.HighCoverIdle")) &&
+            _animator.HasState(0, UnityEngine.Animator.StringToHash("Base Layer.LeavingHighCover"));
+        public bool IsHighCoverPose => _animator != null && (_animator.GetCurrentAnimatorStateInfo(0).IsTag("HighCover") ||
+            _animator.IsInTransition(0) && _animator.GetNextAnimatorStateInfo(0).IsTag("HighCover"));
+        public bool HighCoverActionComplete(bool taking)
+        {
+            if (!SupportsHighCover || !_animator.enabled) return true;
+            var state = _animator.GetCurrentAnimatorStateInfo(0);
+            return !_animator.IsInTransition(0) && state.IsName(taking ? "TakingHighCover" : "LeavingHighCover") && state.normalizedTime >= .95f;
+        }
+        public float HighCoverExitProgress
+        {
+            get
+            {
+                if (_animator == null) return 0f;
+                var state = _animator.GetCurrentAnimatorStateInfo(0);
+                if (state.IsName("LeavingHighCover")) return Mathf.Clamp01(state.normalizedTime);
+                var next = _animator.GetNextAnimatorStateInfo(0);
+                return _animator.IsInTransition(0) && next.IsName("LeavingHighCover") ? Mathf.Clamp01(next.normalizedTime) : 0f;
+            }
+        }
         public bool IsRaising => _animator != null && (_animator.GetCurrentAnimatorStateInfo(0).IsName("RaiseWeapon") || _animator.IsInTransition(0) && _animator.GetNextAnimatorStateInfo(0).IsName("RaiseWeapon"));
         public float AimPresentationWeight
         {
@@ -71,6 +97,7 @@ namespace Breachpoint.Gameplay.AI
         public float SprintPoseWeight => !IsCrouching && _animator != null && _animator.GetCurrentAnimatorStateInfo(0).IsName("StandingLocomotion") ? Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(_config.RunThreshold, _config.SprintThreshold, MoveSpeedSmoothed)) : 0f;
         private float AimStateWeight(AnimatorStateInfo state)
         {
+            if (state.IsName("LeavingHighCover")) return Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(HighCoverExitAimStart, HighCoverExitAimReady, state.normalizedTime));
             if (state.IsName("RaiseWeapon")) return _config.RaiseAimAt(state.normalizedTime);
             if (state.IsName("CombatTurn180Left")) return _config.LeftTurnAimAt(state.normalizedTime);
             return state.IsName("StandingLocomotion") || state.IsName("CrouchLocomotion") || state.IsTag("Turn") ? 1f : 0f;
@@ -129,6 +156,15 @@ namespace Breachpoint.Gameplay.AI
                 MoveSpeedRaw = Mathf.Max(MoveSpeedRaw, _config.WalkThreshold * _config.CombatStartBlend);
             bool steadyStop = _navigation.DesiredMovementTier == EnemyMovementTier.Steady && _navigation.MovementPhase == EnemyMovementPhase.Stopping;
             if (steadyStop) MoveSpeedRaw = MoveSpeedSmoothed = 0f;
+            var movementState = _animator.GetCurrentAnimatorStateInfo(0);
+            bool coverStepStopped = movementState.IsName("LeavingHighCover") && movementState.normalizedTime >= HighCoverExitStandAt && speed <= _config.StationarySpeed;
+            if (coverStepStopped)
+            {
+                // The one-shot step has planted and stopped. Its smoothed speed
+                // must not create a phantom walking pose in the outgoing blend.
+                MoveSpeedRaw = MoveSpeedSmoothed = 0f;
+                MoveDirectionRaw = MoveDirectionSmoothed = Vector2.zero;
+            }
             float damping = MoveSpeedRaw > MoveSpeedSmoothed ? _config.MoveSpeedAccelerationDamp : _config.MoveSpeedDecelerationDamp;
             MoveSpeedSmoothed = Mathf.Lerp(MoveSpeedSmoothed, MoveSpeedRaw, 1f - Mathf.Exp(-Time.deltaTime / Mathf.Max(.01f, damping)));
             if (!_navigation.HasMovementRequest && MoveSpeedSmoothed < .002f) MoveSpeedSmoothed = 0f;
@@ -149,20 +185,31 @@ namespace Breachpoint.Gameplay.AI
             // Stance intent can change before the evaluated crouch pose has blended out.
             // Keep that tree centered at rest throughout entry and exit, even if AI
             // requests exposure while StandingToCrouch is still finishing.
-            var baseState = _animator.GetCurrentAnimatorStateInfo(0);
+            var baseState = movementState;
             var nextBaseState = _animator.GetNextAnimatorStateInfo(0);
             bool crouchPose = IsCrouching || UsesCrouchDirection(baseState) ||
                 _animator.IsInTransition(0) && UsesCrouchDirection(nextBaseState);
             float directionWeight = crouchPose ? Mathf.Clamp01(MoveSpeedSmoothed / _config.WalkThreshold) : 1f;
             Float(Parameter.MoveX, MoveDirectionSmoothed.x * directionWeight, 0f);
             Float(Parameter.MoveY, MoveDirectionSmoothed.y * directionWeight, 0f);
+            if (Has(Parameter.HighCoverPhase))
+            {
+                var tactics = _brain.Tactics;
+                bool high = tactics != null && tactics.CurrentCover != null && tactics.CurrentCover.Kind == EnemyCoverKind.High;
+                int phase = high ? tactics.CoverPhase == EnemyCoverActionPhase.TakingHighCover ? 1 :
+                    tactics.CoverPhase == EnemyCoverActionPhase.Protected ? 2 : tactics.CoverPhase == EnemyCoverActionPhase.LeavingHighCover ? 3 : 0 : 0;
+                _animator.SetInteger(Hashes[(int)Parameter.HighCoverPhase], phase);
+                bool right = high && tactics.CurrentCover.ExposesRight;
+                Bool(Parameter.HighCoverMirror, right);
+                Float(Parameter.HighCoverSide, right ? 1f : 0f, 0f);
+            }
             Bool(Parameter.IsCombat, _brain.States.Group != EnemyStateGroup.Passive || IsCrouching);
             Bool(Parameter.IsCrouching, IsCrouching);
             Bool(Parameter.IsFiring, !_brain.Combat.IsReloading && Time.time < _fireUntil);
             Bool(Parameter.IsReloading, _brain.Combat.IsReloading); Bool(Parameter.Reloading, _brain.Combat.IsReloading);
             Bool(Parameter.IsHit, IsHit);
             Float(Parameter.ReloadSpeed, 1f / Mathf.Max(0.01f, _brain.Config.Combat.ReloadDuration), 0f);
-            if (speed > _config.StationarySpeed || IsHit || _brain.Combat.IsReloading)
+            if (speed > _config.StationarySpeed || IsHit || _brain.Combat.IsReloading || IsHighCoverPose)
             { ClearTurnTriggers(); _navigation.CancelTurn(); CurrentTurn = null; _pendingTurn = Vector3.zero; }
             else if (!_navigation.IsTurning) CurrentTurn = null;
             if (_pendingTurn.sqrMagnitude > 0f)
@@ -209,7 +256,7 @@ namespace Breachpoint.Gameplay.AI
         }
         private void PresentTurn(Vector3 direction)
         {
-            if (!_bound || !_modern || _navigation.IsTurning || _navigation.Velocity.sqrMagnitude > _config.StationarySpeed * _config.StationarySpeed) return;
+            if (!_bound || !_modern || IsHighCoverPose || _navigation.IsTurning || _navigation.Velocity.sqrMagnitude > _config.StationarySpeed * _config.StationarySpeed) return;
             float angle = Vector3.SignedAngle(transform.forward, direction, Vector3.up);
             if (Mathf.Abs(angle) < _config.Turn90Angle)
             {
@@ -282,7 +329,7 @@ namespace Breachpoint.Gameplay.AI
         {
             if (!_bound || !_modern || !_animator.enabled) return;
             var current = _animator.GetCurrentAnimatorStateInfo(0);
-            bool ready = current.IsName("StandingLocomotion") || current.IsName("CrouchLocomotion") || current.IsTag("Turn") && _brain.States.Group != EnemyStateGroup.Passive;
+            bool ready = current.IsTag("HighCover") || current.IsName("StandingLocomotion") || current.IsName("CrouchLocomotion") || current.IsTag("Turn") && _brain.States.Group != EnemyStateGroup.Passive;
             if (_animator.IsInTransition(0) && _animator.GetNextAnimatorStateInfo(0).IsName("StandingLocomotion"))
                 ready |= _animator.GetAnimatorTransitionInfo(0).normalizedTime >= CombatLocomotionReadyBlend;
             _navigation.SetCombatMovementReady(ready);
@@ -383,6 +430,9 @@ namespace Breachpoint.Gameplay.AI
             if (_modern)
             {
                 for (int layer = 1; layer < _animator.layerCount; layer++) _animator.SetLayerWeight(layer, 0f);
+                if (Has(Parameter.HighCoverPhase)) _animator.SetInteger(Hashes[(int)Parameter.HighCoverPhase], 0);
+                Bool(Parameter.HighCoverMirror, false);
+                Float(Parameter.HighCoverSide, 0f, 0f);
                 Bool(Parameter.IsCombat, _brain.States.Group != EnemyStateGroup.Passive);
                 _animator.Play("Base Layer.SteadyIdle", 0, 0f); _animator.Play("Actions.None", 1, 0f); if (_animator.layerCount > 2) _animator.Play("Recoil.None", 2, 0f);
             }

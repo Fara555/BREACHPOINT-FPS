@@ -48,25 +48,34 @@ namespace Breachpoint.Editor.Enemies
                     var brain = TacticalReviewBrain;
                     if (brain == null || brain.GetEntityId().ToString() == _previousReviewEntity) return;
                     PlayCheck(HumanTacticalIndex == 49 && !HumanTacticalRepeating, "Changing review category replaces the live fixture and clears Repeat");
-                    SessionState.SetFloat("EnemyTools.Review.TimeScale", .5f);
-                    _humanControlAfter = now + .15;
+                    _previousReviewEntity = brain.GetEntityId().ToString();
+                    RunHumanTacticalReview(HighCoverReviewStart, false);
                     _humanControlPhase = 2;
                 }
-                else if (_humanControlPhase == 2 && now >= _humanControlAfter)
+                else if (_humanControlPhase == 2)
                 {
-                    PlayCheck(Mathf.Approximately(Time.timeScale, .5f), "Tactical review applies slow playback");
-                    SessionState.SetBool("EnemyTools.Review.Paused", true);
+                    var brain = TacticalReviewBrain;
+                    if (brain == null || brain.GetEntityId().ToString() == _previousReviewEntity) return;
+                    PlayCheck(HumanTacticalIndex == HighCoverReviewStart, "High Cover category replaces the live fixture without changing previous scenario IDs");
+                    SessionState.SetFloat("EnemyTools.Review.TimeScale", .5f);
                     _humanControlAfter = now + .15;
                     _humanControlPhase = 3;
                 }
                 else if (_humanControlPhase == 3 && now >= _humanControlAfter)
                 {
-                    PlayCheck(Time.timeScale == 0f, "Tactical review uses the owned pause clock");
-                    _pausedHumanTime = Time.time;
+                    PlayCheck(Mathf.Approximately(Time.timeScale, .5f), "Tactical review applies slow playback");
+                    SessionState.SetBool("EnemyTools.Review.Paused", true);
                     _humanControlAfter = now + .15;
                     _humanControlPhase = 4;
                 }
                 else if (_humanControlPhase == 4 && now >= _humanControlAfter)
+                {
+                    PlayCheck(Time.timeScale == 0f, "Tactical review uses the owned pause clock");
+                    _pausedHumanTime = Time.time;
+                    _humanControlAfter = now + .15;
+                    _humanControlPhase = 5;
+                }
+                else if (_humanControlPhase == 5 && now >= _humanControlAfter)
                 {
                     PlayCheck(Mathf.Approximately(Time.time, _pausedHumanTime), "Paused review does not advance simulation time");
                     SessionState.SetBool("EnemyTools.Review.Paused", false);

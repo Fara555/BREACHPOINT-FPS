@@ -340,6 +340,7 @@ namespace Breachpoint.Editor.Enemies
 
         private void OnGUI()
         {
+            if (GUILayout.Button("High Cover animation / gameplay review")) EnemyTacticalDebugWindow.OpenHighCoverReview();
             _scenario = Mathf.Clamp(_scenario, 0, EnemyValidationRunner.ReviewNames.Length - 1);
             _scroll = EditorGUILayout.BeginScrollView(_scroll);
             EditorGUILayout.HelpBox("Continuous Game View playback. Inspect pose transitions, elbows, foot motion and body facing at both speeds. Mechanical PASS does not certify visual quality.", MessageType.Info);
@@ -366,19 +367,8 @@ namespace Breachpoint.Editor.Enemies
             using (new EditorGUI.DisabledScope(EditorApplication.isPlayingOrWillChangePlaymode || EditorApplication.isCompiling || EditorApplication.isUpdating))
             {
                 if (GUILayout.Button("Run selected loop")) EnemyValidationRunner.RunReview(_scenario, true);
-                if (GUILayout.Button("Record synchronization trace")) EnemyValidationRunner.RunSynchronizationProbe();
             }
-            using (new EditorGUI.DisabledScope(!File.Exists(EnemyTools.Evidence + "/synchronization-trace.csv")))
-                if (GUILayout.Button("Show latest synchronization trace")) EditorUtility.RevealInFinder(EnemyTools.Evidence + "/synchronization-trace.csv");
-            _advanced = EditorGUILayout.Foldout(_advanced, "Advanced diagnostics / previous production cases");
-            if (_advanced)
-            {
-                using (new EditorGUI.DisabledScope(EditorApplication.isPlayingOrWillChangePlaymode || EditorApplication.isCompiling || EditorApplication.isUpdating))
-                {
-                    if (GUILayout.Button("Record source Steady / Sprint / Left-Right comparison")) EnemyValidationRunner.ValidateStage(167);
-                    if (GUILayout.Button("Record five rig modes / Raise / Steady")) { SessionState.SetString("EnemyTools.Final.Label", "review"); EnemyValidationRunner.ValidateStage(168); }
-                }
-            }
+            _advanced = EditorGUILayout.Foldout(_advanced, "All animation scenarios");
             using (new EditorGUI.DisabledScope(!owned))
             {
                 bool paused = SessionState.GetBool("EnemyTools.Review.Paused", false);

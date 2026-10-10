@@ -38,15 +38,17 @@ namespace Breachpoint.Editor.Enemies
             try
             {
                 Directory.CreateDirectory(Evidence);
-                if (command.StartsWith("crouch-probe-", StringComparison.Ordinal)) { SessionState.SetString("EnemyTools.CrouchDeath.Label", command.Substring(13)); EnemyValidationRunner.ValidateStage(175); }
-                else if (command.StartsWith("death-probe-", StringComparison.Ordinal)) { SessionState.SetString("EnemyTools.CrouchDeath.Label", command.Substring(12)); EnemyValidationRunner.ValidateStage(176); }
-                else if (command.StartsWith("crouch-death-capture:",StringComparison.Ordinal))
+                if (command.StartsWith("crouch-death-capture:",StringComparison.Ordinal))
                 {
                     EnemyValidationRunner.RunHumanTacticalReview(int.Parse(command.Substring("crouch-death-capture:".Length)),false);
                     SessionState.SetBool("EnemyTools.CrouchDeath.Capture",true);
                 }
                 else if (command == "active-death-settings") ConfigureActiveDeath();
                 else if (command.StartsWith("death-tracking-", StringComparison.Ordinal)) { SessionState.SetString("EnemyTools.DeathTracking.Label", command.Substring(15)); EnemyValidationRunner.ValidateStage(180); }
+                else if (command == "high-cover-height") RiflemanHighCoverHeightAuthoring.Stabilize();
+                else if (command == "high-cover-calibrate") EnemyValidationRunner.ValidateStage(184);
+                else if (command == "high-cover-contact-connect") RiflemanHighCoverAuthoring.ConnectContact();
+                else if (command == "high-cover-test") EnemyValidationRunner.ValidateStage(182);
                 else if (command == "moving-impact-tests") EnemyValidationRunner.ValidateStage(181);
                 else if (command == "editor-tools-test") ValidateEditorTools();
                 else if (command == "human-review-control-test") EnemyValidationRunner.ValidateHumanReviewControls();
@@ -61,21 +63,17 @@ namespace Breachpoint.Editor.Enemies
                 else if (command == "strafe-review-tests") EnemyValidationRunner.ValidateStage(174);
                 else if (command.StartsWith("tactical-review-repeat:", StringComparison.Ordinal)) EnemyValidationRunner.RunHumanTacticalReview(int.Parse(command.Substring(23)), true);
                 else if (command.StartsWith("tactical-review:", StringComparison.Ordinal)) EnemyValidationRunner.RunHumanTacticalReview(int.Parse(command.Substring(16)), false);
-                else if (command == "strafe-audit") EnemyValidationRunner.AuditCombatStrafe();
-                else if (command.StartsWith("strafe-probe-", StringComparison.Ordinal)) { SessionState.SetString("EnemyTools.Strafe.Label", command.Substring(13)); SessionState.SetBool("EnemyTools.Strafe.Acceptance", command.Substring(13) != "before"); EnemyValidationRunner.ValidateStage(171); }
                 else if (command == "final-short-review") EnemyValidationRunner.ValidateStage(170);
                 else if (command == "final-review") EnemyValidationRunner.ValidateStage(169);
-                else if (command == "final-source") EnemyValidationRunner.ValidateStage(167);
-                else if (command.StartsWith("final-probe-", StringComparison.Ordinal)) { SessionState.SetString("EnemyTools.Final.Label", command.Substring(12)); EnemyValidationRunner.ValidateStage(168); }
                 else if (command == "sync-source-review") EnemyValidationRunner.RunSourceTurnReview();
                 else if (command == "sync-test") EnemyValidationRunner.ValidateStage(165);
-                else if (command == "sync-source") EnemyValidationRunner.ValidateStage(164);
                 else if (command == "sync-curves") EnemyValidationRunner.AuditSynchronizationCurves();
-                else if (command == "sync-probe") EnemyValidationRunner.ValidateStage(163);
-                else if (command == "steady-start-test") EnemyValidationRunner.ValidateStage(162);
                 else if (command == "steady-mapping") RiflemanAnimatorBuilder.RefreshSteadyMapping();
                 else if (command == "movement-polish-test") EnemyValidationRunner.ValidateStage(161);
-                else if (command == "movement-pose-audit") EnemyValidationRunner.ValidateStage(160);
+                else if (command == "high-cover-exit-duration") RiflemanHighCoverExitAuthoring.ApplyExitDuration();
+                else if (command == "high-cover-exit-polish") RiflemanHighCoverExitAuthoring.PolishExit();
+                else if (command == "high-cover-connect") RiflemanHighCoverAuthoring.Connect();
+                else if (command == "high-cover-source") RiflemanHighCoverAuthoring.InspectSources();
                 else if (command == "audit") Audit();
                 else if (command == "pose-test") EnemyValidationRunner.CompareSourcePoses();
                 else if (command == "math") EnemyValidationRunner.ValidateMath();

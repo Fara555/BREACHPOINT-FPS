@@ -102,13 +102,14 @@ namespace Breachpoint.Editor.Enemies
                 ReturnedProtectedAfterShot |= _shotCover[index] != null && tactics.CurrentCover == _shotCover[index] && tactics.CoverPhase == EnemyCoverActionPhase.Protected && Vector3.Distance(brain.transform.position, tactics.CurrentCover.ProtectedPosition) <= .8f && (tactics.CurrentCover.Kind == EnemyCoverKind.High || brain.GetComponent<EnemyStance>().IsCrouching);
             }
         }
-        public EnemyCoverPoint AddCover(EnemyCoverKind kind, float x, float z)
+        public EnemyCoverPoint AddCover(EnemyCoverKind kind, float x, float z, EnemyHighCoverSide side = EnemyHighCoverSide.Right)
         {
             var obstacle = Wall(new Vector3(x, kind == EnemyCoverKind.Low ? 0.625f : 1.5f, z + 0.9f), new Vector3(2f, kind == EnemyCoverKind.Low ? 1.25f : 3f, 0.6f), false);
             var pointObject = new GameObject(kind + " protected point"); pointObject.transform.SetParent(Root.transform); pointObject.transform.position = new Vector3(x,0,z);
             Transform exposure = null;
             if (kind == EnemyCoverKind.High) { var exposed = new GameObject("High exposure point"); exposed.transform.SetParent(Root.transform); exposed.transform.position = new Vector3(x + 3.2f,0,z); exposure = exposed.transform; }
-            var point = pointObject.AddComponent<EnemyCoverPoint>(); point.Configure(kind, obstacle.GetComponent<Collider>(), exposure); _points.Add(point); Covers.Register(point); return point;
+            var point = pointObject.AddComponent<EnemyCoverPoint>(); point.Configure(kind, obstacle.GetComponent<Collider>(), exposure); if (kind == EnemyCoverKind.High) { point.ConfigureHighEdge(obstacle.GetComponent<Collider>(),side); exposure.position = point.ExposurePosition; }
+            _points.Add(point); Covers.Register(point); return point;
         }
         public GameObject Wall(Vector3 position, Vector3 scale, bool carve)
         {

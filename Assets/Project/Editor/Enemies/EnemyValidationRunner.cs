@@ -20,7 +20,7 @@ namespace Breachpoint.Editor.Enemies
         private const string RunningKey = "EnemyTools.Validation";
         private const string ScenesKey = RunningKey + ".Scenes";
         private const string StageKey = RunningKey + ".Stage";
-        private static readonly HashSet<int> SupportedStages = new HashSet<int> { 50, 60, 70, 80, 90, 100, 110, 120, 130, 131, 150, 151, 152, 160, 161, 162, 163, 164, 165, 166, 167, 168, 169, 170, 171, 173, 174, 175, 176, 177, 178, 179, 180, 181 };
+        private static readonly HashSet<int> SupportedStages = new HashSet<int> { 50, 60, 70, 80, 90, 100, 110, 120, 130, 131, 150, 151, 152, 161, 165, 166, 169, 170, 173, 174, 177, 178, 179, 180, 181, 182, 184 };
         internal static bool IsSupportedStage(int stage) => SupportedStages.Contains(stage);
         private static IEnumerator _tests;
         private static double _deadline;
@@ -170,27 +170,20 @@ namespace Breachpoint.Editor.Enemies
                 case 150: return PoseIsolationTests(scope);
                 case 151: return FrozenPoseTests(scope, false);
                 case 152: return FrozenPoseTests(scope, true);
-                case 160: return MovementPoseAudit(scope);
                 case 161: return MovementPolishTests(scope, world);
-                case 162: return SteadyMovementProbe(scope);
-                case 163: return SynchronizationProbe(scope, world);
-                case 164: return SynchronizationSourceProbe(scope);
                 case 165: return SynchronizationTests(scope, world);
                 case 166: return SourceTurnReview(scope);
-                case 167: return FinalSourceAnalysis(scope);
-                case 168: return FinalPresentationProbe(scope, world);
                 case 169: return FinalReviewSuite(scope, world);
                 case 170: return FinalShortReview(scope, world);
-                case 171: return CombatStrafeProbe(scope, world);
                 case 173: return HumanTacticalReview(scope, world, false);
                 case 174: return HumanTacticalReview(scope, world, true);
-                case 175: return CrouchEntryProbe(scope, world);
-                case 176: return DeathPhysicsProbe(scope, world);
                 case 177: return CrouchDeathChecks(scope, world);
                 case 178: return DeathClassificationChecks(scope, world);
                 case 179: return ActiveDeathChecks(scope, world);
                 case 180: return DeathTrackingChecks(scope, world);
                 case 181: return MovingImpactChecks(scope, world);
+                case 182: return HighCoverChecks(scope, world);
+                case 184: return HighCoverCalibration(scope);
                 default: throw new ArgumentOutOfRangeException(nameof(stage), stage, "Unknown enemy validation stage.");
             }
         }

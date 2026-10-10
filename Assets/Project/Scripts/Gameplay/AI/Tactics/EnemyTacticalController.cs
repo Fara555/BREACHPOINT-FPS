@@ -2,15 +2,19 @@ using System;
 using UnityEngine;
 namespace Breachpoint.Gameplay.AI
 {
-    public enum EnemyCoverActionPhase { MovingToCover, Protected, MovingOut, Exposed, MovingIn }
+    public enum EnemyCoverActionPhase { MovingToCover, Protected, MovingOut, Exposed, MovingIn, TakingHighCover, LeavingHighCover }
     public sealed class EnemyTacticalController : IDisposable
     {
+        private const float HighCoverArrivalDistance = .08f;
         private readonly EnemyContext _context;
         private readonly EnemyTacticalConfig _config;
         private readonly EnemyCoverService _covers;
         private readonly EnemySquadService _squads;
         private readonly EnemyStance _stance;
         private readonly EnemyBrain _brain;
+        private readonly EnemyAnimationBridge _presentation;
+        private readonly EnemyHighCoverPresentation _highMotion;
+        private float _highActionStarted;
         private readonly EnemyTacticalPolicy _policy;
         private readonly EnemyTacticalPlanner _planner;
         private EnemySquad _squad;
@@ -31,6 +35,17 @@ namespace Breachpoint.Gameplay.AI
         private string _joinedId;
         public EnemyTacticalCandidate Current => _current;
         public EnemyCoverPoint CurrentCover => _cover;
+        // A committed High Cover action takes longer than the former walk-only
+        // cycle. Retain its last confirmed contact for those authored actions,
+        // without refreshing LastSeenTime or tracking the hidden target.
+        public float ContactMemoryDuration => _context.Config.Perception.MemoryDuration +
+            (_cover != null && _cover.Kind == EnemyCoverKind.High && _presentation != null && _presentation.SupportsHighCover
+                ? _presentation.Config.HighCoverTakeDuration + _presentation.Config.HighCoverLeaveDuration : 0f);
+        // The first protect/expose/return cycle contains two entries and one exit.
+        // Keep the existing bounded ally-crossing grace for that authored cycle.
+        public float CoverCommitmentDuration => _config.PositionTimeout +
+            (_cover != null && _cover.Kind == EnemyCoverKind.High && _presentation != null && _presentation.SupportsHighCover
+                ? _presentation.Config.HighCoverTakeDuration * 2f + _presentation.Config.HighCoverLeaveDuration : 0f);
         public System.Collections.Generic.IReadOnlyList<EnemyCoverPoint> CoverPoints => _covers.Points;
         public EnemyCoverReservation Reservation(EnemyCoverPoint point) => _covers.Reservation(point);
         public EnemyCoverRating CoverRating => _planner.CurrentCoverRating;
@@ -53,6 +68,8 @@ namespace Breachpoint.Gameplay.AI
         {
             _context = context; _config = config; _covers = covers; _squads = squads;
             _stance = context.Actor.GetComponent<EnemyStance>(); _brain = context.Actor.GetComponent<EnemyBrain>();
+            _presentation = context.Actor.GetComponent<EnemyAnimationBridge>();
+            _highMotion = context.Actor.GetComponent<EnemyHighCoverPresentation>();
             _policy = new EnemyTacticalPolicy(config); _planner = new EnemyTacticalPlanner(context, covers, squads, config);
             context.Combat.Fired += Fired;
         }
@@ -73,7 +90,7 @@ namespace Breachpoint.Gameplay.AI
         public void Pause()
         {
             _covers.ReleaseOwner(_context); if (_member != null) { _squad.ReleaseSlots(_member); _member.CanPressure = false; }
-            _cover = null; _coverReached = _hadPressure = false; _current.Valid = false; _nextDecision = 0f;
+            _cover = null; _coverReached = _hadPressure = false; _highActionStarted = 0f; _current.Valid = false; _nextDecision = 0f;
             if (!_context.Actor.Health.IsDead) _stance?.SetCrouching(false); _context.Combat.PauseAim();
         }
         public void Observe(float now)
@@ -93,7 +110,7 @@ namespace Breachpoint.Gameplay.AI
             FireLane = targetAlive && (memory.Visible ? _context.Combat.HasFiringLine(memory.Target) : age <= _config.RecentSuppressionMemory && _context.Combat.CanSuppress(memory.KnownAimPosition, memory.Target));
             Knowledge = memory.Visible ? EnemyKnowledge.DirectSight : memory.HasContact ? _current.Intent == EnemyTacticalIntent.Search && _current.Valid ? EnemyKnowledge.SearchHypothesis : memory.SharedContactTime == memory.LastSeenTime ? EnemyKnowledge.SharedConfirmedContact : EnemyKnowledge.LastKnownPosition : memory.HasNoise ? EnemyKnowledge.HeardPosition : EnemyKnowledge.None;
             _member.RequiresExposure = _cover != null && !FireLane;
-            _member.CanPressure = _brain.States.Group != EnemyStateGroup.Disabled && (FireLane || _cover != null && _planner.CurrentCoverRating.Valid && targetAlive && age <= _context.Config.Perception.MemoryDuration);
+            _member.CanPressure = _brain.States.Group != EnemyStateGroup.Disabled && (FireLane || _cover != null && _planner.CurrentCoverRating.Valid && targetAlive && age <= ContactMemoryDuration);
             if (!memory.HasContact) Pause();
         }
         public void Tick(float deltaTime)
@@ -104,7 +121,7 @@ namespace Breachpoint.Gameplay.AI
             if (!memory.HasContact) { Pause(); _context.Navigation.Stop(); return; }
             bool rushed = Vector3.Distance(_context.Actor.transform.position, memory.LastKnownPosition) < _context.Config.Combat.MinimumRange;
             bool failed = _context.Navigation.Failed || IsMoving(_current.Intent) && now - _enteredAt > _config.PositionTimeout && !_context.Navigation.Arrived;
-            if (_cover != null && (_covers.Reservation(_cover)?.Owner != _context || !_cover.IsUsable || _coverReached && (CoverPhase == EnemyCoverActionPhase.MovingOut || CoverPhase == EnemyCoverActionPhase.MovingIn) && now >= _phaseUntil)) failed = true;
+            if (_cover != null && (_covers.Reservation(_cover)?.Owner != _context || !_cover.IsUsable || (_coverReached || CoverPhase == EnemyCoverActionPhase.TakingHighCover) && (CoverPhase == EnemyCoverActionPhase.MovingOut || CoverPhase == EnemyCoverActionPhase.MovingIn || CoverPhase == EnemyCoverActionPhase.TakingHighCover || CoverPhase == EnemyCoverActionPhase.LeavingHighCover) && now >= _phaseUntil)) failed = true;
             if (failed)
             { _failedCover = _cover; _failedCoverUntil = now + _config.RepositionAfter; _failedPosition = _current.Destination; _failedPositionUntil = _failedCoverUntil; Pause(); _context.Navigation.AcknowledgeFailure(); _nextDecision = now; }
             if (now >= _nextDecision)
@@ -147,15 +164,17 @@ namespace Breachpoint.Gameplay.AI
             if (IsMoving(selected.Intent)) _context.Combat.PauseAim();
             DecisionChanged?.Invoke(selected, reason);
         }
-        private void Move(Vector3 destination, EnemyMovePace pace, int flank, float now, float deltaTime)
+        private void Move(Vector3 destination, EnemyMovePace pace, int flank, float now, float deltaTime, float speedOverride = 0f)
         {
+            bool preciseCover = _cover != null && _cover.Kind == EnemyCoverKind.High;
+            float arrivalDistance = preciseCover ? HighCoverArrivalDistance : .65f;
             bool pressure = _squad.HasPressure(_member, now);
             if (_hadPressure && !pressure && _current.Intent != EnemyTacticalIntent.Fallback)
             { _context.Navigation.Stop(); _squad.ReleaseMovement(_member); _current.Valid = false; _nextDecision = now + _config.DecisionInterval; _hadPressure = false; LastDecisionReason = TacticalReason.SharedPressure; return; }
             _hadPressure |= pressure;
-            if (Vector3.Distance(_context.Actor.transform.position, destination) <= 0.65f)
+            if ((preciseCover ? PlanarDistance(_context.Actor.transform.position, destination) : Vector3.Distance(_context.Actor.transform.position, destination)) <= arrivalDistance)
             {
-                _context.Navigation.RequestStop(true); _squad.ReleaseMovement(_member);
+                if (preciseCover) _context.Navigation.Stop(); else _context.Navigation.RequestStop(true); _squad.ReleaseMovement(_member);
                 if (_cover == null && _current.Intent != EnemyTacticalIntent.Search) { _current.Valid = false; _nextDecision = now; }
                 if (_current.Intent == EnemyTacticalIntent.Search) _context.Navigation.Face(_context.Actor.transform.position + Quaternion.Euler(0, (now - _enteredAt) * 50f, 0) * Vector3.forward * 5f, deltaTime);
                 return;
@@ -165,12 +184,16 @@ namespace Breachpoint.Gameplay.AI
             _member.Role = _current.Intent == EnemyTacticalIntent.Search ? EnemySquadRole.Searching : flank != 0 ? EnemySquadRole.Flanker : EnemySquadRole.Mover;
             // Distance is measured from the adopted intent, so pace cannot oscillate at a threshold.
             if (pace == EnemyMovePace.Run) pace = MovementPace(_current.Intent, Vector3.Distance(_intentMoveStart, destination));
-            _context.Navigation.MoveTo(destination, pace, now);
-            _context.Navigation.Face(_context.Memory.KnownAimPosition, deltaTime);
+            _context.Navigation.MoveTo(destination, pace, now, speedOverride, preciseCover);
+            Vector3 facing = _cover != null && (CoverPhase == EnemyCoverActionPhase.TakingHighCover || CoverPhase == EnemyCoverActionPhase.LeavingHighCover)
+                ? _context.Actor.transform.position + _cover.Normal * 5f : _context.Memory.KnownAimPosition;
+            _context.Navigation.Face(facing, deltaTime);
         }
         private void Engage(float now, float deltaTime)
         {
             _context.Navigation.Stop(); _squad.ReleaseMovement(_member);
+            if (_presentation != null && _presentation.enabled && _presentation.IsHighCoverPose && _presentation.Animator.enabled)
+            { _context.Combat.PauseAim(); return; }
             if (_context.Combat.NeedsReload) { _context.Combat.RequestReload(now); _squad.ReleaseShooter(_member); return; }
             float score = 30f + _context.Combat.Ammo / (float)_context.Config.Combat.MagazineSize * 10f + (_cover != null ? 20f : 0f) - Mathf.Min(20f, (now - _enteredAt) * 1.5f);
             if (!_squad.TryShooter(_member, score, now)) { _member.Role = EnemySquadRole.Support; return; }
@@ -184,40 +207,149 @@ namespace Breachpoint.Gameplay.AI
         }
         private void ExecuteCover(float now, float deltaTime)
         {
-            float protectedDistance = Vector3.Distance(_context.Actor.transform.position, _cover.ProtectedPosition);
+            float protectedDistance = _cover.Kind == EnemyCoverKind.High ? PlanarDistance(_context.Actor.transform.position, _cover.ProtectedPosition) : Vector3.Distance(_context.Actor.transform.position, _cover.ProtectedPosition);
             if (!_covers.Pulse(_cover, _context, _config.Cover, now, protectedDistance <= 0.8f))
             { _current.Valid = false; _covers.ReleaseOwner(_context); _cover = null; return; }
+            bool animatedHigh = _cover.Kind == EnemyCoverKind.High && _presentation != null && _presentation.SupportsHighCover;
+            bool authoredMotion = animatedHigh && _highMotion != null && _highMotion.CanDriveMotion;
+            if (animatedHigh && CoverPhase == EnemyCoverActionPhase.TakingHighCover)
+            {
+                StandForHighCover(); _context.Combat.PauseAim();
+                if (authoredMotion && !MaintainHighMover(now, _cover.ProtectedPosition)) return;
+                if (!authoredMotion) Move(_cover.ProtectedPosition, EnemyMovePace.Walk, 0, now, deltaTime, _presentation.Config.HighCoverEntrySpeed);
+                _context.Navigation.Face(_context.Actor.transform.position + _cover.Normal * 5f, deltaTime);
+                if (protectedDistance <= HighCoverArrivalDistance && HighCoverActionFinished(true, now))
+                {
+                    _context.Navigation.Stop(); _squad.ReleaseSlots(_member);
+                    _coverReached = true; CoverPhase = EnemyCoverActionPhase.Protected; _phaseUntil = now + 1.2f;
+                }
+                return;
+            }
+            if (animatedHigh && CoverPhase == EnemyCoverActionPhase.LeavingHighCover)
+            {
+                _context.Combat.PauseAim();
+                if (authoredMotion && !MaintainHighMover(now, _cover.ExposurePosition)) return;
+                if (!authoredMotion) Move(_cover.ExposurePosition, EnemyMovePace.Walk, 0, now, deltaTime, _presentation.Config.HighCoverExitSpeed);
+                Vector3 threatDirection = Vector3.ProjectOnPlane(_context.Memory.KnownAimPosition - _context.Actor.transform.position, Vector3.up);
+                if (authoredMotion && threatDirection.sqrMagnitude > .001f)
+                {
+                    float facingBlend = Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(HighCoverExitFacingStart, HighCoverExitFacingReady, _presentation.HighCoverExitProgress));
+                    Vector3 facing = Vector3.Slerp(_cover.Normal, threatDirection.normalized, facingBlend);
+                    _context.Navigation.Face(_context.Actor.transform.position + facing * 5f, deltaTime);
+                }
+                if (HighCoverActionFinished(false, now))
+                { CoverPhase = EnemyCoverActionPhase.MovingOut; _phaseUntil = now + _config.PositionTimeout; }
+                return;
+            }
             if (!_coverReached)
             {
+                if (authoredMotion) { ApproachHighEntry(now, deltaTime); return; }
+                if (animatedHigh && protectedDistance <= _presentation.Config.HighCoverEntryDistance)
+                { BeginHighCoverAction(true, now); _context.Combat.PauseAim(); _context.Navigation.CancelTurn(); return; }
                 if (protectedDistance > 0.65f) { Move(_cover.ProtectedPosition, EnemyMovePace.Run, 0, now, deltaTime); return; }
                 _coverReached = true; CoverPhase = EnemyCoverActionPhase.Protected; _phaseUntil = now + 1.2f;
             }
             if (CoverPhase == EnemyCoverActionPhase.Protected)
             {
-                _context.Navigation.Stop(); _squad.ReleaseSlots(_member); _stance?.SetCrouching(_cover.Kind == EnemyCoverKind.Low);
+                _context.Navigation.Stop(); _squad.ReleaseSlots(_member);
+                if (animatedHigh) _context.Navigation.Face(_context.Actor.transform.position + _cover.Normal * 5f, deltaTime);
+                if (_cover.Kind == EnemyCoverKind.Low) _stance?.SetCrouching(true); else StandForHighCover();
                 if (_context.Combat.IsReloading || _context.Combat.Ammo <= _context.Config.Combat.MagazineSize * _config.ReloadAmmoFraction)
                 { _context.Combat.RequestReload(now); _member.Role = EnemySquadRole.Reloading; return; }
                 if (_current.Intent == EnemyTacticalIntent.ReloadProtected) { _current.Valid = false; _nextDecision = now; return; }
                 if (now < _phaseUntil || !_member.CanPressure) return;
-                if (_cover.Kind == EnemyCoverKind.High) { CoverPhase = EnemyCoverActionPhase.MovingOut; _phaseUntil = now + _config.PositionTimeout; }
+                if (_cover.Kind == EnemyCoverKind.High)
+                {
+                    if (animatedHigh) BeginHighCoverAction(false, now);
+                    else { CoverPhase = EnemyCoverActionPhase.MovingOut; _phaseUntil = now + _config.PositionTimeout; }
+                }
                 else if (_squad.TryShooter(_member, 60f, now)) { _stance?.SetCrouching(false); CoverPhase = EnemyCoverActionPhase.Exposed; _phaseUntil = now + _config.SuppressionDuration; }
             }
             else if (CoverPhase == EnemyCoverActionPhase.MovingOut || CoverPhase == EnemyCoverActionPhase.MovingIn)
             {
+                if (authoredMotion && CoverPhase == EnemyCoverActionPhase.MovingIn) { ApproachHighEntry(now, deltaTime); return; }
+                if (authoredMotion && _presentation.IsHighCoverPose)
+                { _context.Navigation.Stop(); _context.Navigation.Face(_context.Memory.KnownAimPosition, deltaTime); return; }
                 Vector3 point = CoverPhase == EnemyCoverActionPhase.MovingOut ? _cover.ExposurePosition : _cover.ProtectedPosition;
+                if (animatedHigh && CoverPhase == EnemyCoverActionPhase.MovingIn && protectedDistance <= _presentation.Config.HighCoverEntryDistance)
+                { BeginHighCoverAction(true, now); return; }
                 Move(point, EnemyMovePace.Walk, 0, now, deltaTime);
-                if (Vector3.Distance(_context.Actor.transform.position, point) <= 0.65f)
+                if ((animatedHigh ? PlanarDistance(_context.Actor.transform.position, point) : Vector3.Distance(_context.Actor.transform.position, point)) <= (animatedHigh ? HighCoverArrivalDistance : .65f))
                 { _squad.ReleaseMovement(_member); CoverPhase = CoverPhase == EnemyCoverActionPhase.MovingOut ? EnemyCoverActionPhase.Exposed : EnemyCoverActionPhase.Protected; _phaseUntil = now + _config.SuppressionDuration; }
             }
             else
             {
-                _stance?.SetCrouching(false); Engage(now, deltaTime);
+                _stance?.SetCrouching(false);
+                if (animatedHigh && _presentation.enabled && _presentation.Animator.enabled && (_presentation.IsHighCoverPose || !_presentation.IsAimPoseReady))
+                {
+                    _context.Navigation.Stop(); _context.Combat.PauseAim();
+                    _context.Navigation.Face(_context.Memory.KnownAimPosition, deltaTime);
+                    _phaseUntil = now + _config.SuppressionDuration; return;
+                }
+                if (animatedHigh && (_context.Combat.NeedsReload || _context.Combat.IsReloading ||
+                    _context.Combat.Ammo <= _context.Config.Combat.MagazineSize * _config.ReloadAmmoFraction))
+                {
+                    // Return before requesting reload; a long entry animation must not
+                    // consume the entire reload while the rifleman is still exposed.
+                    _squad.ReleaseShooter(_member); _context.Combat.PauseAim();
+                    CoverPhase = EnemyCoverActionPhase.MovingIn; _phaseUntil = now + _config.PositionTimeout; return;
+                }
+                Engage(now, deltaTime);
                 if (now >= _phaseUntil || _context.Combat.NeedsReload || _context.Combat.IsReloading)
                 { _squad.ReleaseShooter(_member); CoverPhase = _cover.Kind == EnemyCoverKind.High ? EnemyCoverActionPhase.MovingIn : EnemyCoverActionPhase.Protected; _phaseUntil = now + (_cover.Kind == EnemyCoverKind.High ? _config.PositionTimeout : 1.2f); }
             }
         }
+        private bool MaintainHighMover(float now, Vector3 destination)
+        {
+            bool pressure = _squad.HasPressure(_member, now);
+            if (_hadPressure && !pressure && _current.Intent != EnemyTacticalIntent.Fallback)
+            {
+                _context.Navigation.Stop(); Pause(); _nextDecision = now + _config.DecisionInterval;
+                LastDecisionReason = TacticalReason.SharedPressure; return false;
+            }
+            _hadPressure |= pressure;
+            if (!_covers.PositionAvailable(destination, _context, _config.PreferredSpacing) ||
+                !_squad.TryMover(_member, destination, 0, _config.PreferredSpacing, now, true))
+            {
+                if (CoverPhase == EnemyCoverActionPhase.TakingHighCover || CoverPhase == EnemyCoverActionPhase.LeavingHighCover)
+                { _context.Navigation.Stop(); Pause(); _nextDecision = now + _config.DecisionInterval; }
+                return false;
+            }
+            _member.Role = EnemySquadRole.Mover; return true;
+        }
+        private void StandForHighCover() { if (_stance != null && _stance.IsCrouching) _stance.SetCrouching(false); }
+        private void ApproachHighEntry(float now, float deltaTime)
+        {
+            StandForHighCover();
+            Vector3 entry = _highMotion.EntryPosition(_cover);
+            if (PlanarDistance(_context.Actor.transform.position, entry) > HighCoverArrivalDistance)
+            { Move(entry, _coverReached ? EnemyMovePace.Walk : EnemyMovePace.Run, 0, now, deltaTime); return; }
+            _context.Navigation.Stop();
+            _context.Navigation.Face(_context.Actor.transform.position + _cover.Normal * 5f, deltaTime);
+            if (_context.Navigation.IsTurning || Vector3.Angle(_context.Actor.transform.forward, _cover.Normal) > 3f) return;
+            BeginHighCoverAction(true, now);
+        }
+        private void BeginHighCoverAction(bool taking, float now)
+        {
+            if (_highMotion != null && _highMotion.CanDriveMotion && !MaintainHighMover(now, taking ? _cover.ProtectedPosition : _cover.ExposurePosition)) return;
+            CoverPhase = taking ? EnemyCoverActionPhase.TakingHighCover : EnemyCoverActionPhase.LeavingHighCover;
+            _highActionStarted = now;
+            if (_highMotion != null && _highMotion.CanDriveMotion) _highMotion.Begin(_cover, taking);
+            _phaseUntil = now + _config.PositionTimeout + (taking ? _presentation.Config.HighCoverTakeDuration : _presentation.Config.HighCoverLeaveDuration);
+            _squad.ReleaseShooter(_member); _context.Combat.PauseAim();
+        }
+        private bool HighCoverActionFinished(bool taking, float now)
+        {
+            float duration = taking ? _presentation.Config.HighCoverTakeDuration : _presentation.Config.HighCoverLeaveDuration;
+            // Missing/disabled presentation cannot hold gameplay indefinitely. The
+            // navigation timeout still rejects unreachable or obstructed cover travel.
+            return _presentation.HighCoverActionComplete(taking) || now - _highActionStarted >= duration + .5f;
+        }
+        private static float PlanarDistance(Vector3 a, Vector3 b) { a.y = b.y; return Vector3.Distance(a, b); }
         private void Fired() { if (_member != null) _member.LastShotAt = Time.time; }
         private static bool IsMoving(EnemyTacticalIntent intent) => intent == EnemyTacticalIntent.Advance || intent == EnemyTacticalIntent.Reposition || intent == EnemyTacticalIntent.FlankLeft || intent == EnemyTacticalIntent.FlankRight || intent == EnemyTacticalIntent.Fallback || intent == EnemyTacticalIntent.Search;
+        private const float HighCoverExitFacingStart = .35f;
+        private const float HighCoverExitFacingReady = .85f;
         private const float ShortMovementDistance = 3f;
         private const float UrgentFallbackDistance = 6f;
         private const float LongFlankDistance = 14f;

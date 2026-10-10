@@ -63,7 +63,7 @@ namespace Breachpoint.Gameplay.AI
             _handWeight = dead ? 0f : Mathf.MoveTowards(_handWeight, _brain.Combat.IsReloading ? 0f : 1f, Time.deltaTime / Mathf.Max(0.01f, config.IkBlend));
             // A passive turn must retain its authored torso weight shift instead of counter-aiming.
             bool passiveTurn = _brain.States.Group == EnemyStateGroup.Passive && _actor.Navigation.IsTurning;
-            float aimRigTarget = passiveTurn ? 0f : Mathf.Lerp(1f, config.SprintAimRigWeight, _bridge.SprintPoseWeight);
+            float aimRigTarget = passiveTurn ? 0f : _bridge.IsHighCoverPose ? _bridge.AimPresentationWeight : Mathf.Lerp(1f, config.SprintAimRigWeight, _bridge.SprintPoseWeight);
             _aimWeight = dead ? 0f : Mathf.MoveTowards(_aimWeight, aimRigTarget, Time.deltaTime / Mathf.Max(0.01f, config.AimBlend));
             _aimLayer.active = _aimActive && _aimWeight > 0f;
             _handLayer.active = _handActive && _handWeight > 0f;
@@ -78,6 +78,7 @@ namespace Breachpoint.Gameplay.AI
                     var job = new ElbowHintJob
                     {
                         Chest = _bridge.Animator.BindStreamTransform(_chest),
+                        Elbow = _bridge.Animator.BindStreamTransform(_bridge.Animator.GetBoneTransform(HumanBodyBones.LeftLowerArm)),
                         Hint = _bridge.Animator.BindStreamTransform(_handIk.data.hint),
                         Muzzle = _bridge.Animator.BindStreamTransform(_actor.Muzzle),
                         Target = _bridge.Animator.BindSceneTransform(_bridge.AimTarget)
@@ -95,6 +96,7 @@ namespace Breachpoint.Gameplay.AI
                 var job = _hintPlayable.GetJobData<ElbowHintJob>(); job.Offset = transform.TransformDirection(_hintOffset);
                 _coarseWeight = Mathf.MoveTowards(_coarseWeight, config.CoarseAimWeight * _bridge.AimPresentationWeight, Time.deltaTime / config.CoarseAimBlend);
                 job.Raising = _bridge.IsRaising;
+                job.HighCover = _bridge.IsHighCoverPose;
                 job.AimWeight = _coarseWeight;
                 job.YawLimit = config.CoarseAimYawLimit;
                 job.PitchLimit = config.CoarseAimPitchLimit;
@@ -118,6 +120,7 @@ namespace Breachpoint.Gameplay.AI
         private struct ElbowHintJob : IAnimationJob
         {
             public TransformStreamHandle Chest;
+            public TransformStreamHandle Elbow;
             public TransformStreamHandle Hint;
             public TransformStreamHandle Muzzle;
             public TransformSceneHandle Target;
@@ -127,6 +130,7 @@ namespace Breachpoint.Gameplay.AI
             public float PitchLimit;
             public float PitchWeight;
             public bool Raising;
+            public bool HighCover;
             public void ProcessRootMotion(AnimationStream stream) { }
             public void ProcessAnimation(AnimationStream stream)
             {
@@ -159,7 +163,12 @@ namespace Breachpoint.Gameplay.AI
                         Chest.SetRotation(stream, yawRotation * Chest.GetRotation(stream));
                     }
                 }
-                if (Hint.IsValid(stream)) Hint.SetPosition(stream, Chest.GetPosition(stream) + Offset);
+                if (Hint.IsValid(stream))
+                {
+                    Vector3 chest = Chest.GetPosition(stream);
+                    Vector3 hint = HighCover && Elbow.IsValid(stream) ? Elbow.GetPosition(stream) + (Elbow.GetPosition(stream) - chest) * .4f : chest + Offset;
+                    Hint.SetPosition(stream, hint);
+                }
             }
         }
     }
