@@ -110,6 +110,12 @@ namespace Breachpoint.Editor.Enemies
                 else if (command.StartsWith("review-record:", StringComparison.Ordinal)) { SessionState.SetBool("EnemyTools.Review.Record", true); EnemyValidationRunner.RunReview(int.Parse(command.Substring(14)), false); }
                 else if (command.StartsWith("review-case:", StringComparison.Ordinal)) EnemyValidationRunner.RunReview(int.Parse(command.Substring(12)), false);
                 else if (command.StartsWith("review:", StringComparison.Ordinal)) EnemyValidationRunner.RunReview(int.Parse(command.Substring(7)), true);
+                else if (command == "arena-level-inspect") TacticalArenaBuilder.Inspect();
+                else if (command == "arena-level-build") TacticalArenaBuilder.Build();
+                else if (command == "arena-level-finish") TacticalArenaBuilder.Finish();
+                else if (command == "arena-level-playtest") TacticalArenaPlaytest.Run();
+                else if (command == "arena-level-polish") TacticalArenaBuilder.AddOverlookAndSigns();
+                else if (command == "arena-level-reload-check") TacticalArenaBuilder.ReloadAndValidate();
                 else if (command == "arena-audit") AuditArena();
                 else if (command == "arena-setup") WireArenaCover();
                 else if (command == "refresh") AssetDatabase.Refresh();
