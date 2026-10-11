@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 0b36ef50e25e43ba89665c05dfd452a9, type: 3}
   m_Name: Decision
   m_EditorClassIdentifier: Assembly-CSharp::Breachpoint.Gameplay.AI.EnemyDecisionConfig
-  <TickInterval>k__BackingField: 0.1
-  <SearchDuration>k__BackingField: 5
+  <TickInterval>k__BackingField: 0.05
+  <SearchDuration>k__BackingField: 15
   <InvestigateDuration>k__BackingField: 4
   <AlertThreshold>k__BackingField: 0.6

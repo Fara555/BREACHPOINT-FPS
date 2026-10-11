@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: Rifleman
   m_EditorClassIdentifier: Assembly-CSharp::Breachpoint.Gameplay.AI.EnemyArchetypeConfig
   <Id>k__BackingField: rifleman
-  <MaximumHealth>k__BackingField: 100
+  <MaximumHealth>k__BackingField: 180
   <Faction>k__BackingField: 2
   <Movement>k__BackingField: {fileID: 11400000, guid: 9cccabdbf51c8fd41afe2360d4bf316d, type: 2}
   <Perception>k__BackingField: {fileID: 11400000, guid: cd00fc4aef6b4c3489df64a555a3f01d, type: 2}

@@ -160,8 +160,20 @@ namespace Breachpoint.Editor.Enemies
                 PlayCheck(squad.TryMover(a, new Vector3(1,0,-5), -1, 2f, now) && !squad.TryMover(b, new Vector3(-3,0,-5), -1, 2f, now), "One squad member owns each flank sector");
                 PlayCheck(!squad.TryMover(b, new Vector3(1.5f,0,-5), 1, 2f, now), "Destination reservation prevents clustered movers");
                 PlayCheck(squad.TryMover(b, new Vector3(8,0,-4), 1, 2f, now) && !squad.TryMover(c, new Vector3(12,0,-4), 0, 2f, now) && squad.ActiveMovers == 2, "Mover slots bound simultaneous relocation");
-                squad.ReleaseSlots(a); squad.ReleaseSlots(b); a.CanPressure = true;
+                PlayCheck(squad.TryMover(c, new Vector3(12,0,-4), 0, 2f, now, false, true) && squad.ActiveMovers == 2 && (!a.Mover || !b.Mover),
+                    "Committed cover movement can reclaim a slot without exceeding the group limit");
+                Vector3 crossingPosition = contexts[1].Actor.transform.position;
+                contexts[1].Actor.transform.position = new Vector3(12.5f, 0f, -4f);
+                PlayCheck(squad.TryMover(c, new Vector3(12,0,-4), 0, 2f, now, false, true) && c.Mover,
+                    "Brief ally crossings do not cancel an already committed movement reservation");
+                contexts[1].Actor.transform.position = crossingPosition;
+                squad.ReleaseSlots(a); squad.ReleaseSlots(b); squad.ReleaseSlots(c); a.CanPressure = true;
                 PlayCheck(!squad.MovementSupported(b, now), "Movement waits when an available anchor has not established pressure");
+                PlayCheck(squad.TryMover(a, new Vector3(1,0,-5), 0, 2f, now, false) && squad.TryShooter(a, 40f, now) && a.Mover && a.Shooter,
+                    "A local combat mover can establish its own fire without waiting for an anchor");
+                PlayCheck(squad.TryMover(a, new Vector3(1,0,-5), 0, 2f, now, false) && a.Shooter,
+                    "Renewing movement preserves the shooter's pressure lease");
+                squad.ReleaseMovement(a);
                 squad.TryShooter(a, 40f, now); a.LastShotAt = now;
                 PlayCheck(squad.MovementSupported(b, now) && squad.HasPressure(b, now), "Recent anchor fire supports another member's relocation");
                 service.Leave(contexts[0], true);

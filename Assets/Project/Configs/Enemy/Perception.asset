@@ -12,12 +12,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f3467cbe2590466ca47baab97c5d2603, type: 3}
   m_Name: Perception
   m_EditorClassIdentifier: Assembly-CSharp::Breachpoint.Gameplay.AI.EnemyPerceptionConfig
-  <ViewRange>k__BackingField: 25
-  <ViewAngle>k__BackingField: 110
-  <Interval>k__BackingField: 0.2
-  <HearingRange>k__BackingField: 30
-  <MemoryDuration>k__BackingField: 5
-  <AlertRise>k__BackingField: 3
+  <ViewRange>k__BackingField: 70
+  <ViewAngle>k__BackingField: 140
+  <Interval>k__BackingField: 0.1
+  <HearingRange>k__BackingField: 100
+  <MemoryDuration>k__BackingField: 15
+  <AlertRise>k__BackingField: 6
   <AlertFall>k__BackingField: 0.4
   <TargetMask>k__BackingField:
     serializedVersion: 2

@@ -36,8 +36,10 @@ namespace Breachpoint.Gameplay.AI
             return first == null || endpoint != null && first.IsChildOf(endpoint);
         }
         public bool ClearLine(Vector3 origin, PerceptionTarget target, int mask, Transform self)
+            => ClearLine(origin, target, target.AimPosition, mask, self);
+        public bool ClearLine(Vector3 origin, PerceptionTarget target, Vector3 point, int mask, Transform self)
         {
-            Vector3 delta = target.AimPosition - origin;
+            Vector3 delta = point - origin;
             return delta.sqrMagnitude > 0.0001f &&
                 TryFirstHit(origin, delta.normalized, delta.magnitude + 0.1f, mask, self, out RaycastHit hit) &&
                 hit.transform.IsChildOf(target.transform);

@@ -14,8 +14,17 @@ namespace Breachpoint.Gameplay.AI
         public Faction Faction => _faction;
         public Vector3 AimPosition => _aimPoint != null ? _aimPoint.position :
             _body != null ? _body.bounds.center : transform.position + Vector3.up;
+        public Vector3 NavigationPosition => _body != null
+            ? new Vector3(transform.position.x, _body.bounds.min.y, transform.position.z) : transform.position;
         public bool IsAlive => this != null && isActiveAndEnabled && _health != null && !_health.IsDead;
         public Health Health => _health;
+        public const int AimSampleCount = 3;
+        public Vector3 AimSample(int index)
+        {
+            if (index == 0 || _body == null) return AimPosition;
+            Bounds bounds = _body.bounds;
+            return bounds.center + Vector3.up * bounds.extents.y * (index == 1 ? .8f : .4f);
+        }
         public void Initialize(EnemyWorld world, Faction faction)
         {
             _world?.Unregister(this);

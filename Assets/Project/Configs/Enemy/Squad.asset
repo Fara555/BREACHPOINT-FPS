@@ -12,10 +12,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8e74301a9d2722447b8b7882834244f9, type: 3}
   m_Name: Squad
   m_EditorClassIdentifier: Assembly-CSharp::Breachpoint.Gameplay.AI.EnemySquadConfig
-  <CommunicationRadius>k__BackingField: 25
-  <CommunicationLatency>k__BackingField: 0.25
-  <MemoryDuration>k__BackingField: 6
+  <CommunicationRadius>k__BackingField: 70
+  <CommunicationLatency>k__BackingField: 0.1
+  <MemoryDuration>k__BackingField: 15
+  <EncounterCommunicationRadius>k__BackingField: 120
+  <MaximumFlankers>k__BackingField: 1
   <MaximumShooters>k__BackingField: 2
-  <MaximumMovers>k__BackingField: 2
+  <MaximumMovers>k__BackingField: 6
   <SlotLease>k__BackingField: 2
-  <RoleCooldown>k__BackingField: 3
+  <RoleCooldown>k__BackingField: 1.2

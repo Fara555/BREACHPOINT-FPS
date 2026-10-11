@@ -10,7 +10,10 @@ namespace Breachpoint.Gameplay.AI
         [field: SerializeField] public Transform Muzzle { get; private set; }
         [field: SerializeField] public PatrolRoute Route { get; set; }
         [field: SerializeField] public string SquadId { get; private set; } = "EnemyArena";
+        [field: SerializeField, Tooltip("Squads in the same encounter share confirmed contact, while retaining their own combat roles.")]
+        public string EncounterId { get; private set; } = string.Empty;
         public void ConfigureSquad(string squadId) => SquadId = squadId ?? string.Empty;
+        public void ConfigureEncounter(string encounterId) => EncounterId = encounterId ?? string.Empty;
         public Health Health { get; private set; }
         public PerceptionTarget Target { get; private set; }
         public EnemyNavigation Navigation { get; private set; }

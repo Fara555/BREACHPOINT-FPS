@@ -12,12 +12,22 @@ namespace Breachpoint.Gameplay.AI
         public bool UsesAmmunition => true;
         public event Action<WeaponShotResult> Attacked;
         public void Initialize(EnemyActor actor, EnemyCombatConfig config) { _actor = actor; _config = config; }
-        public bool CanAttack(PerceptionTarget target) => target != null && target.IsAlive &&
-            Factions.AreHostile(_actor.Target.Faction, target.Faction) &&
-            Vector3.Distance(_actor.Muzzle.position, target.AimPosition) <= _config.Range &&
-            !_physics.MuzzleBlocked(_actor.Muzzle.position, _config.HitMask, transform) &&
-            _physics.ClearLine(_actor.Eyes.position, target, _config.HitMask, transform) &&
-            _physics.ClearLine(_actor.Muzzle.position, target, _config.HitMask, transform);
+        public bool CanAttack(PerceptionTarget target) => TryAim(target, out _);
+        private bool TryAim(PerceptionTarget target, out Vector3 point)
+        {
+            point = default;
+            if (target == null || !target.IsAlive || !Factions.AreHostile(_actor.Target.Faction, target.Faction) ||
+                _physics.MuzzleBlocked(_actor.Muzzle.position, _config.HitMask, transform)) return false;
+            for (int i = 0; i < PerceptionTarget.AimSampleCount; i++)
+            {
+                Vector3 sample = target.AimSample(i);
+                if ((sample - _actor.Muzzle.position).sqrMagnitude > _config.Range * _config.Range) continue;
+                if (!_physics.ClearLine(_actor.Eyes.position, target, sample, _config.HitMask, transform) ||
+                    !_physics.ClearLine(_actor.Muzzle.position, target, sample, _config.HitMask, transform)) continue;
+                point = sample; return true;
+            }
+            return false;
+        }
         public bool CanSuppress(Vector3 knownPoint, PerceptionTarget knownTarget) => knownTarget != null && knownTarget.IsAlive &&
             Factions.AreHostile(_actor.Target.Faction, knownTarget.Faction) && Vector3.Distance(_actor.Muzzle.position, knownPoint) <= _config.Range &&
             !_physics.MuzzleBlocked(_actor.Muzzle.position, _config.HitMask, transform) &&
@@ -26,7 +36,7 @@ namespace Breachpoint.Gameplay.AI
         public bool AttackSuppression(Vector3 knownPoint, PerceptionTarget knownTarget, float spreadMultiplier)
         { return CanSuppress(knownPoint, knownTarget) && Trace(knownPoint, spreadMultiplier); }
         public bool Attack(PerceptionTarget target, float spreadMultiplier)
-        { return CanAttack(target) && Trace(target.AimPosition, spreadMultiplier); }
+        { return TryAim(target, out Vector3 point) && Trace(point, spreadMultiplier); }
         private bool Trace(Vector3 point, float spreadMultiplier)
         {
             Vector3 origin = _actor.Muzzle.position;

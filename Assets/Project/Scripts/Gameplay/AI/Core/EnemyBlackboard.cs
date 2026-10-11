@@ -10,6 +10,7 @@ namespace Breachpoint.Gameplay.AI
         public bool HasNoise;
         public Vector3 LastKnownPosition;
         public Vector3 KnownAimPosition;
+        public int VisibleAimSample;
         public float SharedContactTime = float.NegativeInfinity;
         public Vector3 NoisePosition;
         public float LastSeenTime = float.NegativeInfinity;
@@ -24,6 +25,7 @@ namespace Breachpoint.Gameplay.AI
             Target = null;
             Visible = HasContact = HasNoise = false;
             LastKnownPosition = KnownAimPosition = NoisePosition = Vector3.zero;
+            VisibleAimSample = 0;
             SharedContactTime = float.NegativeInfinity;
             LastSeenTime = NoiseTime = float.NegativeInfinity;
             Alert = StunnedUntil = StateEnteredAt = 0f;

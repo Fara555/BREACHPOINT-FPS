@@ -304,7 +304,7 @@ namespace Breachpoint.Gameplay.AI
             if (_aimTarget == null) return;
             EnemyBlackboard memory = _brain.Memory;
             Vector3 desired = _actor.Eyes.position + transform.forward * _config.RestAimDistance;
-            if (memory.Visible && memory.Target != null && memory.Target.IsAlive) desired = memory.Target.AimPosition;
+            if (memory.Visible && memory.Target != null && memory.Target.IsAlive) desired = memory.Target.AimSample(memory.VisibleAimSample);
             else if (memory.HasContact) desired = memory.LastKnownPosition + Vector3.up * (_actor.Eyes.position.y - transform.position.y);
             _smoothedAimPosition = Vector3.Lerp(_smoothedAimPosition, desired, 1f - Mathf.Exp(-_config.AimSmoothing * Time.deltaTime));
             _aimTarget.position = _smoothedAimPosition;

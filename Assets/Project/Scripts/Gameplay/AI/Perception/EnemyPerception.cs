@@ -27,6 +27,8 @@ namespace Breachpoint.Gameplay.AI
             EnemyBlackboard memory = _context.Memory;
             memory.Visible = false;
             PerceptionTarget selected = null;
+            Vector3 observedPoint = default;
+            int observedSample = 0;
             float closest = config.ViewRange * config.ViewRange;
             var targets = _world.Targets;
             for (int i = 0; i < targets.Count; i++)
@@ -36,14 +38,16 @@ namespace Breachpoint.Gameplay.AI
                     (config.TargetMask.value & (1 << target.gameObject.layer)) == 0) continue;
                 Vector3 offset = target.AimPosition - _context.Actor.Eyes.position;
                 float distance = offset.sqrMagnitude;
-                if (distance > closest || Vector3.Angle(_context.Actor.transform.forward, offset) > config.ViewAngle * 0.5f) continue;
-                if (!_physics.ClearLine(_context.Actor.Eyes.position, target, config.ObstructionMask, _context.Actor.transform)) continue;
+                if (distance > closest || !TryObserve(target, config, out Vector3 point, out int sample)) continue;
                 closest = distance; selected = target;
+                observedPoint = point;
+                observedSample = sample;
             }
             if (selected != null)
             {
                 memory.Target = selected; memory.Visible = true; memory.HasContact = true;
-                memory.LastKnownPosition = selected.transform.position; memory.KnownAimPosition = selected.AimPosition; memory.LastSeenTime = now;
+                memory.LastKnownPosition = selected.NavigationPosition; memory.KnownAimPosition = observedPoint; memory.LastSeenTime = now;
+                memory.VisibleAimSample = observedSample;
                 memory.Alert = Mathf.Min(1f, memory.Alert + config.AlertRise * config.Interval);
             }
             else
@@ -51,6 +55,18 @@ namespace Breachpoint.Gameplay.AI
                 memory.Alert = Mathf.Max(0f, memory.Alert - config.AlertFall * config.Interval);
                 if (memory.Target != null && !memory.Target.IsAlive) { memory.Target = null; memory.HasContact = false; }
             }
+        }
+        private bool TryObserve(PerceptionTarget target, EnemyPerceptionConfig config, out Vector3 point, out int sample)
+        {
+            for (int i = 0; i < PerceptionTarget.AimSampleCount; i++)
+            {
+                point = target.AimSample(i);
+                Vector3 offset = point - _context.Actor.Eyes.position;
+                if (offset.sqrMagnitude > config.ViewRange * config.ViewRange ||
+                    Vector3.Angle(_context.Actor.transform.forward, offset) > config.ViewAngle * .5f) continue;
+                if (_physics.ClearLine(_context.Actor.Eyes.position, target, point, config.ObstructionMask, _context.Actor.transform)) { sample = i; return true; }
+            }
+            point = default; sample = 0; return false;
         }
         private void Hear(NoiseStimulus noise)
         {

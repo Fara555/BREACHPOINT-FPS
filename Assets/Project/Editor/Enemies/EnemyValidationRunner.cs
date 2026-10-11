@@ -20,6 +20,7 @@ namespace Breachpoint.Editor.Enemies
         private const string RunningKey = "EnemyTools.Validation";
         private const string ScenesKey = RunningKey + ".Scenes";
         private const string StageKey = RunningKey + ".Stage";
+        private const string CurrentSceneKey = RunningKey + ".CurrentScene";
         private static readonly HashSet<int> SupportedStages = new HashSet<int> { 50, 60, 70, 80, 90, 100, 110, 120, 130, 131, 150, 151, 152, 161, 165, 166, 169, 170, 173, 174, 177, 178, 179, 180, 181, 182, 184 };
         internal static bool IsSupportedStage(int stage) => SupportedStages.Contains(stage);
         private static IEnumerator _tests;
@@ -37,15 +38,20 @@ namespace Breachpoint.Editor.Enemies
             if (!IsSupportedStage(stage)) throw new ArgumentOutOfRangeException(nameof(stage), stage, "Unknown enemy validation stage.");
             if (EditorApplication.isCompiling || EditorApplication.isUpdating) throw new InvalidOperationException("Wait for Unity compilation and import before validation.");
             if (EditorApplication.isPlayingOrWillChangePlaymode) throw new InvalidOperationException("Exit Play Mode before validation.");
+            bool currentArena = UnityEngine.SceneManagement.SceneManager.sceneCount == 1 &&
+                UnityEngine.SceneManagement.SceneManager.GetActiveScene().path == "Assets/Project/Scenes/EnemyArena/EnemyArena.unity";
             for (int i = 0; i < UnityEngine.SceneManagement.SceneManager.sceneCount; i++)
                 if (UnityEngine.SceneManagement.SceneManager.GetSceneAt(i).isDirty)
-                    throw new InvalidOperationException("An open scene has unsaved changes; validation preserves it and cannot switch scenes.");
+                    if (!currentArena) throw new InvalidOperationException("An open scene has unsaved changes; validation preserves it and cannot switch scenes.");
             Directory.CreateDirectory(EvidencePath);
             File.WriteAllText(EvidencePath + "/validation.txt", "Play Mode stage " + stage + " | " + DateTime.UtcNow.ToString("O") + "\n" + ConsoleCounts() + "\n");
             SessionState.SetString(ScenesKey, JsonUtility.ToJson(new SavedScenes { scenes = EditorSceneManager.GetSceneManagerSetup() }));
             SessionState.SetInt(StageKey, stage);
             SessionState.SetBool(RunningKey, true);
-            EditorSceneManager.OpenScene("Assets/Project/Enemies/EnemyArena.unity");
+            SessionState.SetBool(CurrentSceneKey, currentArena);
+            // Entering/exiting Play Mode preserves the current Editor scene,
+            // including unsaved edits. Only other scene setups need switching.
+            if (!currentArena) EditorSceneManager.OpenScene("Assets/Project/Scenes/EnemyArena/EnemyArena.unity");
             EditorApplication.isPlaying = true;
         }
 
@@ -84,7 +90,8 @@ namespace Breachpoint.Editor.Enemies
                 Application.runInBackground = _priorBackground;
                 SessionState.SetBool(RunningKey, false);
                 SavedScenes saved = JsonUtility.FromJson<SavedScenes>(SessionState.GetString(ScenesKey, ""));
-                EditorSceneManager.RestoreSceneManagerSetup(saved.scenes);
+                if (!SessionState.GetBool(CurrentSceneKey, false)) EditorSceneManager.RestoreSceneManagerSetup(saved.scenes);
+                SessionState.SetBool(CurrentSceneKey, false);
                 if (SessionState.GetBool("EnemyTools.Review.ControlStopping", false)) CompleteReviewControlChecks();
                 if (SessionState.GetBool(HumanControlKey, false)) CompleteHumanControlChecks();
                 AppendResult("Editor scene setup restored.");
@@ -148,9 +155,38 @@ namespace Breachpoint.Editor.Enemies
             foreach (EnemyBrain existing in Object.FindObjectsByType<EnemyBrain>()) existing.gameObject.SetActive(false);
             GameLifetimeScope scope = Object.FindAnyObjectByType<GameLifetimeScope>();
             EnemyWorld world = scope.Container.Resolve<EnemyWorld>();
+            // Fixed-coordinate fixtures require their own flat arena. Production
+            // level geometry and its baked holes must not change their navigation.
+            var disabledColliders = new List<Collider>();
+            foreach (var collider in Object.FindObjectsByType<Collider>())
+                if (collider.enabled) { disabledColliders.Add(collider); collider.enabled = false; }
+            var covers = scope.Container.Resolve<EnemyCoverService>();
+            var authoredCovers = new List<EnemyCoverPoint>(covers.Points);
+            foreach (var point in authoredCovers) covers.Unregister(point);
+            var floor = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            floor.name = "Temporary enemy validation floor";
+            floor.transform.position = new Vector3(0f, -.1f, 0f);
+            floor.transform.localScale = new Vector3(40f, .2f, 40f);
+            var agent = AssetDatabase.LoadAssetAtPath<GameObject>(RiflemanPath).GetComponent<UnityEngine.AI.NavMeshAgent>();
+            var sources = new List<UnityEngine.AI.NavMeshBuildSource>
+            {
+                new UnityEngine.AI.NavMeshBuildSource { shape = UnityEngine.AI.NavMeshBuildSourceShape.Box,
+                    size = floor.transform.localScale, transform = Matrix4x4.TRS(floor.transform.position, Quaternion.identity, Vector3.one), area = 0 }
+            };
+            var navigationData = UnityEngine.AI.NavMeshBuilder.BuildNavMeshData(UnityEngine.AI.NavMesh.GetSettingsByID(agent.agentTypeID),
+                sources, new Bounds(Vector3.zero, new Vector3(40f, 4f, 40f)), Vector3.zero, Quaternion.identity);
+            if (navigationData == null) throw new InvalidOperationException("Cannot build the isolated validation NavMesh.");
+            UnityEngine.AI.NavMesh.RemoveAllNavMeshData();
+            var navigationInstance = UnityEngine.AI.NavMesh.AddNavMeshData(navigationData);
+            Physics.SyncTransforms();
             IEnumerator scenario = CreateStageRoutine(stage, scope, world);
             try { while (scenario.MoveNext()) yield return scenario.Current; }
-            finally { (scenario as IDisposable)?.Dispose(); }
+            finally
+            {
+                (scenario as IDisposable)?.Dispose(); navigationInstance.Remove(); Object.Destroy(navigationData); Object.Destroy(floor);
+                foreach (var collider in disabledColliders) if (collider != null) collider.enabled = true;
+                foreach (var point in authoredCovers) covers.Register(point);
+            }
         }
 
         private static IEnumerator CreateStageRoutine(int stage, GameLifetimeScope scope, EnemyWorld world)

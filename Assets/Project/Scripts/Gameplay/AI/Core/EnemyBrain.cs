@@ -71,7 +71,7 @@ namespace Breachpoint.Gameplay.AI
             if (damage.Source == null) return;
             PerceptionTarget source = damage.Source.GetComponentInParent<PerceptionTarget>();
             if (source == null || !source.IsAlive || !Factions.AreHostile(Config.Faction, source.Faction)) return;
-            Memory.Target = source; Memory.LastKnownPosition = source.transform.position;
+            Memory.Target = source; Memory.LastKnownPosition = source.NavigationPosition;
             Memory.KnownAimPosition = source.AimPosition; Memory.LastSeenTime = Time.time; Memory.HasContact = true; Memory.Alert = 1f;
         }
         private void Die()

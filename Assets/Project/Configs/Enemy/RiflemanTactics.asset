@@ -13,17 +13,17 @@ MonoBehaviour:
   m_Name: RiflemanTactics
   m_EditorClassIdentifier: Assembly-CSharp::Breachpoint.Gameplay.AI.EnemyTacticalConfig
   <CommittedCoverBonus>k__BackingField: 85
-  <CoverPreferenceBonus>k__BackingField: 50
+  <CoverPreferenceBonus>k__BackingField: 80
   <AdvanceScore>k__BackingField: 120
   <BlockedCoverRepositionScore>k__BackingField: 110
-  <DecisionInterval>k__BackingField: 0.6
-  <MinimumIntentDuration>k__BackingField: 2
+  <DecisionInterval>k__BackingField: 0.2
+  <MinimumIntentDuration>k__BackingField: 0.65
   <ImprovementThreshold>k__BackingField: 8
   <PreferredSpacing>k__BackingField: 2
   <FlankDistance>k__BackingField: 8
-  <MaximumTravel>k__BackingField: 18
-  <RepositionAfter>k__BackingField: 10
-  <SuppressionDuration>k__BackingField: 2
+  <MaximumTravel>k__BackingField: 26
+  <RepositionAfter>k__BackingField: 4
+  <SuppressionDuration>k__BackingField: 3
   <RecentSuppressionMemory>k__BackingField: 1
   <PositionTimeout>k__BackingField: 8
   <CandidateBudget>k__BackingField: 4

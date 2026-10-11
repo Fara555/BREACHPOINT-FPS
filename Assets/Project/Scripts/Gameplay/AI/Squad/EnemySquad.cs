@@ -13,6 +13,7 @@ namespace Breachpoint.Gameplay.AI
     public sealed class EnemySquadMemberState
     {
         public EnemyContext Context { get; }
+        public string EncounterId { get; }
         public EnemySquadRole Role { get; internal set; }
         public bool Shooter { get; internal set; }
         public bool Mover { get; internal set; }
@@ -29,10 +30,11 @@ namespace Breachpoint.Gameplay.AI
         internal float DeliverAt = float.PositiveInfinity;
         internal float NextPublish;
         public bool Alive => Context.Actor != null && Context.Actor.gameObject.activeInHierarchy && !Context.Actor.Health.IsDead;
-        internal EnemySquadMemberState(EnemyContext context) => Context = context;
+        internal EnemySquadMemberState(EnemyContext context) { Context = context; EncounterId = context.Actor.EncounterId; }
     }
     public sealed class EnemySquad
     {
+        private const float MovementRenewalTolerance = .1f;
         private readonly List<EnemySquadMemberState> _members = new List<EnemySquadMemberState>(32);
         private readonly EnemySquadConfig _config;
         private float _nextCleanup;
@@ -79,7 +81,6 @@ namespace Breachpoint.Gameplay.AI
             Cleanup(now);
             if (!member.Alive || !member.CanPressure || member.Context.Combat.IsReloading || member.Context.Combat.Ammo <= 0)
             { ReleaseShooter(member); return false; }
-            if (member.Mover) return false;
             if (member.Shooter) { member.ShooterUntil = now + _config.SlotLease; member.ShooterScore = score; return true; }
             if (ActiveShooters >= _config.MaximumShooters)
             {
@@ -90,7 +91,8 @@ namespace Breachpoint.Gameplay.AI
                 ReleaseShooter(weakest);
             }
             member.Shooter = true; member.ShooterScore = score; member.ShooterUntil = now + _config.SlotLease;
-            member.Role = EnemySquadRole.Anchor; member.RoleChangedAt = now; ActiveShooters++; return true;
+            if (!member.Mover) member.Role = EnemySquadRole.Anchor;
+            member.RoleChangedAt = now; ActiveShooters++; return true;
         }
         public bool HasPressure(EnemySquadMemberState except, float now)
         {
@@ -110,6 +112,7 @@ namespace Breachpoint.Gameplay.AI
         }
         public bool PositionAvailable(EnemySquadMemberState member, Vector3 destination, int flankSide, float spacing)
         {
+            if (!FlankAvailable(member, flankSide)) return false;
             for (int i = 0; i < _members.Count; i++)
             {
                 var other = _members[i]; if (other == member || !other.Alive) continue;
@@ -118,17 +121,40 @@ namespace Breachpoint.Gameplay.AI
             }
             return true;
         }
-        public bool TryMover(EnemySquadMemberState member, Vector3 destination, int flankSide, float spacing, float now, bool requirePressure = true)
+        private bool FlankAvailable(EnemySquadMemberState member, int flankSide)
+        {
+            if (flankSide == 0) return true;
+            int flankers = 0;
+            for (int i = 0; i < _members.Count; i++)
+                if (_members[i] != member && _members[i].Alive && _members[i].Mover && _members[i].FlankSide != 0) flankers++;
+            return flankers < _config.MaximumFlankers;
+        }
+        public bool TryMover(EnemySquadMemberState member, Vector3 destination, int flankSide, float spacing, float now, bool requirePressure = true, bool prioritizeMovement = false)
         {
             Cleanup(now);
-            if (!member.Alive || requirePressure && !MovementSupported(member, now) || !member.Mover && ActiveMovers >= _config.MaximumMovers) return false;
+            if (!member.Alive || !FlankAvailable(member, flankSide) || requirePressure && !MovementSupported(member, now)) return false;
+            bool renewingCommittedPosition = prioritizeMovement && member.Mover && member.FlankSide == flankSide &&
+                (member.ReservedPosition - destination).sqrMagnitude < MovementRenewalTolerance * MovementRenewalTolerance;
             for (int i = 0; i < _members.Count; i++)
             {
                 var other = _members[i]; if (other == member || !other.Alive) continue;
                 if (other.Mover && (Vector3.Distance(other.ReservedPosition, destination) < spacing || flankSide != 0 && other.FlankSide == flankSide)) return false;
-                if (Vector3.Distance(other.Context.Actor.transform.position, destination) < spacing * 0.5f) return false;
+                if (!renewingCommittedPosition && Vector3.Distance(other.Context.Actor.transform.position, destination) < spacing * 0.5f) return false;
             }
-            ReleaseShooter(member);
+            if (!member.Mover && ActiveMovers >= _config.MaximumMovers)
+            {
+                EnemySquadMemberState yielding = null;
+                if (prioritizeMovement)
+                    for (int i = 0; i < _members.Count; i++)
+                    {
+                        var other = _members[i];
+                        if (other.Mover && other.Context.Tactics?.CurrentCover == null &&
+                            (yielding == null || other.RoleChangedAt < yielding.RoleChangedAt)) yielding = other;
+                    }
+                if (yielding == null) return false;
+                ReleaseMovement(yielding);
+            }
+            // A movement lease reserves space; it does not forbid covering fire.
             if (!member.Mover) { member.Mover = true; ActiveMovers++; member.RoleChangedAt = now; }
             member.MoverUntil = now + _config.SlotLease; member.ReservedPosition = destination; member.FlankSide = flankSide;
             member.Role = flankSide != 0 ? EnemySquadRole.Flanker : EnemySquadRole.Mover; return true;

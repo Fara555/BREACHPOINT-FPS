@@ -14,8 +14,8 @@ namespace Breachpoint.Editor.Enemies
     public static partial class EnemyValidationRunner
     {
         internal const string VisualPath = "Assets/Project/Art/Enemies/Adam/Prefabs/PF_Enemy_Adam.prefab";
-        internal const string ControllerPath = "Assets/Project/Art/Enemies/Adam/Config/AC_Enemy_Adam.controller";
-        internal const string RiflemanPath = "Assets/Project/Enemies/Prefabs/Rifleman.prefab";
+        internal const string ControllerPath = "Assets/Project/Art/Enemies/Adam/AC_Enemy_Adam.controller";
+        internal const string RiflemanPath = "Assets/Project/Prefabs/Enemy/Rifleman.prefab";
         internal const string EvidencePath = "Logs/EnemyValidation";
         private static Transform FindUnique(Transform root, string name)
         {

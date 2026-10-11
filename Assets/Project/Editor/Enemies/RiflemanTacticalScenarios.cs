@@ -15,7 +15,8 @@ namespace Breachpoint.Editor.Enemies
     {
         internal static readonly string[] TacticalScenarioNames =
         {
-            "Single Rifleman baseline", "Three simultaneous contacts", "Suppressor and mover", "Suppressor and flanker", "Low cover", "High cover", "Competing for one cover", "All covers reserved", "Unreachable cover", "Ally blocks firing line", "Reload under pressure", "Player rushes cover", "Lost contact and group search", "Narrow passage", "Suppressor casualty", "Death during cover transition", "Reset and reuse", "Ten-agent stress", "Thirty-agent stress", "No valid tactical position"
+            "Single Rifleman baseline", "Three simultaneous contacts", "Suppressor and mover", "Suppressor and flanker", "Low cover", "High cover", "Competing for one cover", "All covers reserved", "Unreachable cover", "Ally blocks firing line", "Reload under pressure", "Player rushes cover", "Lost contact and group search", "Narrow passage", "Suppressor casualty", "Death during cover transition", "Reset and reuse", "Ten-agent stress", "Thirty-agent stress", "No valid tactical position",
+            "Exposed head behind low cover", "Occluded contact coordinated flank", "Distant squad encounter alert", "Rifleman survivability"
         };
         public static void RunTacticalScenario(int index)
         {
@@ -39,18 +40,18 @@ namespace Breachpoint.Editor.Enemies
             {
                 using (var samples = new StreamWriter(EnemyTools.Evidence + "/tactical-samples.csv", false))
                 {
-                    samples.WriteLine("Scenario,Time,Enemy,State,Intent,Role,Knowledge,DirectLOS,FireLane,Shooter,Mover,Cover,Phase,X,Z,Ammo,SnapshotTime,Decisions,Repaths");
+                    samples.WriteLine("Scenario,Time,Enemy,State,Intent,Role,Knowledge,DirectLOS,FireLane,Shooter,Mover,Cover,Phase,X,Z,Ammo,SnapshotTime,Decisions,Repaths,CanPressure,CoverValid,CoverRejection");
                     for (int index = 0; index < TacticalScenarioNames.Length; index++)
                     {
                         if (selected >= 1000 ? index < selected - 1000 : selected >= 0 && selected != index) continue;
                         UnityEngine.Random.InitState(4700 + index);
                         AppendResult("TACTICAL SCENARIO " + (index + 1) + ": " + TacticalScenarioNames[index]);
-                        int count = index == 0 || index == 9 || index == 19 ? 1 : index == 2 || index == 3 || index == 14 ? 2 : index == 6 || index == 7 ? 4 : index == 17 ? 10 : index == 18 ? 30 : 3;
+                        int count = index == 0 || index == 9 || index == 19 || index == 20 || index == 22 || index == 23 ? 1 : index == 2 || index == 3 || index == 14 ? 2 : index == 6 || index == 7 ? 4 : index == 17 ? 10 : index == 18 ? 30 : 3;
                         using (var fixture = new RiflemanTacticalFixture(scope, world, count, "Scenario" + (index + 1), index == 2 || index == 3 || index == 14 ? 1 : 2, index == 10 ? 2 : -1))
                         {
                             yield return null;
                             foreach (var brain in fixture.Brains) PlayCheck(brain.Tactics != null && brain.Tactics.Member != null, "Local tactical execution constructed and registered: " + brain.name);
-                            IEnumerator test = TacticalCase(index, fixture, world);
+                            IEnumerator test = TacticalCase(index, fixture, world, scope);
                             try { while (test.MoveNext()) { fixture.Observe(); SampleTactical(index, fixture, samples); yield return test.Current; } }
                             finally { (test as IDisposable)?.Dispose(); }
                             fixture.Observe();
@@ -75,17 +76,102 @@ namespace Breachpoint.Editor.Enemies
                 var tactics = brain.Tactics; var member = tactics.Member; if (member == null) continue;
                 Vector3 position = brain.transform.position;
                 writer.WriteLine(string.Join(",", index + 1, Time.time.ToString("F3", System.Globalization.CultureInfo.InvariantCulture), brain.name, brain.States.Current, tactics.Current.Intent, member.Role, tactics.Knowledge, brain.Memory.Visible, tactics.FireLane, member.Shooter, member.Mover,
-                    tactics.CurrentCover != null ? tactics.CurrentCover.name : "none", tactics.CoverPhase, position.x.ToString("F2", System.Globalization.CultureInfo.InvariantCulture), position.z.ToString("F2", System.Globalization.CultureInfo.InvariantCulture), brain.Combat.Ammo, brain.Memory.LastSeenTime.ToString("F2", System.Globalization.CultureInfo.InvariantCulture), tactics.DecisionCount, fixture.Actors[Array.IndexOf(fixture.Brains, brain)].Navigation.RepathCount));
+                    tactics.CurrentCover != null ? tactics.CurrentCover.name : "none", tactics.CoverPhase, position.x.ToString("F2", System.Globalization.CultureInfo.InvariantCulture), position.z.ToString("F2", System.Globalization.CultureInfo.InvariantCulture), brain.Combat.Ammo, brain.Memory.LastSeenTime.ToString("F2", System.Globalization.CultureInfo.InvariantCulture), tactics.DecisionCount, fixture.Actors[Array.IndexOf(fixture.Brains, brain)].Navigation.RepathCount, member.CanPressure, tactics.CoverRating.Valid, tactics.CoverRating.Rejection));
             }
         }
         private static IEnumerator WatchTactical(RiflemanTacticalFixture fixture, float seconds)
         { float until = Time.time + seconds; while (Time.time < until) { fixture.Observe(); yield return null; } }
-        private static IEnumerator TacticalCase(int index, RiflemanTacticalFixture fixture, EnemyWorld world)
+        private static IEnumerator TacticalCase(int index, RiflemanTacticalFixture fixture, EnemyWorld world, GameLifetimeScope scope)
         {
+            if (index == 20)
+            {
+                var brain = fixture.Brains[0]; brain.enabled = false; brain.ResetForSpawn();
+                var barrier = fixture.Wall(new Vector3(3.2f, .725f, .5f), new Vector3(12f, 1.45f, .5f), false);
+                var physics = new EnemyPhysics();
+                using (var sensor = new EnemyPerception(fixture.Contexts[0], world))
+                {
+                    sensor.Start(Time.time); Physics.SyncTransforms(); sensor.Tick(Time.time + brain.Config.Perception.Interval);
+                    PlayCheck(!physics.ClearLine(fixture.Actors[0].Eyes.position, fixture.Target, brain.Config.Perception.ObstructionMask, brain.transform), "Low cover blocks the original center-body sight ray");
+                    PlayCheck(brain.Memory.Visible && brain.Memory.KnownAimPosition.y > barrier.GetComponent<Collider>().bounds.max.y, "An exposed upper body is detected above low cover");
+                    brain.States.Change(EnemyStateId.Combat, "Controlled exposed-target weapon test");
+                    var presentation = brain.GetComponent<EnemyAnimationBridge>();
+                    float readyBy = Time.time + 2f;
+                    while (!presentation.IsAimPoseReady && Time.time < readyBy) yield return null;
+                    Physics.SyncTransforms();
+                    float health = fixture.Target.Health.CurrentHealth;
+                    var weapon = fixture.Actors[0].GetComponent<IEnemyWeapon>();
+                    PlayCheck(weapon.CanAttack(fixture.Target), "Raised rifle has a clear physical firing lane above low cover | muzzle=" + fixture.Actors[0].Muzzle.position);
+                    PlayCheck(weapon.Attack(fixture.Target, 0f) && fixture.Target.Health.CurrentHealth < health, "Rifle delivers actual damage to the exposed part instead of aiming into cover");
+                    barrier.transform.position = new Vector3(3.2f, 1.5f, .5f); barrier.transform.localScale = new Vector3(12f, 3f, .5f);
+                    Physics.SyncTransforms(); sensor.Tick(Time.time + brain.Config.Perception.Interval * 2f);
+                    PlayCheck(!brain.Memory.Visible && !weapon.CanAttack(fixture.Target), "Complete physical occlusion still blocks sight and rifle fire");
+                }
+                yield break;
+            }
+            if (index == 21)
+            {
+                foreach (var wait in Enumerate(WatchTactical(fixture, 1.5f))) yield return wait;
+                int shots = fixture.Shots;
+                fixture.Wall(new Vector3(4f, 1.5f, -1f), new Vector3(8f, 3f, .5f), true); Physics.SyncTransforms();
+                bool sawHiddenFlanker = false, reacquired = false; float until = Time.time + 8f;
+                while (Time.time < until)
+                {
+                    int flankers = 0;
+                    foreach (var brain in fixture.Brains)
+                    {
+                        var member = brain.Tactics.Member;
+                        if (member != null && member.Mover && member.FlankSide != 0)
+                        { flankers++; sawHiddenFlanker |= !brain.Memory.Visible && brain.Memory.HasContact; }
+                        reacquired |= sawHiddenFlanker && brain.Memory.Visible && fixture.Shots > shots;
+                    }
+                    PlayFlankLimit(flankers, fixture.Brains[0].Config.Tactics.Squad.MaximumFlankers);
+                    fixture.Observe(); yield return null;
+                }
+                PlayCheck(sawHiddenFlanker && reacquired, "A bounded flanker pursues the cached occluded contact, finds a new angle and restores actual fire");
+                yield break;
+            }
+            if (index == 22)
+            {
+                using (var distant = new RiflemanTacticalFixture(scope, world, 1, "DistantEncounterSquad"))
+                {
+                    distant.Target.gameObject.SetActive(false);
+                    fixture.Target.transform.position = new Vector3(-14f, 1f, -6f);
+                    fixture.Target.GetComponent<CapsuleCollider>().center = Vector3.zero;
+                    fixture.Actors[0].transform.position = new Vector3(-14f, 0f, -16f);
+                    distant.Actors[0].transform.SetPositionAndRotation(new Vector3(14f, 0f, 14f), Quaternion.identity);
+                    fixture.Actors[0].ConfigureEncounter("EncounterAlertRegression"); distant.Actors[0].ConfigureEncounter("EncounterAlertRegression");
+                    yield return null;
+                    fixture.Brains[0].ResetForSpawn(); distant.Brains[0].ResetForSpawn(); Physics.SyncTransforms();
+                    Vector3 began = distant.Actors[0].transform.position;
+                    float deadline = Time.time + 1f;
+                    while (!distant.Brains[0].Memory.HasContact && Time.time < deadline) yield return null;
+                    PlayCheck(distant.Brains[0].Memory.HasContact && !distant.Brains[0].Memory.Visible && distant.Brains[0].Memory.Target == fixture.Target,
+                        "A separate distant squad receives confirmed encounter contact without being granted direct sight");
+                    PlayCheck(distant.Brains[0].Tactics.Squad != fixture.Brains[0].Tactics.Squad, "Encounter alert preserves independent squad combat roles");
+                    PlayCheck(Mathf.Abs(distant.Brains[0].Memory.LastKnownPosition.y - fixture.Target.NavigationPosition.y) < .01f,
+                        "A center-pivot player supplies a grounded navigation position distinct from its aim point");
+                    foreach (var wait in Enumerate(WatchTactical(distant, 2f))) yield return wait;
+                    PlayCheck(Vector3.Distance(began, distant.Actors[0].transform.position) > 2f && distant.Brains[0].Memory.HasContact,
+                        "Distant alerted member physically closes the distance instead of waiting outside weapon range");
+                }
+                yield break;
+            }
+            if (index == 23)
+            {
+                var health = fixture.Actors[0].Health;
+                var weapon = AssetDatabase.LoadAssetAtPath<Breachpoint.Gameplay.Weapons.WeaponConfig>("Assets/Project/Configs/Weapons/SP6/SP6_WeaponConfig.asset");
+                PlayCheck(health.MaximumHealth == 180f, "Rifleman receives the tuned 180 health from its production archetype");
+                for (int i = 0; i < 4; i++) health.TakeDamage(new DamageInfo(weapon.Damage, fixture.Actors[0].transform.position, Vector3.forward, fixture.Target.gameObject));
+                PlayCheck(!health.IsDead, "Rifleman survives four normal production SP6 hits");
+                health.TakeDamage(new DamageInfo(weapon.Damage, fixture.Actors[0].transform.position, Vector3.forward, fixture.Target.gameObject));
+                PlayCheck(health.IsDead && fixture.Brains[0].States.Current == EnemyStateId.Dead, "The fifth normal SP6 hit remains lethal and enters the actual death state");
+                yield break;
+            }
             if (index == 0 || index == 1 || index == 2 || index == 3 || index == 17 || index == 18)
             {
-                foreach (var wait in Enumerate(WatchTactical(fixture, index == 0 ? 3f : 6f))) yield return wait;
+                foreach (var wait in Enumerate(WatchTactical(fixture, 6f))) yield return wait;
                 PlayCheck(fixture.Shots > 0 && fixture.Target.Health.CurrentHealth < fixture.Target.Health.MaximumHealth, "Visible target receives actual rifle fire");
+                if (index == 0) PlayCheck(fixture.Shots >= 8 && fixture.MovingShots >= 3, "Lone rifleman sustains pressure and fires while physically moving | shots=" + fixture.Shots + ", moving=" + fixture.MovingShots);
                 if (index == 2 || index == 3) PlayCheck(fixture.PressureMovementOverlap && fixture.SawMover, "One member fires while another physically relocates");
                 if (index == 3) PlayCheck(fixture.SawFlank, "Validated flank sector is executed under pressure");
                 if (index == 1) PlayCheck(fixture.SawMover && fixture.MaximumShooters < fixture.Brains.Length, "Open contact uses different roles instead of all enemies shooting together");
@@ -94,7 +180,9 @@ namespace Breachpoint.Editor.Enemies
             }
             if (index >= 4 && index <= 8 || index == 11 || index == 15 || index == 16)
             {
-                var point = fixture.AddCover(index == 5 ? EnemyCoverKind.High : EnemyCoverKind.Low, 8f, index == 8 ? -19.5f : -5.9f);
+                // Keep the unreachable point beyond the isolated floor's 20 m edge,
+                // including the NavMesh sampling tolerance.
+                var point = fixture.AddCover(index == 5 ? EnemyCoverKind.High : EnemyCoverKind.Low, 8f, index == 8 ? -22f : -5.9f);
                 if (index == 4 || index == 5 || index == 11 || index == 15 || index == 16)
                 {
                     // These cases validate cover execution, not ownership competition.
@@ -214,16 +302,16 @@ namespace Breachpoint.Editor.Enemies
             if (index == 12)
             {
                 foreach (var wait in Enumerate(WatchTactical(fixture, 2f))) yield return wait;
-                Vector3 known = fixture.Target.transform.position; fixture.Target.transform.position = new Vector3(50,0,30); Physics.SyncTransforms();
+                Vector3 known = fixture.Target.transform.position; fixture.Target.transform.position = new Vector3(fixture.Brains[0].Config.Perception.ViewRange + 100f,0,30); Physics.SyncTransforms();
                 foreach (var wait in Enumerate(WatchTactical(fixture, 2f))) yield return wait;
                 var destinations = new List<Vector3>();
                 foreach (var brain in fixture.Brains)
                 {
                     PlayCheck(!brain.Memory.Visible && brain.Memory.LastKnownPosition == known && brain.Tactics.Knowledge != EnemyKnowledge.DirectSight, "Lost contact uses cached location without tracking unseen live target");
-                    if (brain.Tactics.Current.Intent == EnemyTacticalIntent.Search && brain.Tactics.Member.Mover) destinations.Add(brain.Tactics.Current.Destination);
+                    if (brain.Tactics.Member.Mover && brain.Tactics.Current.Valid) destinations.Add(brain.Tactics.Current.Destination);
                 }
-                PlayCheck(destinations.Count >= 2 && Vector3.Distance(destinations[0], destinations[1]) >= 1f, "Group search reserves diversified hypotheses around cached last sighting");
-                foreach (var wait in Enumerate(WatchTactical(fixture, 10f))) yield return wait;
+                PlayCheck(destinations.Count >= 2 && Vector3.Distance(destinations[0], destinations[1]) >= 1f, "Group pursuit/search reserves diversified hypotheses around cached last sighting");
+                foreach (var wait in Enumerate(WatchTactical(fixture, fixture.Brains[0].Config.Perception.MemoryDuration + fixture.Brains[0].Config.Decision.SearchDuration + 1f))) yield return wait;
                 foreach (var brain in fixture.Brains) PlayCheck(!brain.Memory.HasContact && brain.States.Group == EnemyStateGroup.Passive && !brain.Tactics.Member.Shooter && !brain.Tactics.Member.Mover, "Expired group memory relaxes and releases combat resources"); yield break;
             }
             if (index == 13)
@@ -245,7 +333,8 @@ namespace Breachpoint.Editor.Enemies
                 while (Time.time < readyDeadline)
                 {
                     fixture.Observe(); anchor = mover = null;
-                    foreach (var brain in fixture.Brains) { if (brain.Tactics.Member.Shooter) anchor = brain; if (brain.Tactics.Member.Mover) mover = brain; }
+                    foreach (var brain in fixture.Brains) if (brain.Tactics.Member.Shooter) anchor = brain;
+                    foreach (var brain in fixture.Brains) if (brain != anchor && brain.Tactics.Member.Mover) mover = brain;
                     if (anchor != null && mover != null && fixture.PressureMovementOverlap && mover.GetComponent<EnemyActor>().Navigation.Velocity.sqrMagnitude > .1f) break;
                     yield return null;
                 }
@@ -264,6 +353,8 @@ namespace Breachpoint.Editor.Enemies
                 PlayCheck(fixture.Brains[0].Tactics.Current.Intent == EnemyTacticalIntent.WaitForLane && fixture.Brains[0].Tactics.Member != null && !fixture.Brains[0].Tactics.Member.Mover, "Unavailable navigation has bounded stationary fallback with no null errors"); yield break;
             }
         }
+        private static void PlayFlankLimit(int count, int maximum)
+        { if (count > maximum) throw new InvalidOperationException("Squad exceeded its configured simultaneous flanker limit."); }
         private static void DescribeCover(RiflemanTacticalFixture fixture)
         {
             var physics = new EnemyPhysics();

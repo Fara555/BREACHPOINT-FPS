@@ -193,6 +193,7 @@ MonoBehaviour:
   <Muzzle>k__BackingField: {fileID: 7554363233203218670}
   <Route>k__BackingField: {fileID: 0}
   <SquadId>k__BackingField: EnemyArena
+  <EncounterId>k__BackingField: EnemyArena
 --- !u!114 &503798234126083940
 MonoBehaviour:
   m_ObjectHideFlags: 0

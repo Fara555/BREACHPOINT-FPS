@@ -113,7 +113,7 @@ namespace Breachpoint.Editor.Enemies
                     using (var fixture = new RiflemanTacticalFixture(scope, world, count, "HumanReview", tactical == 2 || tactical == 3 || tactical == 14 ? 1 : 2, tactical == 10 ? 2 : index == HighCoverReviewStart + 1 ? 0 : -1))
                     {
                         TacticalReviewBrain = fixture.Brains[0];
-                        IEnumerator review = index >= HighCoverReviewStart ? HumanHighCover(index - HighCoverReviewStart, fixture, camera) : index >= 49 ? HumanMovingImpact(index-49,fixture,camera) : index >= 32 ? HumanCrouchDeath(index-32,fixture) : index < 12 ? HumanCombatMotion(index, fixture) : TacticalCase(tactical, fixture, world);
+                        IEnumerator review = index >= HighCoverReviewStart ? HumanHighCover(index - HighCoverReviewStart, fixture, camera) : index >= 49 ? HumanMovingImpact(index-49,fixture,camera) : index >= 32 ? HumanCrouchDeath(index-32,fixture) : index < 12 ? HumanCombatMotion(index, fixture) : TacticalCase(tactical, fixture, world, scope);
                         try
                         {
                             while ((focusedChecks || revision == SessionState.GetInt(TacticalReviewKey + ".Revision", 0)) && review.MoveNext())

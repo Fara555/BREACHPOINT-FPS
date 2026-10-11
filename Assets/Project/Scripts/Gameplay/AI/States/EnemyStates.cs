@@ -9,7 +9,10 @@ namespace Breachpoint.Gameplay.AI
         public virtual void Enter() { C.Memory.StateEnteredAt = C.Now; }
         public abstract void Tick(float deltaTime);
         public virtual void Exit()
-        { if (Id == EnemyStateId.Idle || Id == EnemyStateId.Patrol) C.Navigation.RequestStop(); else C.Navigation.Stop(); }
+        {
+            if (C.Tactics != null && (Id == EnemyStateId.Chase || Id == EnemyStateId.Combat || Id == EnemyStateId.Search)) return;
+            if (Id == EnemyStateId.Idle || Id == EnemyStateId.Patrol) C.Navigation.RequestStop(); else C.Navigation.Stop();
+        }
     }
     public sealed class IdleState : EnemyState
     {
@@ -72,7 +75,11 @@ namespace Breachpoint.Gameplay.AI
     {
         public CombatState(EnemyContext c) : base(c) { }
         public override EnemyStateId Id => EnemyStateId.Combat;
-        public override void Enter() { base.Enter(); C.Navigation.Stop(); }
+        public override void Enter()
+        {
+            base.Enter();
+            if (C.Tactics == null || C.Navigation.DesiredMovementTier == EnemyMovementTier.Steady) C.Navigation.Stop();
+        }
         public override void Tick(float dt)
         {
             if (C.Tactics != null) { C.Tactics.Tick(dt); return; }
@@ -92,7 +99,7 @@ namespace Breachpoint.Gameplay.AI
             if (Vector3.Angle(C.Actor.transform.forward, facing) < 15f)
                 C.Combat.Attack(target, C.Now);
         }
-        public override void Exit() { base.Exit(); if (C.Tactics != null) C.Combat.PauseAim(); else C.Combat.Stop(); }
+        public override void Exit() { base.Exit(); if (C.Tactics == null) C.Combat.Stop(); }
     }
     public sealed class StunnedState : EnemyState
     {

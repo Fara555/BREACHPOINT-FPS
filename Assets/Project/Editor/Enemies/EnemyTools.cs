@@ -88,10 +88,12 @@ namespace Breachpoint.Editor.Enemies
                 else if (command == "presentation-snapshot")
                 {
                     var snapshot = new StringBuilder(DateTime.UtcNow.ToString("O") + "\n");
+                    if (!EditorApplication.isPlaying) snapshot.AppendLine("No live presentation snapshot: Editor is outside Play Mode.");
                     foreach (var bridge in Object.FindObjectsByType<EnemyAnimationBridge>())
                     {
                         var brain = bridge.GetComponent<EnemyBrain>();
                         var actor = bridge.GetComponent<EnemyActor>();
+                        if (!EditorApplication.isPlaying || brain == null || brain.Memory == null || actor == null) continue;
                         snapshot.AppendLine($"{bridge.name}: state={EnemyAnimationStateNames.Get(bridge.Animator.GetCurrentAnimatorStateInfo(0).fullPathHash)} body={bridge.BodyAimErrorDegrees} muzzle={bridge.MuzzleAimErrorDegrees} target={bridge.AimTarget.position} expected={brain.Memory.Target?.AimPosition} visible={brain.Memory.Visible} alive={brain.Memory.Target?.IsAlive} velocity={actor.Navigation.Velocity} move={bridge.MoveSpeedSmoothed}");
                     }
                     File.WriteAllText(Evidence + "/presentation-snapshot.txt", snapshot.ToString());

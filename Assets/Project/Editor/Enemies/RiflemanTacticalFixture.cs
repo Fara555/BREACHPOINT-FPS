@@ -25,6 +25,7 @@ namespace Breachpoint.Editor.Enemies
         public PerceptionTarget Target { get; }
         public EnemyCoverService Covers { get; }
         public int Shots { get; private set; }
+        public int MovingShots { get; private set; }
         public bool PressureMovementOverlap { get; private set; }
         public bool SawMover { get; private set; }
         public bool SawFlank { get; private set; }
@@ -45,14 +46,15 @@ namespace Breachpoint.Editor.Enemies
             var archetype = Object.Instantiate(prefab.GetComponent<EnemyLifetimeScope>().Archetype); _configs.Add(archetype);
             var tactics = Object.Instantiate(archetype.Tactics); _configs.Add(tactics);
             var squad = Object.Instantiate(tactics.Squad); _configs.Add(squad);
-            var serialized = new SerializedObject(squad); serialized.FindProperty("<MaximumShooters>k__BackingField").intValue = maximumShooters; serialized.ApplyModifiedPropertiesWithoutUndo();
+            var serialized = new SerializedObject(squad); serialized.FindProperty("<MaximumShooters>k__BackingField").intValue = maximumShooters;
+            serialized.FindProperty("<MaximumMovers>k__BackingField").intValue = 2; serialized.ApplyModifiedPropertiesWithoutUndo();
             serialized = new SerializedObject(tactics); serialized.FindProperty("<Squad>k__BackingField").objectReferenceValue = squad; serialized.ApplyModifiedPropertiesWithoutUndo();
             serialized = new SerializedObject(archetype); serialized.FindProperty("<Tactics>k__BackingField").objectReferenceValue = tactics; serialized.ApplyModifiedPropertiesWithoutUndo();
             for (int i = 0; i < count; i++)
             {
                 Vector3 position = count <= 4 ? new Vector3(i * 4f, 0, -8f) : new Vector3(-12f + i % 7 * 4f, 0, -14f + i / 7 * 2f);
                 var instance = Object.Instantiate(prefab, position, Quaternion.identity, Root.transform); instance.name = id + "_Rifleman_" + (i + 1);
-                Actors[i] = instance.GetComponent<EnemyActor>(); Actors[i].ConfigureSquad(id);
+                Actors[i] = instance.GetComponent<EnemyActor>(); Actors[i].ConfigureSquad(id); Actors[i].ConfigureEncounter(id);
                 Brains[i] = instance.GetComponent<EnemyBrain>();
                 serialized = new SerializedObject(instance.GetComponent<EnemyLifetimeScope>()); var actorArchetype = archetype;
                 if (i == shortMagazineIndex)
@@ -79,6 +81,7 @@ namespace Breachpoint.Editor.Enemies
         private void Fired(int index)
         {
             Shots++; var tactics = Brains[index].Tactics;
+            if (Actors[index].Navigation.Velocity.sqrMagnitude > 0.1f) MovingShots++;
             if (tactics.CurrentCover != null && tactics.CoverPhase == EnemyCoverActionPhase.Protected) ProtectedShot = true;
             CoverExposedShot |= tactics.CurrentCover != null && tactics.CoverPhase == EnemyCoverActionPhase.Exposed;
             if (tactics.CurrentCover != null && tactics.CoverPhase == EnemyCoverActionPhase.Exposed) _shotCover[index] = tactics.CurrentCover;

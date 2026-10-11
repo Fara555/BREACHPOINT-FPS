@@ -9,6 +9,8 @@ namespace Breachpoint.Gameplay.AI
         [field: SerializeField, Min(0.1f)] public float MemoryDuration { get; private set; } = 6f;
         [field: SerializeField, Min(1)] public int MaximumShooters { get; private set; } = 2;
         [field: SerializeField, Min(1)] public int MaximumMovers { get; private set; } = 2;
+        [field: SerializeField, Min(1)] public int MaximumFlankers { get; private set; } = 2;
+        [field: SerializeField, Min(0f)] public float EncounterCommunicationRadius { get; private set; }
         [field: SerializeField, Min(0.1f)] public float SlotLease { get; private set; } = 2f;
         [field: SerializeField, Min(0.1f)] public float RoleCooldown { get; private set; } = 3f;
     }

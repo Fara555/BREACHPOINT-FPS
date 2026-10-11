@@ -32,6 +32,8 @@ namespace Breachpoint.Editor.Enemies
         private static float _nextSample;
         private static int _sector;
         private static int _shots;
+        private static float _firstContactAt;
+        private static float _allContactAt;
         private static bool _background;
         private static EnemyWorld _world;
         private static readonly Vector3[] Positions = { new Vector3(0,1,-28), new Vector3(-22,1,-8), new Vector3(22,1,7), new Vector3(-8,1,25) };
@@ -44,7 +46,7 @@ namespace Breachpoint.Editor.Enemies
             Scene scene = SceneManager.GetActiveScene();
             if (EditorApplication.isPlayingOrWillChangePlaymode || scene.path != "Assets/Project/Scenes/EnemyArena/EnemyArena.unity")
                 throw new InvalidOperationException("Save and open EnemyArena in Edit Mode before playtesting.");
-            if (scene.isDirty && !EditorSceneManager.SaveScene(scene)) throw new InvalidOperationException("Arena save failed.");
+            // Play Mode preserves the open Editor scene, including unsaved edits.
             SessionState.SetBool(Key, true);
             EditorApplication.isPlaying = true;
         }
@@ -63,6 +65,7 @@ namespace Breachpoint.Editor.Enemies
                 _background = Application.runInBackground;
                 Application.runInBackground = true;
                 _started = Time.time; _nextSample = _started + 1; _sector = 0; _shots = 0;
+                _firstContactAt = _allContactAt = float.PositiveInfinity;
                 Application.logMessageReceived += Log;
                 EditorApplication.update += Tick;
                 Report.AppendLine("60-second arena test, real AI and player target in four sectors, simulated weapon noise at sector entry; test-only player health override.");
@@ -115,18 +118,21 @@ namespace Breachpoint.Editor.Enemies
                 if (enemy.States.Current == EnemyStateId.Combat || enemy.States.Current == EnemyStateId.Chase)
                 {
                     Participants.Add(enemy.name);
+                    if (float.IsPositiveInfinity(_firstContactAt)) _firstContactAt = elapsed;
                     ActiveSquads.Add(enemy.GetComponent<EnemyActor>().SquadId);
                 }
                 if (enemy.Tactics.CurrentCover != null) CoverUsers.Add(enemy.name);
             }
+            if (Participants.Count == _enemies.Length && float.IsPositiveInfinity(_allContactAt)) _allContactAt = elapsed;
             Report.AppendLine($"t={elapsed:F1}s sector={sector} player={_player.position} combat={Combatants.Count} coverUsers={CoverUsers.Count} shots={_shots}");
             if (elapsed < 60) return;
             Report.AppendLine("Observed: " + string.Join(", ", Behaviors.OrderBy(item => item)));
             Report.AppendLine("Warnings/errors: " + Errors.Count);
             foreach (string error in Errors.Distinct()) Report.AppendLine(error);
             Report.AppendLine($"Engaged actors={Participants.Count}; engaged squads={ActiveSquads.Count}; firing-state actors={Combatants.Count}; cover users={CoverUsers.Count}; shots={_shots}");
+            Report.AppendLine($"First contact sample={_firstContactAt:F2}s; all actors engaged={_allContactAt:F2}s; encounter response window={_allContactAt - _firstContactAt:F2}s");
             // Chase also executes tactical movement/cover. Shooter leases deliberately keep other members moving.
-            bool passed = _enemies.Length == 12 && Errors.Count == 0 && Participants.Count >= 6 && ActiveSquads.Count == 3 && Combatants.Count >= 3 && CoverUsers.Count >= 2 && _shots > 0;
+            bool passed = _enemies.Length == 12 && Errors.Count == 0 && Participants.Count == 12 && _allContactAt - _firstContactAt <= 2.5f && ActiveSquads.Count == 3 && Combatants.Count >= 3 && CoverUsers.Count >= 2 && _shots > 0;
             Report.AppendLine("RESULT: " + (passed ? "PASS" : "FAIL"));
             File.WriteAllText(EnemyTools.Evidence + "/arena-playtest.txt", Report.ToString());
             EditorApplication.isPlaying = false;
