@@ -1,0 +1,130 @@
+{
+    "unity": "6000.4.4f1",
+    "os": "Windows 10  (10.0.19045) 64bit",
+    "cpu": "12th Gen Intel(R) Core(TM) i5-12400F",
+    "memoryMB": 16222,
+    "allocationCounterSupported": false,
+    "frameGcCounterSupported": true,
+    "results": [
+        {
+            "objects": 10000,
+            "enabled": false,
+            "operation": "scroll",
+            "samples": 90,
+            "meanMs": 0.12173333333333335,
+            "p95Ms": 0.2634,
+            "meanBytes": -1,
+            "meanFrameGcBytes": 25231
+        },
+        {
+            "objects": 10000,
+            "enabled": false,
+            "operation": "expand-collapse",
+            "samples": 90,
+            "meanMs": 0.42642,
+            "p95Ms": 1.0631,
+            "meanBytes": -1,
+            "meanFrameGcBytes": 326277
+        },
+        {
+            "objects": 10000,
+            "enabled": false,
+            "operation": "selection",
+            "samples": 60,
+            "meanMs": 1.1247983333333336,
+            "p95Ms": 2.7157,
+            "meanBytes": -1,
+            "meanFrameGcBytes": 371516
+        },
+        {
+            "objects": 10000,
+            "enabled": true,
+            "operation": "scroll",
+            "samples": 90,
+            "meanMs": 0.12766444444444439,
+            "p95Ms": 0.3139,
+            "meanBytes": -1,
+            "meanFrameGcBytes": 8799
+        },
+        {
+            "objects": 10000,
+            "enabled": true,
+            "operation": "expand-collapse",
+            "samples": 90,
+            "meanMs": 0.42393555555555587,
+            "p95Ms": 0.8927,
+            "meanBytes": -1,
+            "meanFrameGcBytes": 358476
+        },
+        {
+            "objects": 10000,
+            "enabled": true,
+            "operation": "selection",
+            "samples": 60,
+            "meanMs": 1.0911216666666668,
+            "p95Ms": 2.4824,
+            "meanBytes": -1,
+            "meanFrameGcBytes": 323593
+        },
+        {
+            "objects": 1000,
+            "enabled": false,
+            "operation": "scroll",
+            "samples": 90,
+            "meanMs": 0.12178555555555555,
+            "p95Ms": 0.2917,
+            "meanBytes": -1,
+            "meanFrameGcBytes": 9321
+        },
+        {
+            "objects": 1000,
+            "enabled": false,
+            "operation": "expand-collapse",
+            "samples": 90,
+            "meanMs": 0.20841999999999989,
+            "p95Ms": 0.4445,
+            "meanBytes": -1,
+            "meanFrameGcBytes": 342533
+        },
+        {
+            "objects": 1000,
+            "enabled": false,
+            "operation": "selection",
+            "samples": 60,
+            "meanMs": 0.23945500000000004,
+            "p95Ms": 0.3378,
+            "meanBytes": -1,
+            "meanFrameGcBytes": 292250
+        },
+        {
+            "objects": 1000,
+            "enabled": true,
+            "operation": "scroll",
+            "samples": 90,
+            "meanMs": 0.12058999999999998,
+            "p95Ms": 0.2518,
+            "meanBytes": -1,
+            "meanFrameGcBytes": 8793
+        },
+        {
+            "objects": 1000,
+            "enabled": true,
+            "operation": "expand-collapse",
+            "samples": 90,
+            "meanMs": 0.21443777777777776,
+            "p95Ms": 0.3964,
+            "meanBytes": -1,
+            "meanFrameGcBytes": 344971
+        },
+        {
+            "objects": 1000,
+            "enabled": true,
+            "operation": "selection",
+            "samples": 60,
+            "meanMs": 0.29839333333333337,
+            "p95Ms": 0.5068,
+            "meanBytes": -1,
+            "meanFrameGcBytes": 293608
+        }
+    ]
+}
