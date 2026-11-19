@@ -1,0 +1,13 @@
+# Packing desk essentials
+
+Three standalone, real-scale models replacing the poor cup, pencil and two blank labels on the south packing counter. Each has its own editable Blender file, FBX and reusable Unity prefab. No props are added to the north checkout counter in this pass.
+
+- InsulatedCup: 4088 triangles, four finishes; double-wall body, open rolled metallic mouth, inset rubber foot and recessed coffee meniscus. Printed reusable cup sleeve uses its own UVs. Annular rim/foot profiles have no disk caps across their openings.
+- UtilityMarker: 6260 triangles, four finishes; rounded barrel, segmented grip, cap shoulder, folded clip/return, end inserts and index marks. Resting orientation and scale are baked into the model; the origin is at the support plane.
+- DispatchSlip: 1192 triangles, one finish; subdivided curled paper with 0.4 mm thickness and an authored dispatch print/barcode. Two separate placements avoid paper intersections.
+
+Run build_props.py using Blender in background mode, then bake_print.ps1 using Windows PowerShell (built-in System.Drawing and the existing project Orbitron font, no package installation). This exports Models and two 1024px base-color print assets. packing-desk-create in the existing Unity Editor bridge creates the materials, 512px mask/normal maps and remaining base-color maps, remaps the models, saves the three prefabs and replaces four scene instances. packing-desk-validate checks links, owned HDRP maps/color spaces/mips, passive components, counter bounds, protected room assets, ration props and exact gameplay/navigation fingerprint. packing-desk-capture makes context and close-up HDRP views.
+
+The material set is shared by these three props and self-contained under Art/Props/PackingDesk. Paper, painted polymer, rubber, brushed metal and coffee have distinct roughness/metalness and restrained micro normals. No new lights, colliders, scripts, interaction or render settings are introduced.
+
+Legacy Life/DailyUse.fbx is retained byte-for-byte: owned Integration mesh index buffers omit only its 2544 south-counter placeholder triangles. Vertex attributes and all remaining triangles, including the north desk and fan, are retained. These integration assets are scene migration data, not dependencies of the three reusable prop prefabs. Re-run packing-desk-create after a future Life FBX rebuild to regenerate the filter from that canonical source; it restores the source reference for any group with no legacy south faces. Existing ration filtering operates independently on the room model. Logs/PackingDeskProps stores the scene backup, gameplay baseline, validation, removal count and review images.

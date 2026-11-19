@@ -1,0 +1,472 @@
+{
+  "material_groups": 3,
+  "triangles": 98816,
+  "full_cells": 58,
+  "closure_cells": 18,
+  "square_cells": 1,
+  "horizontal_area_m2": 269,
+  "placements": [
+    {
+      "model": "Deck_Service",
+      "x": -10,
+      "z": 33,
+      "rotate": false
+    },
+    {
+      "model": "Deck_Solid",
+      "x": -8,
+      "z": 33,
+      "rotate": false
+    },
+    {
+      "model": "Deck_Transition",
+      "x": -6.5,
+      "z": 33,
+      "rotate": true
+    },
+    {
+      "model": "Deck_Solid",
+      "x": -10,
+      "z": 35,
+      "rotate": false
+    },
+    {
+      "model": "Deck_Solid",
+      "x": -8,
+      "z": 35,
+      "rotate": false
+    },
+    {
+      "model": "Deck_Transition",
+      "x": -6.5,
+      "z": 35,
+      "rotate": true
+    },
+    {
+      "model": "Deck_Solid",
+      "x": -10,
+      "z": 37,
+      "rotate": false
+    },
+    {
+      "model": "Deck_Solid",
+      "x": -8,
+      "z": 37,
+      "rotate": false
+    },
+    {
+      "model": "Deck_Transition",
+      "x": -6.5,
+      "z": 37,
+      "rotate": true
+    },
+    {
+      "model": "Deck_Solid",
+      "x": -10,
+      "z": 39,
+      "rotate": false
+    },
+    {
+      "model": "Deck_Solid",
+      "x": -8,
+      "z": 39,
+      "rotate": false
+    },
+    {
+      "model": "Deck_Transition",
+      "x": -6.5,
+      "z": 39,
+      "rotate": true
+    },
+    {
+      "model": "Deck_Solid",
+      "x": -10,
+      "z": 41,
+      "rotate": false
+    },
+    {
+      "model": "Deck_Solid",
+      "x": -8,
+      "z": 41,
+      "rotate": false
+    },
+    {
+      "model": "Deck_Transition",
+      "x": -6.5,
+      "z": 41,
+      "rotate": true
+    },
+    {
+      "model": "Deck_Solid",
+      "x": -10,
+      "z": 43,
+      "rotate": false
+    },
+    {
+      "model": "Deck_Solid",
+      "x": -8,
+      "z": 43,
+      "rotate": false
+    },
+    {
+      "model": "Deck_Transition",
+      "x": -6.5,
+      "z": 43,
+      "rotate": true
+    },
+    {
+      "model": "Deck_Solid",
+      "x": -10,
+      "z": 45,
+      "rotate": false
+    },
+    {
+      "model": "Deck_Service",
+      "x": -8,
+      "z": 45,
+      "rotate": false
+    },
+    {
+      "model": "Deck_Transition",
+      "x": -6.5,
+      "z": 45,
+      "rotate": true
+    },
+    {
+      "model": "Deck_Service",
+      "x": -10,
+      "z": 47,
+      "rotate": false
+    },
+    {
+      "model": "Deck_Solid",
+      "x": -8,
+      "z": 47,
+      "rotate": false
+    },
+    {
+      "model": "Deck_Transition",
+      "x": -6.5,
+      "z": 47,
+      "rotate": true
+    },
+    {
+      "model": "Deck_Solid",
+      "x": -10,
+      "z": 49,
+      "rotate": false
+    },
+    {
+      "model": "Deck_Solid",
+      "x": -8,
+      "z": 49,
+      "rotate": false
+    },
+    {
+      "model": "Deck_Transition",
+      "x": -6.5,
+      "z": 49,
+      "rotate": true
+    },
+    {
+      "model": "Deck_Solid",
+      "x": -5,
+      "z": 33,
+      "rotate": false
+    },
+    {
+      "model": "Deck_Solid",
+      "x": -3,
+      "z": 33,
+      "rotate": false
+    },
+    {
+      "model": "Deck_Solid",
+      "x": -1,
+      "z": 33,
+      "rotate": false
+    },
+    {
+      "model": "Deck_Solid",
+      "x": 1,
+      "z": 33,
+      "rotate": false
+    },
+    {
+      "model": "Deck_Solid",
+      "x": 3,
+      "z": 33,
+      "rotate": false
+    },
+    {
+      "model": "Deck_Solid",
+      "x": -5,
+      "z": 35,
+      "rotate": false
+    },
+    {
+      "model": "Deck_Solid",
+      "x": -3,
+      "z": 35,
+      "rotate": false
+    },
+    {
+      "model": "Deck_Solid",
+      "x": -1,
+      "z": 35,
+      "rotate": false
+    },
+    {
+      "model": "Deck_Solid",
+      "x": 1,
+      "z": 35,
+      "rotate": false
+    },
+    {
+      "model": "Deck_Solid",
+      "x": 3,
+      "z": 35,
+      "rotate": false
+    },
+    {
+      "model": "Deck_Solid",
+      "x": -5,
+      "z": 47,
+      "rotate": false
+    },
+    {
+      "model": "Deck_Solid",
+      "x": -3,
+      "z": 47,
+      "rotate": false
+    },
+    {
+      "model": "Deck_Solid",
+      "x": -1,
+      "z": 47,
+      "rotate": false
+    },
+    {
+      "model": "Deck_Solid",
+      "x": 1,
+      "z": 47,
+      "rotate": false
+    },
+    {
+      "model": "Deck_Solid",
+      "x": 3,
+      "z": 47,
+      "rotate": false
+    },
+    {
+      "model": "Deck_Solid",
+      "x": -5,
+      "z": 49,
+      "rotate": false
+    },
+    {
+      "model": "Deck_Solid",
+      "x": -3,
+      "z": 49,
+      "rotate": false
+    },
+    {
+      "model": "Deck_Solid",
+      "x": -1,
+      "z": 49,
+      "rotate": false
+    },
+    {
+      "model": "Deck_Solid",
+      "x": 1,
+      "z": 49,
+      "rotate": false
+    },
+    {
+      "model": "Deck_Solid",
+      "x": 3,
+      "z": 49,
+      "rotate": false
+    },
+    {
+      "model": "Deck_Solid",
+      "x": 5,
+      "z": 40,
+      "rotate": false
+    },
+    {
+      "model": "Deck_Solid",
+      "x": 7,
+      "z": 40,
+      "rotate": false
+    },
+    {
+      "model": "Deck_Solid",
+      "x": 9,
+      "z": 40,
+      "rotate": false
+    },
+    {
+      "model": "Deck_Solid",
+      "x": 11,
+      "z": 40,
+      "rotate": false
+    },
+    {
+      "model": "Deck_Transition",
+      "x": 12.5,
+      "z": 40,
+      "rotate": true
+    },
+    {
+      "model": "Deck_Solid",
+      "x": 5,
+      "z": 42,
+      "rotate": false
+    },
+    {
+      "model": "Deck_Solid",
+      "x": 7,
+      "z": 42,
+      "rotate": false
+    },
+    {
+      "model": "Deck_Solid",
+      "x": 9,
+      "z": 42,
+      "rotate": false
+    },
+    {
+      "model": "Deck_Solid",
+      "x": 11,
+      "z": 42,
+      "rotate": false
+    },
+    {
+      "model": "Deck_Transition",
+      "x": 12.5,
+      "z": 42,
+      "rotate": true
+    },
+    {
+      "model": "Deck_Solid",
+      "x": 5,
+      "z": 44,
+      "rotate": false
+    },
+    {
+      "model": "Deck_Solid",
+      "x": 7,
+      "z": 44,
+      "rotate": false
+    },
+    {
+      "model": "Deck_Solid",
+      "x": 9,
+      "z": 44,
+      "rotate": false
+    },
+    {
+      "model": "Deck_Service",
+      "x": 11,
+      "z": 44,
+      "rotate": false
+    },
+    {
+      "model": "Deck_Transition",
+      "x": 12.5,
+      "z": 44,
+      "rotate": true
+    },
+    {
+      "model": "Deck_Solid",
+      "x": 5,
+      "z": 46,
+      "rotate": false
+    },
+    {
+      "model": "Deck_Solid",
+      "x": 7,
+      "z": 46,
+      "rotate": false
+    },
+    {
+      "model": "Deck_Service",
+      "x": 9,
+      "z": 46,
+      "rotate": false
+    },
+    {
+      "model": "Deck_Solid",
+      "x": 11,
+      "z": 46,
+      "rotate": false
+    },
+    {
+      "model": "Deck_Transition",
+      "x": 12.5,
+      "z": 46,
+      "rotate": true
+    },
+    {
+      "model": "Deck_Solid",
+      "x": 5,
+      "z": 48,
+      "rotate": false
+    },
+    {
+      "model": "Deck_Service",
+      "x": 7,
+      "z": 48,
+      "rotate": false
+    },
+    {
+      "model": "Deck_Solid",
+      "x": 9,
+      "z": 48,
+      "rotate": false
+    },
+    {
+      "model": "Deck_Solid",
+      "x": 11,
+      "z": 48,
+      "rotate": false
+    },
+    {
+      "model": "Deck_Transition",
+      "x": 12.5,
+      "z": 48,
+      "rotate": true
+    },
+    {
+      "model": "Deck_Transition",
+      "x": 5,
+      "z": 49.5,
+      "rotate": false
+    },
+    {
+      "model": "Deck_Transition",
+      "x": 7,
+      "z": 49.5,
+      "rotate": false
+    },
+    {
+      "model": "Deck_Transition",
+      "x": 9,
+      "z": 49.5,
+      "rotate": false
+    },
+    {
+      "model": "Deck_Transition",
+      "x": 11,
+      "z": 49.5,
+      "rotate": false
+    },
+    {
+      "model": "Square_Closure",
+      "x": 12.5,
+      "z": 49.5,
+      "rotate": false
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "material_assignments": {
+    "WallWarm": 9,
+    "InteriorNeutral": 50,
+    "InteriorQuietFrame": 1200,
+    "InteriorCeiling": 36,
+    "WallWarning": 42,
+    "WallDark": 7
+  },
+  "material_groups": 12,
+  "triangles": 483716,
+  "geometry_modified": false,
+  "floor_modified": false
+}

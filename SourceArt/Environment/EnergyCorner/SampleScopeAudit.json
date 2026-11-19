@@ -1,0 +1,15 @@
+{
+  "mesh_objects": 820,
+  "outside_objects": [],
+  "materials": [
+    "BrushedSteel",
+    "CoatedMetal",
+    "CyanIndicator",
+    "DeckMetal",
+    "DisplayGlass",
+    "OxidizedCopper",
+    "Recess",
+    "WarmIndicator"
+  ],
+  "scope": "energy module and 8x8m deck only; gallery and loose markings excluded"
+}

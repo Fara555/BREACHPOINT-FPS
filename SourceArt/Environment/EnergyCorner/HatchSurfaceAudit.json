@@ -1,0 +1,51 @@
+{
+  "coplanar_visible_lifting_recesses": [],
+  "count": 0,
+  "hatches": 6,
+  "topology": [
+    {
+      "lid": "Deck removable service hatch",
+      "euler": -2,
+      "nonmanifold_edges": 0
+    },
+    {
+      "lid": "Deck removable service hatch.001",
+      "euler": -2,
+      "nonmanifold_edges": 0
+    },
+    {
+      "lid": "Deck removable service hatch.002",
+      "euler": -2,
+      "nonmanifold_edges": 0
+    },
+    {
+      "lid": "Deck removable service hatch.003",
+      "euler": -2,
+      "nonmanifold_edges": 0
+    },
+    {
+      "lid": "Deck removable service hatch.004",
+      "euler": -2,
+      "nonmanifold_edges": 0
+    },
+    {
+      "lid": "Deck removable service hatch.005",
+      "euler": -2,
+      "nonmanifold_edges": 0
+    }
+  ],
+  "handle_below_lid_metres": [
+    0.002,
+    0.002,
+    0.002,
+    0.002,
+    0.002,
+    0.002,
+    0.002,
+    0.002,
+    0.002,
+    0.002,
+    0.002,
+    0.002
+  ]
+}

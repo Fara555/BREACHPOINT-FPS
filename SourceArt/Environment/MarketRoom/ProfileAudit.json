@@ -1,0 +1,24 @@
+{
+  "object_count": 266,
+  "no_added_or_removed_objects": true,
+  "unchanged_object_transforms": true,
+  "changed_profiles": [
+    "Reader inset contact pad",
+    "Reader low molded housing",
+    "Reader quiet confirmation strip",
+    "Storage formed door pull",
+    "Storage formed door pull.001",
+    "Storage formed door pull.002",
+    "Storage formed door pull.003",
+    "Supply cassette locked lid",
+    "Supply cassette locked lid.001",
+    "Supply cassette locked lid.002",
+    "Supply cassette locked lid.003",
+    "Supply cassette locked lid.004"
+  ],
+  "unrelated_geometry_unchanged": true,
+  "floor_mesh_uv_normals_unchanged": true,
+  "material_inventory_unchanged": true,
+  "physical_uv_faces_tested": 874,
+  "max_metric_error": 0.00028692307154010166
+}

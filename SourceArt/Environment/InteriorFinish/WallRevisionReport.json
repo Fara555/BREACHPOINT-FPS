@@ -1,0 +1,128 @@
+{
+  "pass": 1,
+  "old_wall_objects_removed": 560,
+  "bays": 22,
+  "material_groups": 8,
+  "triangles": 195960,
+  "plans": {
+    "S": [
+      [
+        -18,
+        -12,
+        "service"
+      ],
+      [
+        -12,
+        -4,
+        "quiet"
+      ],
+      [
+        -4,
+        3,
+        "quiet"
+      ],
+      [
+        3,
+        9,
+        "portal"
+      ],
+      [
+        9,
+        14,
+        "service"
+      ],
+      [
+        14,
+        18,
+        "quiet"
+      ]
+    ],
+    "N": [
+      [
+        -18,
+        -9,
+        "vent"
+      ],
+      [
+        -9,
+        -6,
+        "quiet"
+      ],
+      [
+        -6,
+        -2,
+        "quiet"
+      ],
+      [
+        -2,
+        4,
+        "service"
+      ],
+      [
+        4,
+        12,
+        "quiet"
+      ],
+      [
+        12,
+        18,
+        "vent"
+      ]
+    ],
+    "E": [
+      [
+        20,
+        27,
+        "quiet"
+      ],
+      [
+        27,
+        35,
+        "service"
+      ],
+      [
+        35,
+        49,
+        "vent"
+      ],
+      [
+        49,
+        57,
+        "service"
+      ],
+      [
+        57,
+        64,
+        "quiet"
+      ]
+    ],
+    "W": [
+      [
+        20,
+        27,
+        "service"
+      ],
+      [
+        27,
+        34,
+        "quiet"
+      ],
+      [
+        34,
+        47,
+        "vent"
+      ],
+      [
+        47,
+        55,
+        "quiet"
+      ],
+      [
+        55,
+        64,
+        "service"
+      ]
+    ]
+  },
+  "floor_geometry_generated": false
+}

@@ -113,3 +113,10 @@ InitTestScene*.unity*
 /Docs
 /Tools
 
+# Python caches from offline art authoring
+__pycache__/
+*.py[cod]
+
+# Local Hierarchy Toolkit decorations and bookmarks
+/ProjectSettings/HierarchyToolkitData.asset
+

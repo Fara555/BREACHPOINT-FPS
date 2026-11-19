@@ -1,0 +1,22 @@
+{
+  "Deck_Service": {
+    "material_groups": 3,
+    "triangles": 1736
+  },
+  "Deck_Solid": {
+    "material_groups": 3,
+    "triangles": 1340
+  },
+  "Deck_Vent": {
+    "material_groups": 3,
+    "triangles": 2388
+  },
+  "Entry_Wall": {
+    "material_groups": 4,
+    "triangles": 19696
+  },
+  "Deck_Transition": {
+    "material_groups": 3,
+    "triangles": 992
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "triangles": 5112,
+  "materials": 4,
+  "placement": [
+    -17.45,
+    0,
+    40.5
+  ],
+  "closed_door": true,
+  "frame_proud_of_lining_m": 0.024,
+  "enamel_recess_m": 0.003,
+  "collision_fitted_to_recess": true
+}

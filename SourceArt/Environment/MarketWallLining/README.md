@@ -1,0 +1,14 @@
+# Market interior wall lining
+
+The user requested a focused improvement of the strange, unfinished internal market walls. This replaces their broad flat facing and disconnected protective plates with one coherent lining system. Floor, ceiling, exterior facade, furniture, new standalone desk props, lighting and gameplay are preserved.
+
+Design: large enamel sheets, a darker impact belt, recessed skirting, a continuous upper service casing and two integrated vent fields on the storage wall. Inside corners, door heads, perimeter closures and window returns have actual folded depth and radiused edges. The original doors/window remain open. No text, emission, loose props, lights, collision, scripts or new dependencies are added.
+
+Editable source: MarketWallLining.blend, built with build_lining.py using Blender. Four finish groups, 21056 triangles after the recessed service-door aperture/header revision, world-aligned real-scale origin matching the room. UV0 and UV1 are meter-space projections: broad surfaces retain quiet color, with subtle enamel/paint grain and roughness changes. All four HDRP Lit materials and their 512px base/mask/normal maps are owned under Art/Environment/ServiceQuarter/MarketWallLining. Data maps are linear, albedo sRGB, mipmapped/trilinear/aniso8; geometric specular AA enabled. No displacement/POM or new render settings.
+
+Unity commands: market-wall-create, market-wall-validate, market-wall-capture through the existing Editor bridge. One prefab instance is saved beneath root18. The create command makes a first-run scene/gameplay backup, creates owned assets, archives the old lining and saves/captures the result. No manual Inspector setup is needed.
+
+Legacy integration deliberately preserves canonical MarketRoom asset files. Only the internal-facing MarketLining renderer is disabled through a scene prefab override. Six obsolete upper/end backing plates lose 552 triangle indices through one owned Integration mesh copy, retaining all other vertex attributes and triangles. Ration-pack integration modifies different material groups independently. BattlefieldMarketRoom.RefreshSurfaces reapplies this replacement from the canonical source on future room reimports. Integration assets are scene migration data, not prefab dependencies.
+
+Source/Unity vertex-envelope audits protect door/window openings and exclude floor/roof slabs. Validation checks prefab ownership, passive components, active HDRP maps/import settings, exact gameplay/navigation data, accepted canonical room/furniture/floor asset bytes and existing desk props/fan wiring. Actual HDRP views in Logs/MarketWallLining cover both interior directions, packing wall, window return, storage upper band and end corner. A second visual pass fixes end-head/perimeter gaps, breast-wall joins and skirting contact; no navigation bake/combat simulation is run for this visual-only task. No GPU benchmark or standalone build is claimed.
+

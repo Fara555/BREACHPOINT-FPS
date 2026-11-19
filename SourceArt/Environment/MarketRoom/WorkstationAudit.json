@@ -1,0 +1,12 @@
+{
+  "old_source_objects": 266,
+  "new_source_objects": 252,
+  "new_devices": 0,
+  "device_components": 6,
+  "obsolete_overlays_removed": 14,
+  "unrelated_meshes_unchanged": 246,
+  "counter_footprint_clear": true,
+  "screen_facing_correct": true,
+  "base_seated": true,
+  "floor_unchanged": true
+}

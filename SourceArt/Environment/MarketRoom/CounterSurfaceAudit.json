@@ -1,0 +1,18 @@
+{
+  "object_count": 252,
+  "geometry_transforms_uv_unchanged": true,
+  "changed_counter_materials": [
+    "Market counter base.001",
+    "Market counter dark plinth.001",
+    "Market counter durable top.001",
+    "Market counter identity inset.001",
+    "Counter removable front.002",
+    "Counter captive pull.002",
+    "Counter removable front.003",
+    "Counter captive pull.003",
+    "Counter top folded nose.001",
+    "Counter rear splash return.001"
+  ],
+  "devices_window_other_counter_floor_unchanged": true,
+  "no_new_objects": true
+}

@@ -1,0 +1,17 @@
+{
+  "InsulatedCup": {
+    "triangles": 4088,
+    "materials": 4,
+    "bottom_center_origin": true
+  },
+  "UtilityMarker": {
+    "triangles": 6260,
+    "materials": 4,
+    "bottom_center_origin": true
+  },
+  "DispatchSlip": {
+    "triangles": 1192,
+    "materials": 1,
+    "bottom_center_origin": true
+  }
+}

@@ -1,0 +1,37 @@
+# Energy corner model
+
+Blender 5.1.2 authoring source for the single energy module art sample in Blockout B.
+
+- `EnergyCorner.blend`: individual manufactured components, named material slots, bevels and weighted normals applied to editable geometry.
+- `BlockoutMesh.json`: original Unity art envelope and UV snapshot, before the detailed model was installed. Do not replace this input with a snapshot of the finished model.
+- `build_model.py`: reproducible modeling/export script, run from the project root with Blender `--background --factory-startup --python SourceArt/Environment/EnergyCorner/build_model.py`.
+- `ModelReport.json`: exported geometry counts. Current model: 106,936 triangles in Blender across eight material groups. No textures are embedded.
+- Unity export: `Assets/Project/Art/Environment/ServiceQuarter/CornerSample/Models/EnergyCorner.fbx`.
+
+Revision 2 adds a segmented formed canopy with drip lips, clipped lower access panels and drainage slots, corner armor, a clipped junction cover and isolation shoes. Small fasteners use fewer bevel segments; larger silhouette edges retain three. Surface maps are now 512 pixels and exposed metal replaces uniform rust coloring.
+
+The sample includes radiused manufactured edges, weighted normals, formed ventilation frames, angled louvers with fan rotors behind them, a gasketed cabinet with hinges and a grab handle, display bezel, washers/socket screws, profile joints, junction flanges and cable glands. The original metal maps, cabling and gallery patch are retained. Concrete geometry is removed: the sample now uses clipped metal deck modules, black seams, steel inserts, flush fasteners, antislip strips, lifting recesses and clad foundation panels. Orbitron labels remain separate Unity text objects.
+
+The authoring coordinate conversion compensates for Unity's FBX X-axis conversion; do not correct it again by rotating the scene instance. Export has applied object transforms, no cameras, animation, lights or collision meshes. Unity remaps all nine material slots to the existing local HDRP materials.
+
+After Blender export, refresh Unity and run `corner-model-install` through the existing bridge. This replaces only the art geometry in its existing prefab, keeps text/lights and is safe to repeat. Run `corner-art-validate` and `corner-art-capture` as separate commands after prefab synchronization. Validation checks model bounds/orientation, UVs/normals, a 120k triangle ceiling, rendering/light budgets and the saved gameplay fingerprint. The source art prefab and the graybox gameplay colliders remain independent.
+
+This is a detailed sample, not the finished level. It has no LOD chain, baked normal-map reduction or proven whole-level performance budget. Do not duplicate this density across the level before profiling and setting a modular/LOD budget. No new runtime package is required. Older Unity-generated mesh assets are retained as source/history and are no longer referenced by the art prefab.
+
+The current target is an enclosed technical interior. The existing Blockout B remains open above; room architecture has not yet been built. Only the 8 x 8 metre sample deck is finished; surrounding floor is still graybox. No concrete material is referenced by the current FBX. Old concrete source assets are retained for history only.
+
+Deck refinement: the top plate now has a stamped inset center and sloping border, a narrow perimeter channel, gasketed service hatches with quarter-turn locks and two ventilated modules. DeckMetal is a dedicated graphite HDRP material derived from the local steel maps; it is intentionally distinct from the blue coated equipment. No emissive floor lights or new textures were added. Geometry remains visual-only and uses the existing floor collision. Close-up capture: Logs/BattlefieldCornerArt/deck-detail.png. Model installation preserves unsaved scene edits.
+
+The current deck export has 109312 Blender triangles / 103108 imported Unity triangles, nine material groups, twelve total renderers including text and two unchanged lights. DeckMetal intentionally has no broad albedo map: its local steel fine normal detail and graphite tint remain. UV/normal/bounds, no-concrete and saved gameplay fingerprint checks pass. No runtime probe was repeated for this visual-only revision. Inspect deck seams/locks and reflections while moving; the floor collision remains the existing flat gameplay surface.
+
+Broad gloss spots from the inherited mask map were also removed during visual review. DeckMetal uses uniform metallic .75 / smoothness .38 and the fine steel normal map, so variation comes from actual plate/lock/louver geometry.
+
+Hatch z-fighting fix: the old twelve black lifting-recess overlays shared the lid's 0.016m top plane. Before-fix evidence is in Logs/BattlefieldCornerArt/BeforeHatchFix. Lids now have two boolean through-holes, inset metal handles, and separate gasket/lid levels. The tray groove is part of a continuous closed shell, not a floating coplanar strip. audit_hatches.py validates six manifold lids with Euler -2 (two holes each), no old coplanar overlays and twelve handles 2mm below the lid. Hatch top UVs cover the full panel map.
+
+Deck surface authoring is now BattlefieldDeckSurface.Bake / corner-deck-surface: 1024px BaseColor, packed HDRP Mask, tangent Normal and Height, plus 256px RGBA Detail tiled 8x. Mask channels are metallic / AO / detail / smoothness; detail is albedo / normalY / smoothness / normalX. It uses fine grain, sparse scratches, exposed-metal edge wear and local roughness changes, not broad cloudy noise. HDRP pixel displacement amplitude is 0.6mm, 5-12 samples, LOD fade 3, depth offset disabled. Large grooves/handles remain real geometry. Existing material GUID is preserved; model reinstallation no longer clears authored maps. Source HDRP shader/API was inspected locally for channel packing and centimetre-to-metre amplitude conversion. No new runtime packages or global settings.
+
+POM and detail textures add GPU cost; no frame-time claim is made. Validate under representative gameplay lighting. HDRP features are chosen for opaque painted metal; transmission/wet clearcoat/tessellation are not enabled. Surface command is explicit and rewrites only the owned deck maps/material.
+
+Scope cleanup: the early gallery fascia/ribs/task lamp and all original loose MarkingPaint lane/hazard strips are excluded when reading the historical snapshot. The sample is now only the energy module and its 8x8m deck. Model install removes the old Gallery task spill light and the empty Cable and repair layer node from the owned prefab. Snapshot data and old source assets are retained, but rebuilding cannot reintroduce those extras. audit_sample_scope.py checks all source vertices against the two intended regions and rejects legacy concrete/marking slots. Unity validates the same envelopes, eight mesh groups, one cabinet light, three equipment labels, no empty leaf nodes, no colliders, missing references and the unchanged gameplay fingerprint.
+
+Current cleanup report: 106936 Blender triangles / 100732 Unity triangles, eight material groups / eleven renderers incl. text / one cabinet light. SampleScopeAudit.json reports 820 source mesh objects with no outside vertices. Hatch audit still passes. The gallery-start and corner captures were inspected after cleanup, with Console errors/warnings both zero. Existing gameplay/NavMesh/configuration unchanged. Older counts and light descriptions above describe previous revisions.

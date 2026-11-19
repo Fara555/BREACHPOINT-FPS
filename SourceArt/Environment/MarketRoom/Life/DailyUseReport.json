@@ -1,0 +1,24 @@
+{
+  "static": {
+    "materials": 6,
+    "triangles": 13448
+  },
+  "rotor": {
+    "materials": 2,
+    "triangles": 1232
+  },
+  "rotor_world_pivot": [
+    -11.649999618530273,
+    1.5099999904632568,
+    43.31999969482422
+  ],
+  "rotation_axis": [
+    1,
+    0,
+    0
+  ],
+  "counter_bounds_audit": true,
+  "all_existing_art_untouched": true,
+  "new_lights": 0,
+  "new_colliders": 0
+}

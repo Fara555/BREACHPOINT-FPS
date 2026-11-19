@@ -1,0 +1,10 @@
+{
+  "triangles": 3596,
+  "width_m": 0.38,
+  "depth_m": 0.26,
+  "height_m": 0.07165329903364182,
+  "bottom_center_origin": true,
+  "closed_manifold": true,
+  "material_slots": 1,
+  "separate_reusable_asset": true
+}

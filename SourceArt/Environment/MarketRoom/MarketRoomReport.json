@@ -1,0 +1,40 @@
+{
+  "removed_workshop_skin_objects": 131,
+  "unchanged_interior": {
+    "groups": 12,
+    "triangles": 457428
+  },
+  "fittings_audit": {
+    "objects": 124,
+    "inside_room": true,
+    "central_aisle_clear": true
+  },
+  "envelope_audit": {
+    "objects": 35,
+    "inside_room": true,
+    "end_doorways_clear": true
+  },
+  "detail_uv_audit": {
+    "physical_faces": 14452,
+    "floor_uv_untouched": true
+  },
+  "existing_finish_mapping_preserved": true,
+  "market_room": {
+    "groups": 19,
+    "triangles": 28208
+  },
+  "door_clear_widths_m": [
+    2.8,
+    2.8
+  ],
+  "door_clear_height_m": 3.2,
+  "serving_window": {
+    "width_m": 3.0,
+    "breast_wall_height_m": 1.15,
+    "sill_top_m": 1.2705,
+    "walk_through": false,
+    "glass": false
+  },
+  "detail_pass": 9,
+  "original_art_files_modified": false
+}

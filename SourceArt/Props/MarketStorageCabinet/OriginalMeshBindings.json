@@ -1,0 +1,29 @@
+{
+    "items": [
+        {
+            "filter": "SM_MarketRoom_MarketFrame",
+            "asset": "Assets/Project/Art/Props/MarketServiceDoor/Integration/Filtered_SM_MarketRoom_MarketFrame.asset",
+            "mesh": "Filtered_SM_MarketRoom_MarketFrame"
+        },
+        {
+            "filter": "SM_MarketRoom_MarketLining",
+            "asset": "Assets/Project/Art/Props/MarketServiceDoor/Integration/Filtered_SM_MarketRoom_MarketLining.asset",
+            "mesh": "Filtered_SM_MarketRoom_MarketLining"
+        },
+        {
+            "filter": "SM_MarketRoom_MarketWarm",
+            "asset": "Assets/Project/Art/Props/MarketServiceDoor/Integration/Filtered_SM_MarketRoom_MarketWarm.asset",
+            "mesh": "Filtered_SM_MarketRoom_MarketWarm"
+        },
+        {
+            "filter": "SM_MarketRoom_WallDark",
+            "asset": "Assets/Project/Art/Props/MarketServiceDoor/Integration/Filtered_SM_MarketRoom_WallDark.asset",
+            "mesh": "Filtered_SM_MarketRoom_WallDark"
+        },
+        {
+            "filter": "SM_MarketRoom_Recess",
+            "asset": "Assets/Project/Art/Props/MarketServiceDoor/Integration/Filtered_SM_MarketRoom_Recess.asset",
+            "mesh": "Filtered_SM_MarketRoom_Recess"
+        }
+    ]
+}

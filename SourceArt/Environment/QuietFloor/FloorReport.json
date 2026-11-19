@@ -1,0 +1,26 @@
+{
+  "CornerBody": {
+    "groups": 7,
+    "triangles": 82072,
+    "omitted_floor_objects": 296
+  },
+  "GalleryBody": {
+    "groups": 4,
+    "triangles": 7936,
+    "omitted_floor_objects": 210
+  },
+  "QuietFloor": {
+    "groups": 3,
+    "triangles": 4572
+  },
+  "design": {
+    "large_panels": 96,
+    "flush_access_covers": 2,
+    "tile_bolts": 0,
+    "tile_grooves": 0,
+    "seam_width_m": 0.04,
+    "surface_height_m": 0.014,
+    "walk_collision_changed": false,
+    "old_art_sources_modified": false
+  }
+}
