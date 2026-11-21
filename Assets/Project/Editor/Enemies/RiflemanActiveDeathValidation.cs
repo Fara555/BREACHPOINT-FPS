@@ -11,7 +11,7 @@ namespace Breachpoint.Editor.Enemies
 {
     public static partial class EnemyTools
     {
-        [MenuItem("Breachpoint/Enemies/Animator Authoring/Configure active Rifleman death")]
+
         public static void ConfigureActiveDeath()
         {
             if (EditorApplication.isPlayingOrWillChangePlaymode) throw new System.InvalidOperationException("Exit Play Mode before authoring.");

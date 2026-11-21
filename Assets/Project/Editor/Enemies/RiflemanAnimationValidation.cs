@@ -27,7 +27,6 @@ namespace Breachpoint.Editor.Enemies
         private static readonly Vector3 AnimationStart = new Vector3(4f, 0f, -8f);
         private static StreamWriter _animationSamples;
 
-        [MenuItem("Breachpoint/Enemies/Validation/Run complete animation matrix")]
         public static void RunAnimationMatrix() => RunAnimationScenario(-1);
         public static void RunAnimationScenario(int index)
         {

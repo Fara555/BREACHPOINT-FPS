@@ -15,7 +15,7 @@ namespace Breachpoint.Editor.Enemies
 {
     public static partial class EnemyValidationRunner
     {
-        [MenuItem("Breachpoint/Enemies/Validation/Validate weapon effects")]
+
         public static void ValidateWeaponEffects() => ValidateStage(60);
 
         private static IEnumerator WeaponEffectsTests(GameLifetimeScope scope, EnemyWorld world)

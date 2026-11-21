@@ -33,7 +33,7 @@ namespace Breachpoint.Editor.Enemies
             }
             finally { if (temporary) EditorSceneManager.CloseScene(scene, true); }
         }
-        [MenuItem("Breachpoint/Enemies/Cover Authoring/Wire EnemyArena cover")]
+
         public static void WireArenaCover()
         {
             Directory.CreateDirectory(Evidence);

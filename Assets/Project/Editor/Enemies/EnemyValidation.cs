@@ -21,7 +21,7 @@ namespace Breachpoint.Editor.Enemies
         private static bool _failed;
         private static readonly List<string> Results = new List<string>();
         private static string ReportPath => Path.GetFullPath("Logs/EnemyValidation/gameplay-checks.txt");
-        [MenuItem("Breachpoint/Enemies/Validation/Run gameplay regressions")]
+
         public static void Run() => EnemyValidationRunner.ValidateStage(50);
         private static void Check(bool condition, string description)
         {

@@ -18,7 +18,6 @@ namespace Breachpoint.Editor.Enemies
     public static partial class EnemyValidationRunner
     {
 
-        [MenuItem("Breachpoint/Enemies/Animation Review/Diagnostics/Record source 180 turns without rigs")]
         internal static void RunSourceTurnReview() => ValidateStage(166);
         private static IEnumerator SourceTurnReview(GameLifetimeScope scope)
         {
@@ -92,7 +91,7 @@ namespace Breachpoint.Editor.Enemies
                 }
             }
         }
-        [MenuItem("Breachpoint/Enemies/Animation Review/Diagnostics/Inspect synchronization curves")]
+
         internal static void AuditSynchronizationCurves()
         {
             var report = new StringBuilder(DateTime.UtcNow.ToString("O") + "\n" + ConsoleCounts() + "\n");

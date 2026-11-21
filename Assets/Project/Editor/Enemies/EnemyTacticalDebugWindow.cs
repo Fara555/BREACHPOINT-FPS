@@ -30,7 +30,7 @@ namespace Breachpoint.Editor.Enemies
         private EnemyBrain[] _brains = new EnemyBrain[0];
         private int _lastChecks, _lastDecisions, _lastRepaths;
         private float _checksRate, _decisionsRate, _repathsRate;
-        [MenuItem("Breachpoint/Enemies/AI Test / Tactical Debug/Open debug and scenarios")]
+        [MenuItem("Breachpoint/Enemies/Enemy AI Tactical")]
         public static void Open() => GetWindow<EnemyTacticalDebugWindow>("Enemy AI / Tactical");
         internal static void OpenHighCoverReview()
         {

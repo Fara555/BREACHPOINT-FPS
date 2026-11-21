@@ -34,7 +34,6 @@ namespace Breachpoint.Editor.Enemies
             throw new InvalidOperationException("Missing source clip: " + name);
         }
 
-        [MenuItem("Breachpoint/Enemies/Animation Review/Compare source poses with four rig modes")]
         public static void CompareSourcePoses() => ValidateStage(150);
 
         internal static void FreezePoseComparison()
@@ -44,7 +43,6 @@ namespace Breachpoint.Editor.Enemies
             if (gameView != null) EditorWindow.GetWindow(gameView).Show();
         }
 
-        [MenuItem("Breachpoint/Enemies/Validation/Validate frozen pose controls")]
         internal static void ValidateFrozenPoseControls() => ValidateStage(152);
 
         private static IEnumerator FrozenPoseTests(GameLifetimeScope scope, bool validateControls)
@@ -268,7 +266,7 @@ namespace Breachpoint.Editor.Enemies
 
     public sealed class RiflemanPoseReviewWindow : EditorWindow
     {
-        [MenuItem("Breachpoint/Enemies/Animation Review/Freeze and compare poses")]
+
         public static void Open() => GetWindow<RiflemanPoseReviewWindow>("Rifleman pose compare");
         private void OnGUI()
         {

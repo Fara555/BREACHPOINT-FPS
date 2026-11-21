@@ -11,7 +11,7 @@ namespace Breachpoint.Editor.Enemies
 {
     public static class RiflemanHighCoverAuthoring
     {
-        [MenuItem("Breachpoint/Enemies/Animator Authoring/Connect High Cover animations only")]
+
         public static void Connect()
         {
             PrepareSources(); InspectSources();
@@ -75,10 +75,8 @@ namespace Breachpoint.Editor.Enemies
             EnemyTools.Audit();
         }
 
-        [MenuItem("Breachpoint/Enemies/Animator Authoring/Calibrate High Cover contact and footsteps")]
         public static void CalibrateContact() => EnemyValidationRunner.ValidateStage(184);
 
-        [MenuItem("Breachpoint/Enemies/Animator Authoring/Connect calibrated High Cover contact")]
         public static void ConnectContact()
         {
             if(EditorApplication.isPlayingOrWillChangePlaymode) throw new InvalidOperationException("Exit Play Mode before contact wiring.");
@@ -190,7 +188,7 @@ namespace Breachpoint.Editor.Enemies
                 }
             }
         }
-        [MenuItem("Breachpoint/Enemies/Animator Authoring/Inspect High Cover sources")]
+
         public static void InspectSources()
         {
             Directory.CreateDirectory(EnemyTools.Evidence);

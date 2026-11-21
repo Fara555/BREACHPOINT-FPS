@@ -70,7 +70,6 @@ namespace Breachpoint.Editor.Enemies
             EditorUtility.SetDirty(clip); AssetDatabase.SaveAssetIfDirty(clip);
         }
 
-        [MenuItem("Breachpoint/Enemies/Animator Authoring/Apply High Cover exit duration only")]
         public static void ApplyExitDuration()
         {
             if (EditorApplication.isPlayingOrWillChangePlaymode) throw new InvalidOperationException("Exit Play Mode before changing exit duration.");
@@ -121,7 +120,6 @@ namespace Breachpoint.Editor.Enemies
         private const float ExitStanceBlendStart = .2f;
         private const float ExitCombatPoseReady = .95f;
 
-        [MenuItem("Breachpoint/Enemies/Animator Authoring/Polish High Cover exit only")]
         public static void PolishExit()
         {
             if (EditorApplication.isPlayingOrWillChangePlaymode) throw new InvalidOperationException("Exit Play Mode before exit authoring.");

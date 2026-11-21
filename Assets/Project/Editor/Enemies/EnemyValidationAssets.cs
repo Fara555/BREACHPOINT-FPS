@@ -29,7 +29,6 @@ namespace Breachpoint.Editor.Enemies
             return found != null ? found : throw new InvalidOperationException("Missing Adam transform: " + name);
         }
 
-        [MenuItem("Breachpoint/Enemies/Validation/Validate asset wiring")]
         public static void ValidateWiring()
         {
             var report = new StringBuilder();
@@ -59,7 +58,6 @@ namespace Breachpoint.Editor.Enemies
             Check(script != null && script.GetClass() == typeof(T), "Permanent review window has a serializable script binding: " + typeof(T).Name, report);
         }
 
-        [MenuItem("Breachpoint/Enemies/Validation/Validate animation calculations")]
         public static void ValidateMath()
         {
             var report = new StringBuilder();

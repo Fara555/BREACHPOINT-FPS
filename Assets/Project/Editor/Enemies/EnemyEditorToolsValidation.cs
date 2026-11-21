@@ -8,7 +8,7 @@ namespace Breachpoint.Editor.Enemies
 {
     public static partial class EnemyTools
     {
-        [MenuItem("Breachpoint/Enemies/Validation/Validate debug tool contracts")]
+
         public static void ValidateEditorTools()
         {
             if (EditorApplication.isPlayingOrWillChangePlaymode) throw new InvalidOperationException("Exit Play Mode before editor-only validation.");

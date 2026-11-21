@@ -16,7 +16,6 @@ namespace Breachpoint.Editor.Enemies
         private const int SampleCount = 120;
         private const float ReachMargin = .001f;
 
-        [MenuItem("Breachpoint/Enemies/Animator Authoring/Stabilize High Cover exit height")]
         internal static void Stabilize()
         {
             if (EditorApplication.isPlayingOrWillChangePlaymode) throw new InvalidOperationException("Exit Play Mode before height authoring.");

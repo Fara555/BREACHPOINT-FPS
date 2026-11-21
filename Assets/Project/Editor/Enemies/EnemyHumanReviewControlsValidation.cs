@@ -14,7 +14,6 @@ namespace Breachpoint.Editor.Enemies
         private static string _previousReviewEntity;
         private static float _pausedHumanTime;
 
-        [MenuItem("Breachpoint/Enemies/Validation/Validate Tactical review controls")]
         internal static void ValidateHumanReviewControls()
         {
             SessionState.SetBool(HumanControlKey, true);

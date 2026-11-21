@@ -15,7 +15,6 @@ namespace Breachpoint.Editor.Enemies
     {
         private const string InventoryFolder = "Docs/AI";
 
-        [MenuItem("Breachpoint/Enemies/Animator Authoring/Inventory enemy animations")]
         public static void InventoryEnemyAnimations()
         {
             if (EditorApplication.isPlayingOrWillChangePlaymode) throw new InvalidOperationException("Exit Play Mode before asset inventory.");
@@ -103,101 +102,5 @@ namespace Breachpoint.Editor.Enemies
             using (var hash = SHA256.Create()) return BitConverter.ToString(hash.ComputeHash(Encoding.UTF8.GetBytes(text.ToString()))).Replace("-","");
         }
 
-        public static void ConsolidateDirectionalDeathSources()
-        {
-            if (EditorApplication.isPlayingOrWillChangePlaymode) throw new InvalidOperationException("Exit Play Mode before asset cleanup.");
-            string folder = EnemyAnimationAssetPaths.Source+"/Combat/Death/";
-            string rightPath = folder+"death from right.fbx", leftPath = folder+"death from left.fbx";
-            if (!File.Exists(leftPath)) return;
-            if (FileHash(leftPath)!=FileHash(rightPath)) throw new InvalidOperationException("Death FBX files are not byte-identical.");
-            var rightImporter = (ModelImporter)AssetImporter.GetAtPath(rightPath);
-            var leftImporter = (ModelImporter)AssetImporter.GetAtPath(leftPath);
-            var original = rightImporter.clipAnimations;
-            var originalLeft = leftImporter.clipAnimations.Single();
-            var leftDefinition = new ModelImporterClipAnimation();
-            // Each original FBX assigned the same local clip ID. The new subclip
-            // needs a fresh ID; its existing public import settings remain intact.
-            foreach (var property in typeof(ModelImporterClipAnimation).GetProperties(System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.Public))
-                if (property.CanRead && property.CanWrite && property.GetIndexParameters().Length==0 && property.Name.IndexOf("internalID",StringComparison.OrdinalIgnoreCase)<0)
-                    property.SetValue(leftDefinition,property.GetValue(originalLeft));
-            foreach (var field in typeof(ModelImporterClipAnimation).GetFields(System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.Public))
-                if (field.Name.IndexOf("internalID",StringComparison.OrdinalIgnoreCase)<0) field.SetValue(leftDefinition,field.GetValue(originalLeft));
-            if (!leftDefinition.mirror || original.Single().mirror) throw new InvalidOperationException("Expected a mirrored Left and unmirrored Right representation.");
-            var oldLeft = AssetDatabase.LoadAllAssetsAtPath(leftPath).OfType<AnimationClip>().Single(c=>c.name=="death from left");
-            var oldRight = AssetDatabase.LoadAllAssetsAtPath(rightPath).OfType<AnimationClip>().Single(c=>c.name=="death from right");
-            string leftSignature = ClipFingerprint(oldLeft), rightSignature = ClipFingerprint(oldRight);
-            var dependents = AssetDatabase.GetAllAssetPaths().Where(p=>p.StartsWith("Assets/",StringComparison.Ordinal) && p!=leftPath && AssetDatabase.GetDependencies(p,false).Contains(leftPath)).ToArray();
-            if (dependents.Any(p=>p!=ControllerPath)) throw new InvalidOperationException("Unexpected Left FBX consumers: "+string.Join("; ",dependents));
-            AnimationClip newLeft;
-            try
-            {
-                rightImporter.clipAnimations = new[] { original.Single(),leftDefinition };
-                rightImporter.SaveAndReimport();
-                var imported = AssetDatabase.LoadAllAssetsAtPath(rightPath).OfType<AnimationClip>().ToArray();
-                newLeft = imported.Single(c=>c.name=="death from left");
-                var newRight = imported.Single(c=>c.name=="death from right");
-                if (ClipFingerprint(newLeft)!=leftSignature || ClipFingerprint(newRight)!=rightSignature)
-                    throw new InvalidOperationException("Consolidation changed a directional clip's represented content.");
-            }
-            catch
-            { rightImporter.clipAnimations=original; rightImporter.SaveAndReimport(); throw; }
-            var controller = AssetDatabase.LoadAssetAtPath<AnimatorController>(ControllerPath);
-            var tree = (BlendTree)controller.layers[0].stateMachine.states.Single(s=>s.state.name=="Death").state.motion;
-            var children = tree.children;
-            int index = Array.FindIndex(children,c=>c.motion==oldLeft);
-            if (index<0) throw new InvalidOperationException("Expected current Left death branch.");
-            children[index].motion = newLeft;
-            Undo.RecordObject(tree,"Consolidate mirrored death source"); tree.children=children;
-            EditorUtility.SetDirty(tree); EditorUtility.SetDirty(controller); AssetDatabase.SaveAssetIfDirty(controller);
-            if (AssetDatabase.GetDependencies(ControllerPath,true).Contains(leftPath)) throw new InvalidOperationException("Controller still depends on duplicate source.");
-            if (!AssetDatabase.DeleteAsset(leftPath)) throw new InvalidOperationException("Could not remove verified duplicate Left FBX.");
-            File.WriteAllText(Evidence+"/animation-duplicates.txt",leftPath+" and "+rightPath+" had identical FBX bytes.\nKept "+rightPath+" with both original import definitions: Left mirror=true, Right mirror=false.\nBoth clip content fingerprints match their original representations.\nUpdated only the Left DeathDirections child reference; deleted duplicate Left FBX and its meta through AssetDatabase.\n");
-            InventoryEnemyAnimations();
-        }
-
-        [MenuItem("Breachpoint/Enemies/Animator Authoring/Organize enemy animation assets")]
-        public static void OrganizeEnemyAnimations()
-        {
-            if (EditorApplication.isPlayingOrWillChangePlaymode) throw new InvalidOperationException("Exit Play Mode before moving assets.");
-            var clips = AssetDatabase.FindAssets("t:AnimationClip",new[] { EnemyAnimationAssetPaths.AdamRoot }).Select(AssetDatabase.GUIDToAssetPath).Distinct().ToArray();
-            var hashes = clips.ToDictionary(AssetDatabase.AssetPathToGUID,p=>FileHash(p));
-            var controllerHash = FileHash(ControllerPath);
-            var moves = new StringBuilder();
-            EnsureAnimationFolder(EnemyAnimationAssetPaths.Source);
-            EnsureAnimationFolder(EnemyAnimationAssetPaths.Derived);
-            foreach (string group in new[] { "Turns","Readiness","Recoil","Actions" }) EnsureAnimationFolder(EnemyAnimationAssetPaths.Derived+"/"+group);
-            foreach (var path in clips.Where(p=>p.StartsWith(EnemyAnimationAssetPaths.Config+"/",StringComparison.Ordinal) && p.EndsWith(".anim",StringComparison.Ordinal)))
-                MoveAnimationAsset(path,EnemyAnimationAssetPaths.DerivedClip(Path.GetFileName(path)),moves);
-            foreach (string group in new[] { "Steady","Сombat" })
-            {
-                string from = AnimationFolder+"/"+group;
-                if (AssetDatabase.IsValidFolder(from)) MoveAnimationAsset(from,EnemyAnimationAssetPaths.Source+"/"+(group=="Сombat"?"Combat":group),moves);
-            }
-            foreach(var pair in hashes)
-            {
-                string path = AssetDatabase.GUIDToAssetPath(pair.Key);
-                if (string.IsNullOrEmpty(path) || FileHash(path)!=pair.Value) throw new InvalidOperationException("Move changed animation content/GUID: "+pair.Key);
-            }
-            if (FileHash(ControllerPath)!=controllerHash) throw new InvalidOperationException("Organization changed controller content.");
-            File.WriteAllText(Evidence+"/animation-moves.txt",moves+"All clip/model GUIDs and byte contents preserved; controller bytes unchanged.\n");
-            InventoryEnemyAnimations();
-        }
-
-        private static void EnsureAnimationFolder(string path)
-        {
-            if (AssetDatabase.IsValidFolder(path)) return;
-            string parent = Path.GetDirectoryName(path).Replace('\\','/'); EnsureAnimationFolder(parent);
-            AssetDatabase.CreateFolder(parent,Path.GetFileName(path));
-        }
-        private static void MoveAnimationAsset(string from,string to,StringBuilder report)
-        {
-            string guid = AssetDatabase.AssetPathToGUID(from);
-            string error = AssetDatabase.MoveAsset(from,to);
-            if (!string.IsNullOrEmpty(error)) throw new InvalidOperationException(error);
-            if (AssetDatabase.AssetPathToGUID(to)!=guid) throw new InvalidOperationException("GUID changed: "+to);
-            report.AppendLine(from+" -> "+to+" | "+guid);
-        }
-        private static string FileHash(string path)
-        { using(var hash=SHA256.Create()) return BitConverter.ToString(hash.ComputeHash(File.ReadAllBytes(path))); }
     }
 }

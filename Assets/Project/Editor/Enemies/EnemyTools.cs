@@ -56,8 +56,6 @@ namespace Breachpoint.Editor.Enemies
                 else if (command == "crouch-death-tests") EnemyValidationRunner.ValidateStage(177);
                 else if (command == "death-classification-tests") EnemyValidationRunner.ValidateStage(178);
                 else if (command == "animation-inventory") InventoryEnemyAnimations();
-                else if (command == "animation-organize") OrganizeEnemyAnimations();
-                else if (command == "animation-deduplicate") ConsolidateDirectionalDeathSources();
                 else if (command == "tactical-review-open") EnemyTacticalDebugWindow.Open();
                 else if (command == "tactical-review-stop") EnemyValidationRunner.StopHumanTacticalReview();
                 else if (command == "strafe-review-tests") EnemyValidationRunner.ValidateStage(174);
@@ -112,12 +110,6 @@ namespace Breachpoint.Editor.Enemies
                 else if (command.StartsWith("review-record:", StringComparison.Ordinal)) { SessionState.SetBool("EnemyTools.Review.Record", true); EnemyValidationRunner.RunReview(int.Parse(command.Substring(14)), false); }
                 else if (command.StartsWith("review-case:", StringComparison.Ordinal)) EnemyValidationRunner.RunReview(int.Parse(command.Substring(12)), false);
                 else if (command.StartsWith("review:", StringComparison.Ordinal)) EnemyValidationRunner.RunReview(int.Parse(command.Substring(7)), true);
-                else if (command == "arena-level-inspect") TacticalArenaBuilder.Inspect();
-                else if (command == "arena-level-build") TacticalArenaBuilder.Build();
-                else if (command == "arena-level-finish") TacticalArenaBuilder.Finish();
-                else if (command == "arena-level-playtest") TacticalArenaPlaytest.Run();
-                else if (command == "arena-level-polish") TacticalArenaBuilder.AddOverlookAndSigns();
-                else if (command == "arena-level-reload-check") TacticalArenaBuilder.ReloadAndValidate();
                 else if (command == "battlefield-audit") BattlefieldBaseline.Audit();
                 else if (command == "blockout-create") BattlefieldBlockout.Create();
                 else if (command == "blockout-open") BattlefieldBlockout.Open();
@@ -226,7 +218,6 @@ namespace Breachpoint.Editor.Enemies
             }
         }
 
-        [MenuItem("Breachpoint/Enemies/Animator Authoring/Inspect Animator and clips")]
         public static void Audit()
         {
             Directory.CreateDirectory(Evidence);
@@ -313,7 +304,6 @@ namespace Breachpoint.Editor.Enemies
         private const string PrefabFolder = "Assets/Project/Enemies/Prefabs";
         private const string ReportFolder = Evidence;
 
-        [MenuItem("Breachpoint/Enemies/Validation/Inspect weapon effects")]
         public static void AuditWeaponEffects()
         {
             var report = new StringBuilder();

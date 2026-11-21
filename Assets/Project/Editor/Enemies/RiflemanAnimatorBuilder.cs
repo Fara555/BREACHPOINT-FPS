@@ -16,7 +16,6 @@ namespace Breachpoint.Editor.Enemies
         private static EnemyAnimationConfig Tuning => AssetDatabase.LoadAssetAtPath<GameObject>(EnemyValidationRunner.RiflemanPath).GetComponent<EnemyAnimationBridge>().Config;
         private static readonly Dictionary<string, AnimationClip> Clips = new Dictionary<string, AnimationClip>(StringComparer.OrdinalIgnoreCase);
 
-        [MenuItem("Breachpoint/Enemies/Animator Authoring/Rebuild Rifleman Animator")]
         public static void Rebuild()
         {
             if (EditorApplication.isPlayingOrWillChangePlaymode) throw new InvalidOperationException("Exit Play Mode before rebuilding Animator.");
@@ -36,14 +35,12 @@ namespace Breachpoint.Editor.Enemies
             }
         }
 
-        [MenuItem("Breachpoint/Enemies/Animator Authoring/Refresh turn profiles only")]
         public static void RefreshTurnProfiles()
         {
             if (EditorApplication.isPlayingOrWillChangePlaymode) throw new InvalidOperationException("Exit Play Mode before authoring.");
             LoadSourceClips(); WriteTurnProfiles();
         }
 
-        [MenuItem("Breachpoint/Enemies/Animator Authoring/Refresh derived turn clips only")]
         public static void RefreshTurnClips()
         {
             if (EditorApplication.isPlayingOrWillChangePlaymode) throw new InvalidOperationException("Exit Play Mode before authoring.");
@@ -234,7 +231,6 @@ namespace Breachpoint.Editor.Enemies
         }
         private static string TurnSourceSuffix(string group, string suffix) => group != "Steady" ? suffix : suffix.Contains("left") ? suffix.Replace("left", "right") : suffix.Replace("right", "left");
 
-        [MenuItem("Breachpoint/Enemies/Animator Authoring/Refresh Steady clip and profile mapping")]
         public static void RefreshSteadyMapping()
         {
             if (EditorApplication.isPlayingOrWillChangePlaymode) throw new InvalidOperationException("Exit Play Mode before authoring.");

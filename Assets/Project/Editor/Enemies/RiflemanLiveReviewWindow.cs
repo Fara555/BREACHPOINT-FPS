@@ -33,7 +33,6 @@ namespace Breachpoint.Editor.Enemies
         private static float _nextReviewCapture;
         private static int _lastReviewCaptureFrame = -1;
 
-        [MenuItem("Breachpoint/Enemies/Validation/Validate live review controls")]
         internal static void ValidateReviewControls()
         {
             SessionState.SetFloat("EnemyTools.Review.OriginalScale", Time.timeScale);
@@ -335,7 +334,7 @@ namespace Breachpoint.Editor.Enemies
         }
         private static readonly int[] TargetedScenarios = { 0, 30, 27, 68, 69, 70, 71, 72, 73, 10, 11 };
         private static readonly string[] TargetedNames = TargetedScenarios.Select(i => EnemyValidationRunner.ReviewNames[i]).ToArray();
-        [MenuItem("Breachpoint/Enemies/Animation Review/Live review")]
+        [MenuItem("Breachpoint/Enemies/Rifleman Live Review")]
         public static void Open() => GetWindow<RiflemanLiveReviewWindow>("Rifleman live review");
 
         private void OnGUI()
