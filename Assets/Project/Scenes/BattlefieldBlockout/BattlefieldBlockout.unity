@@ -5427,6 +5427,68 @@ BoxCollider:
   serializedVersion: 3
   m_Size: {x: 2.2, y: 5, z: 0.28}
   m_Center: {x: 0, y: 0, z: 0}
+--- !u!1001 &769194369
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 1720849074}
+    m_Modifications:
+    - target: {fileID: 1030751699427141448, guid: a05691b83fa306f4385b7ea97b8fad46, type: 3}
+      propertyPath: m_Name
+      value: 23 Lighting - Local reflections
+      objectReference: {fileID: 0}
+    - target: {fileID: 8031890056972191301, guid: a05691b83fa306f4385b7ea97b8fad46, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8031890056972191301, guid: a05691b83fa306f4385b7ea97b8fad46, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8031890056972191301, guid: a05691b83fa306f4385b7ea97b8fad46, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8031890056972191301, guid: a05691b83fa306f4385b7ea97b8fad46, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 8031890056972191301, guid: a05691b83fa306f4385b7ea97b8fad46, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8031890056972191301, guid: a05691b83fa306f4385b7ea97b8fad46, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8031890056972191301, guid: a05691b83fa306f4385b7ea97b8fad46, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8031890056972191301, guid: a05691b83fa306f4385b7ea97b8fad46, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8031890056972191301, guid: a05691b83fa306f4385b7ea97b8fad46, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8031890056972191301, guid: a05691b83fa306f4385b7ea97b8fad46, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
+  m_SourcePrefab: {fileID: 100100000, guid: a05691b83fa306f4385b7ea97b8fad46, type: 3}
+--- !u!4 &769194370 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: 8031890056972191301, guid: a05691b83fa306f4385b7ea97b8fad46, type: 3}
+  m_PrefabInstance: {fileID: 769194369}
+  m_PrefabAsset: {fileID: 0}
 --- !u!1 &771007599
 GameObject:
   m_ObjectHideFlags: 0
@@ -8504,6 +8566,75 @@ Light:
   m_LightUnit: 1
   m_LuxAtDistance: 1
   m_EnableSpotReflector: 1
+--- !u!1 &1182084097
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1182084098}
+  - component: {fileID: 1182084099}
+  m_Layer: 0
+  m_Name: West service overhead haze
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1182084098
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1182084097}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -8.5, y: 4.85, z: 44.7}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1248902784}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1182084099
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1182084097}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e1fbb15bf92b84f40a1eb030765b5afe, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Unity.RenderPipelines.HighDefinition.Runtime::UnityEngine.Rendering.HighDefinition.LocalVolumetricFog
+  m_Version: 3
+  parameters:
+    albedo: {r: 0.76, g: 0.78, b: 0.8, a: 1}
+    meanFreePath: 41
+    blendingMode: 1
+    priority: 0
+    anisotropy: 0
+    volumeMask: {fileID: 0}
+    textureScrollingSpeed: {x: 0, y: 0, z: 0}
+    textureTiling: {x: 1, y: 1, z: 1}
+    positiveFade: {x: 0.25, y: 0.25, z: 0.3}
+    negativeFade: {x: 0.25, y: 0.56, z: 0.31}
+    m_EditorUniformFade: 0.1
+    m_EditorPositiveFade: {x: 0.25, y: 0.25, z: 0.3}
+    m_EditorNegativeFade: {x: 0.25, y: 0.56, z: 0.31}
+    m_EditorAdvancedFade: 1
+    scaleMode: 0
+    size: {x: 6.7, y: 4.8, z: 18}
+    invertFade: 0
+    distanceFadeStart: 45
+    distanceFadeEnd: 58
+    textureOffset: {x: 0, y: 0, z: 0}
+    falloffMode: 0
+    maskMode: 0
+    materialMask: {fileID: 0}
 --- !u!1 &1205822228
 GameObject:
   m_ObjectHideFlags: 0
@@ -8996,6 +9127,39 @@ Mesh:
       - serializedVersion: 1
         m_IndexStart: 0
         m_IndexCount: 0
+--- !u!1 &1248902783
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1248902784}
+  m_Layer: 0
+  m_Name: 24 Lighting - Interior atmosphere
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1248902784
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1248902783}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 1721050614}
+  - {fileID: 1182084098}
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1298302317
 GameObject:
   m_ObjectHideFlags: 0
@@ -9055,9 +9219,29 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
+    - target: {fileID: 545113268003665791, guid: 8001a233000142a4aa1ae1ffd4ba0d6a, type: 3}
+      propertyPath: antialiasing
+      value: 3
+      objectReference: {fileID: 0}
+    - target: {fileID: 545113268003665791, guid: 8001a233000142a4aa1ae1ffd4ba0d6a, type: 3}
+      propertyPath: customRenderingSettings
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 545113268003665791, guid: 8001a233000142a4aa1ae1ffd4ba0d6a, type: 3}
+      propertyPath: m_RenderingPathCustomFrameSettings.bitDatas.data1
+      value: 5770165987835853
+      objectReference: {fileID: 0}
+    - target: {fileID: 545113268003665791, guid: 8001a233000142a4aa1ae1ffd4ba0d6a, type: 3}
+      propertyPath: renderingPathCustomFrameSettingsOverrideMask.mask.data1
+      value: 134217728
+      objectReference: {fileID: 0}
     - target: {fileID: 909000000000000002, guid: 8001a233000142a4aa1ae1ffd4ba0d6a, type: 3}
       propertyPath: _startingViewIndex
       value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5045507454776376703, guid: 8001a233000142a4aa1ae1ffd4ba0d6a, type: 3}
+      propertyPath: antialiasing
+      value: 2
       objectReference: {fileID: 0}
     - target: {fileID: 5286262825004720755, guid: 8001a233000142a4aa1ae1ffd4ba0d6a, type: 3}
       propertyPath: m_LocalPosition.x
@@ -13256,8 +13440,78 @@ Transform:
   - {fileID: 1491930295}
   - {fileID: 60810642}
   - {fileID: 1938560885}
+  - {fileID: 769194370}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &1721050613
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1721050614}
+  - component: {fileID: 1721050615}
+  m_Layer: 0
+  m_Name: East bay overhead haze
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1721050614
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1721050613}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 11.1, y: 4.8, z: 44}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1248902784}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1721050615
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1721050613}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e1fbb15bf92b84f40a1eb030765b5afe, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Unity.RenderPipelines.HighDefinition.Runtime::UnityEngine.Rendering.HighDefinition.LocalVolumetricFog
+  m_Version: 3
+  parameters:
+    albedo: {r: 0.76, g: 0.78, b: 0.8, a: 1}
+    meanFreePath: 43
+    blendingMode: 1
+    priority: 0
+    anisotropy: 0
+    volumeMask: {fileID: 0}
+    textureScrollingSpeed: {x: 0, y: 0, z: 0}
+    textureTiling: {x: 1, y: 1, z: 1}
+    positiveFade: {x: 0.36, y: 0.34, z: 0.39}
+    negativeFade: {x: 0.4, y: 0.7, z: 0.4}
+    m_EditorUniformFade: 0.1
+    m_EditorPositiveFade: {x: 0.36, y: 0.34, z: 0.39}
+    m_EditorNegativeFade: {x: 0.4, y: 0.7, z: 0.4}
+    m_EditorAdvancedFade: 1
+    scaleMode: 0
+    size: {x: 10, y: 4.2, z: 20}
+    invertFade: 0
+    distanceFadeStart: 45
+    distanceFadeEnd: 58
+    textureOffset: {x: 0, y: 0, z: 0}
+    falloffMode: 0
+    maskMode: 0
+    materialMask: {fileID: 0}
 --- !u!1 &1728645434
 GameObject:
   m_ObjectHideFlags: 0
@@ -16306,6 +16560,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: 14 Art - Walk-through market room
       objectReference: {fileID: 0}
+    - target: {fileID: 2817581249043575030, guid: b833d95ffdb87c54095ee358eaa3c6a7, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value:
+      objectReference: {fileID: 2100000, guid: 14399ddd684afb043995a76391656568, type: 2}
     - target: {fileID: 3855449932799726351, guid: b833d95ffdb87c54095ee358eaa3c6a7, type: 3}
       propertyPath: m_Mesh
       value: 
@@ -16370,6 +16628,10 @@ PrefabInstance:
       propertyPath: m_Mesh
       value: 
       objectReference: {fileID: 4300000, guid: 96d8135e6d1570c4489613730beb0356, type: 2}
+    - target: {fileID: 5301844458024883135, guid: b833d95ffdb87c54095ee358eaa3c6a7, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value:
+      objectReference: {fileID: 2100000, guid: 14399ddd684afb043995a76391656568, type: 2}
     - target: {fileID: 5869210796062032625, guid: b833d95ffdb87c54095ee358eaa3c6a7, type: 3}
       propertyPath: m_Mesh
       value: 
@@ -17055,6 +17317,10 @@ PrefabInstance:
       propertyPath: m_ShadowDimmer
       value: 0.87
       objectReference: {fileID: 0}
+    - target: {fileID: 238070646127212022, guid: 20692c968c658ff46a6e4ddad89d54b8, type: 3}
+      propertyPath: m_VolumetricDimmer
+      value: 0.55
+      objectReference: {fileID: 0}
     - target: {fileID: 414809111489535918, guid: 20692c968c658ff46a6e4ddad89d54b8, type: 3}
       propertyPath: m_StaticEditorFlags
       value: 4
@@ -17219,6 +17485,10 @@ PrefabInstance:
       propertyPath: m_Enabled
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 4084916554106650060, guid: 20692c968c658ff46a6e4ddad89d54b8, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value:
+      objectReference: {fileID: 2100000, guid: 14399ddd684afb043995a76391656568, type: 2}
     - target: {fileID: 4336390432766957033, guid: 20692c968c658ff46a6e4ddad89d54b8, type: 3}
       propertyPath: m_LocalRotation.w
       value: 0.8128457
@@ -17262,6 +17532,10 @@ PrefabInstance:
     - target: {fileID: 5524639490447435641, guid: 20692c968c658ff46a6e4ddad89d54b8, type: 3}
       propertyPath: m_ShadowDimmer
       value: 0.87
+      objectReference: {fileID: 0}
+    - target: {fileID: 5524639490447435641, guid: 20692c968c658ff46a6e4ddad89d54b8, type: 3}
+      propertyPath: m_VolumetricDimmer
+      value: 0.35
       objectReference: {fileID: 0}
     - target: {fileID: 5842413270594631129, guid: 20692c968c658ff46a6e4ddad89d54b8, type: 3}
       propertyPath: m_Enabled
@@ -17358,6 +17632,10 @@ PrefabInstance:
     - target: {fileID: 7813750795331766592, guid: 20692c968c658ff46a6e4ddad89d54b8, type: 3}
       propertyPath: m_StaticEditorFlags
       value: 4
+      objectReference: {fileID: 0}
+    - target: {fileID: 8240559505029009081, guid: 20692c968c658ff46a6e4ddad89d54b8, type: 3}
+      propertyPath: m_VolumetricDimmer
+      value: 1.6
       objectReference: {fileID: 0}
     - target: {fileID: 8326315782193771029, guid: 20692c968c658ff46a6e4ddad89d54b8, type: 3}
       propertyPath: m_Enabled
@@ -17468,3 +17746,4 @@ SceneRoots:
   - {fileID: 432204709}
   - {fileID: 1309570550}
   - {fileID: 1720849074}
+  - {fileID: 1248902784}

@@ -58,23 +58,31 @@ namespace Breachpoint.Gameplay.Weapons
             ConfigureWeaponCamera();
             ApplyWorldCameraCullingMask();
             ConfigureSharedShadowMaps();
+            RenderPipelineManager.beginContextRendering +=
+                SynchronizeWeaponCameraViewport;
             RenderPipelineManager.beginCameraRendering +=
                 HandleBeginCameraRendering;
         }
 
-        private void LateUpdate()
+        private void SynchronizeWeaponCameraViewport(
+            ScriptableRenderContext context,
+            List<Camera> cameras)
         {
-            if (_worldCamera == null || _weaponCamera == null)
+            if (_worldCamera == null || _weaponCamera == null ||
+                !cameras.Contains(_weaponCamera))
             {
                 return;
             }
 
+            // Aim and sprint finish updating the world camera in LateUpdate.
             _weaponCamera.fieldOfView = _worldCamera.fieldOfView;
             _weaponCamera.rect = _worldCamera.rect;
         }
 
         private void OnDisable()
         {
+            RenderPipelineManager.beginContextRendering -=
+                SynchronizeWeaponCameraViewport;
             RenderPipelineManager.beginCameraRendering -=
                 HandleBeginCameraRendering;
             RestoreShadowLightSettings();
