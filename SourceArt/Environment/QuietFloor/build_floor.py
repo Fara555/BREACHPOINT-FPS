@@ -97,9 +97,42 @@ for index,(a,b,c,d) in enumerate(access):
     for x in [a+.16,b-.16]:
         slab('Dark flush quarter-turn latch',(x-.045,x+.045,c+.14,c+.17),'FloorJoint',base=.0142,top=.015,bevel=.0003)
 
-# Same calm surface on both existing ramps and platform; only six large sloped sheets.
+def gallery_core():
+    # The same upper joint surface now closes the ramp volume behind the segmented fascia.
+    sections = (32, 40, 48, 56)
+    vertices = [(-x, -z, y) for z in sections
+                for x, y in ((13, -.012), (18, -.012), (18, height(z)+.003), (13, height(z)+.003))]
+    last = len(vertices)-4
+    faces = [(3,2,1,0), (last,last+1,last+2,last+3)]
+    for start in range(0,last,4):
+        for side in range(4):
+            a, b = start+side, start+(side+1)%4
+            faces.append((a,b,b+4,a+4))
+    name = 'Gallery closed joint bed and ramp core'
+    mesh = bpy.data.meshes.new(name)
+    mesh.from_pydata(vertices, [], faces)
+    bm = bmesh.new(); bm.from_mesh(mesh)
+    bmesh.ops.recalc_face_normals(bm, faces=list(bm.faces))
+    assert all(edge.is_manifold for edge in bm.edges), 'Gallery core must be closed'
+    bm.to_mesh(mesh); bm.free(); mesh.update()
+    uv = mesh.uv_layers.new(name='UV0')
+    for face in mesh.polygons:
+        for index in face.loop_indices:
+            p = mesh.vertices[mesh.loops[index].vertex_index].co
+            if abs(face.normal.x) > .99:
+                uv.data[index].uv = (-p.y/2,p.z/2)
+            elif abs(face.normal.y) > .99:
+                uv.data[index].uv = (-p.x/2,p.z/2)
+            else:
+                uv.data[index].uv = (-p.x/2,-p.y/2)
+    obj = bpy.data.objects.new(name, mesh)
+    bpy.context.collection.objects.link(obj)
+    mesh.materials.append(bpy.data.materials['FloorJoint'])
+
+
+# The solid core spans both ramps and the platform under the six large sloped sheets.
+gallery_core()
 for z0,z1 in [(32,36),(36,40),(40,44),(44,48),(48,52),(52,56)]:
-    slab('Gallery continuous joint bed',(13,18,z0,z1),'FloorJoint',True,.001,.003,0)
     inner=13.220 if 40<=z0<48 else 13.020
     slab('Gallery large manufactured sheet',(inner,17.980,z0+.020,z1-.020),gallery=True);panels+=1
 
@@ -107,9 +140,12 @@ for obj in bpy.context.scene.objects:
     for v in obj.data.vertices:
         x,y,z=-v.co.x,v.co.z,-v.co.y
         expected=height(z) if x>=12.999 and 32<=z<=56 else 0
-        assert -18.001<=x<=18.001 and 19.999<=z<=64.001 and -.001<=y-expected<=.016,'Floor outside surface envelope'
+        if obj.name == 'Gallery closed joint bed and ramp core':
+            assert 12.999<=x<=18.001 and 31.999<=z<=56.001 and -.0121<=y<=expected+.0031
+        else:
+            assert -18.001<=x<=18.001 and 19.999<=z<=64.001 and -.001<=y-expected<=.016,'Floor outside surface envelope'
 bpy.ops.wm.save_as_mainfile(filepath=str(SOURCE/'QuietFloor.blend'))
 export('QuietFloor')
 report['design']={'large_panels':panels,'flush_access_covers':2,'tile_bolts':0,'tile_grooves':0,'seam_width_m':.040,
-                  'surface_height_m':.014,'walk_collision_changed':False,'old_art_sources_modified':False}
+                  'surface_height_m':.014,'closed_gallery_core':True,'walk_collision_changed':False,'old_art_sources_modified':False}
 (SOURCE/'FloorReport.json').write_text(json.dumps(report,indent=2));print('QUIET_FLOOR_REPORT',json.dumps(report),flush=True)

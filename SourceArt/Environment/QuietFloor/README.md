@@ -34,3 +34,11 @@ User feedback identified thin-joint shimmer during movement. Joints increased12â
 The old primitive Ground36x44, gallery platform and two ramp mesh renderers are also disabled now: their surfaces sat only3mm below the joint bed and are redundant for rendering. Objects/transforms/colliders remain active and untouched; the existing NavMeshSurface uses PhysicsColliders and its baked data/checksum is unchanged. primitive-renderers-before.txt records their initial enabled values for rollback in addition to archived-renderers.txt. This removes the competing backing surfaces without changing walking physics.
 
 quiet-floor-motion / Capture Floor Camera Sweep creates48 persistent-camera HDRP/TAA frames at eye height1.7m, with forward/side translation, without Play Mode or actor simulation. encode_sweep.py uses Blender5.1's bundled video encoder (no game package) to create a2s1280x720/24fps H264 MP4 at Logs/BattlefieldQuietFloor/CameraSweep/floor-sweep.mp4. Selected start/middle/end frames and still low-angle/close views were inspected; this is editor visual evidence, not a human live-input or FPS test. Capture now also includes floor-material, for19 still views total. BeforeWiderJoints retains the previous stills. No combat/navigation/Play Mode tests or GPU profiling.
+
+## Spatial wear
+
+Run `python SourceArt/Environment/QuietFloor/build_surface_wear.py` to regenerate the current maps from the repository root. The texture script uses NumPy and Pillow. Unity imports the two floor-wide maps and the packed coating detail with their existing metadata.
+
+The main deck and MARKET infill share UV0 in physical units. `FloorWearColor` and `FloorWearMask` use that layout for worn traffic paths, drier buildup at sheltered edges, scuffs around cases, the east loading marks, and matte grip coating at both MARKET thresholds. `FloorCoatingDetail` repacks the original fine normal in the HDRP Lit detail format, keeping its two-meter repeat independent of the wear map. Floor geometry, collision and sills retain their previous dimensions.
+
+The joint bed under the east gallery is a single closed core following both ramp slopes and the raised platform. The lower side cassettes sit in front of the core, with their panel gaps backed by the existing joint material.

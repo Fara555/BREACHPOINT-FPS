@@ -27,11 +27,6 @@ ModelImporter:
   - first:
       type: UnityEngine:Material
       assembly: UnityEngine.CoreModule
-      name: InteriorFixture
-    second: {fileID: 2100000, guid: 20ad1b7b5d888dd4bb3d85a2169ae3c1, type: 2}
-  - first:
-      type: UnityEngine:Material
-      assembly: UnityEngine.CoreModule
       name: InteriorNeutral
     second: {fileID: 2100000, guid: c90031fa658d568438a1db1af37bfe3e, type: 2}
   - first:

@@ -11,7 +11,7 @@
   },
   "QuietFloor": {
     "groups": 3,
-    "triangles": 4572
+    "triangles": 4528
   },
   "design": {
     "large_panels": 96,
@@ -20,6 +20,7 @@
     "tile_grooves": 0,
     "seam_width_m": 0.04,
     "surface_height_m": 0.014,
+    "closed_gallery_core": true,
     "walk_collision_changed": false,
     "old_art_sources_modified": false
   }

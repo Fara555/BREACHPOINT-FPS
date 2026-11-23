@@ -35,9 +35,9 @@ namespace Breachpoint.Editor.Enemies
             File.Copy(scene.path, Output + "/scene-before-floor.unity", true);
             BattlefieldCornerMaterials.EnsureFolder(Folder + "/Materials");
             CreateOrUpdateMaterial("FloorField", new Color(.28f, .30f, .31f), .2f);
-            CreateOrUpdateMaterial("FloorJoint", new Color(.23f, .245f, .25f), .05f);
+            CreateOrUpdateMaterial("FloorJoint", JointColor, .05f);
             CreateOrUpdateMaterial("FloorAccess", new Color(.30f, .315f, .32f), .2f);
-            BakeFloorSurface();
+            ApplyFloorSurfaceWear();
             foreach (string model in new[] { "QuietFloor", "CornerBody", "GalleryBody" }) Configure(model);
             var corner = Find("07 Art sample - Energy corner").Find("Detailed energy module - Blender");
             var gallery = Find("09 Art - Service gallery").Find("Service gallery - Blender");
@@ -96,9 +96,9 @@ namespace Breachpoint.Editor.Enemies
             if (ProtectedAssets() != File.ReadAllText(Folder + "/ProtectedArtBefore.sha256.txt"))
                 throw new InvalidOperationException("Protect accepted wall/equipment assets before updating the floor.");
             CreateOrUpdateMaterial("FloorField", new Color(.28f, .30f, .31f), .2f);
-            CreateOrUpdateMaterial("FloorJoint", new Color(.23f, .245f, .25f), .05f);
+            CreateOrUpdateMaterial("FloorJoint", JointColor, .05f);
             CreateOrUpdateMaterial("FloorAccess", new Color(.30f, .315f, .32f), .2f);
-            BakeFloorSurface();
+            ApplyFloorSurfaceWear();
             foreach (string model in new[] { "QuietFloor", "CornerBody", "GalleryBody" }) Configure(model);
             ArchivePrimitiveFloorRenderers();
             Validate(); EditorSceneManager.MarkSceneDirty(scene);
@@ -106,36 +106,50 @@ namespace Breachpoint.Editor.Enemies
             Capture();
         }
 
-        private static void BakeFloorSurface()
+        internal static readonly Color JointColor = new Color(.249f, .265f, .272f);
+
+        private static void ApplyFloorSurfaceWear()
         {
-            BattlefieldCornerMaterials.EnsureFolder(Folder + "/Textures");
-            const int size = 512;
-            var normals = new Color[size * size];
-            var masks = new Color[normals.Length];
-            for (int y = 0; y < size; y++) for (int x = 0; x < size; x++)
-            {
-                float dx = Grain(x + 1, y) - Grain(x - 1, y);
-                float dy = Grain(x, y + 1) - Grain(x, y - 1);
-                var n = new Vector3(-dx * .16f, -dy * .16f, 1).normalized;
-                int index = y * size + x;
-                normals[index] = new Color(n.x * .5f + .5f, n.y * .5f + .5f, n.z * .5f + .5f, 1);
-                // HDRP packing: metallic, AO, detail mask, smoothness. No albedo mottling.
-                masks[index] = new Color(.2f, 1, 1, .16f + (PeriodicNoise(x / 16f, y / 16f, 32) - .5f) * .05f);
-            }
-            var normal = SaveSurfaceMap("FloorFineNormal", normals, true, size);
-            var mask = SaveSurfaceMap("FloorSurfaceMask", masks, false, size);
+            const string textures = Folder + "/Textures/";
+            var color = AssetDatabase.LoadAssetAtPath<Texture2D>(textures + "FloorWearColor.png");
+            var mask = AssetDatabase.LoadAssetAtPath<Texture2D>(textures + "FloorWearMask.png");
+            var detail = AssetDatabase.LoadAssetAtPath<Texture2D>(textures + "FloorCoatingDetail.png");
+            if (color == null || mask == null || detail == null)
+                throw new InvalidOperationException("Build the floor surface maps with SourceArt/Environment/QuietFloor/build_surface_wear.py.");
+
             foreach (string name in new[] { "FloorField", "FloorAccess" })
             {
                 var material = AssetDatabase.LoadAssetAtPath<Material>(Folder + "/Materials/" + name + ".mat");
-                Undo.RecordObject(material, "Refine floor powder coating");
-                material.SetTexture("_NormalMap", normal); material.SetFloat("_NormalScale", .8f);
-                material.SetTexture("_MaskMap", mask);
-                material.SetFloat("_MetallicRemapMin", 0); material.SetFloat("_MetallicRemapMax", 1);
-                material.SetFloat("_AORemapMin", 0); material.SetFloat("_AORemapMax", 1);
-                material.SetFloat("_SmoothnessRemapMin", name == "FloorAccess" ? .02f : 0);
-                material.SetFloat("_SmoothnessRemapMax", 1);
-                HDMaterial.ValidateMaterial(material); EditorUtility.SetDirty(material); AssetDatabase.SaveAssetIfDirty(material);
+                Undo.RecordObject(material, "Apply spatial wear to floor coating");
+                ConfigureWearMaterial(material, name == "FloorAccess", color, mask, detail);
+                EditorUtility.SetDirty(material);
+                AssetDatabase.SaveAssetIfDirty(material);
             }
+        }
+
+        internal static void ConfigureWearMaterial(Material material, bool isAccess, Texture2D color, Texture2D mask, Texture2D detail)
+        {
+            // The deck and the MARKET infill share UV0 = (world X, world Z) / 2.
+            // The wear maps cover X -19..19 m and Z 19..65 m, with a margin around the mesh.
+            material.SetTexture("_BaseColorMap", color);
+            material.SetTextureScale("_BaseColorMap", new Vector2(2f / 38f, 2f / 46f));
+            material.SetTextureOffset("_BaseColorMap", new Vector2(19f / 38f, -19f / 46f));
+            material.SetTexture("_MaskMap", mask);
+            material.SetTexture("_NormalMap", null);
+            material.SetTexture("_DetailMap", detail);
+            material.SetTextureScale("_DetailMap", Vector2.one);
+            material.SetTextureOffset("_DetailMap", Vector2.zero);
+            material.SetFloat("_LinkDetailsWithBase", 0);
+            material.SetFloat("_DetailAlbedoScale", 0);
+            material.SetFloat("_DetailSmoothnessScale", 0);
+            material.SetFloat("_DetailNormalScale", .8f);
+            material.SetFloat("_MetallicRemapMin", 0);
+            material.SetFloat("_MetallicRemapMax", 1);
+            material.SetFloat("_AORemapMin", 0);
+            material.SetFloat("_AORemapMax", 1);
+            material.SetFloat("_SmoothnessRemapMin", isAccess ? .02f : 0);
+            material.SetFloat("_SmoothnessRemapMax", 1);
+            HDMaterial.ValidateMaterial(material);
         }
 
         private static readonly string[] _primitiveFloorNames = { "Ground 36 x 44", "Gallery 1.5m", "Gallery south ramp", "Gallery north ramp" };
@@ -155,45 +169,6 @@ namespace Breachpoint.Editor.Enemies
                 if (PrefabUtility.IsPartOfPrefabInstance(renderer)) PrefabUtility.RecordPrefabInstancePropertyModifications(renderer);
             }
             if (!File.Exists(path)) File.WriteAllText(path, archive.ToString());
-        }
-
-        private static Texture2D SaveSurfaceMap(string name, Color[] pixels, bool normal, int size)
-        {
-            string path = Folder + "/Textures/" + name + ".png";
-            var texture = new Texture2D(size, size, TextureFormat.RGBA32, false, true);
-            try { texture.SetPixels(pixels); texture.Apply(); File.WriteAllBytes(path, texture.EncodeToPNG()); }
-            finally { Object.DestroyImmediate(texture); }
-            AssetDatabase.ImportAsset(path, ImportAssetOptions.ForceSynchronousImport);
-            var importer = (TextureImporter)AssetImporter.GetAtPath(path);
-            importer.textureType = normal ? TextureImporterType.NormalMap : TextureImporterType.Default;
-            importer.sRGBTexture = false; importer.wrapMode = TextureWrapMode.Repeat; importer.mipmapEnabled = true;
-            importer.filterMode = FilterMode.Trilinear; importer.anisoLevel = 8;
-            importer.maxTextureSize = size; importer.textureCompression = TextureImporterCompression.CompressedHQ;
-            importer.SaveAndReimport();
-            return AssetDatabase.LoadAssetAtPath<Texture2D>(path);
-        }
-
-        private static float Grain(float x, float y) => .75f * PeriodicNoise(x / 4, y / 4, 128) + .25f * PeriodicNoise(x / 16, y / 16, 32);
-
-        private static float PeriodicNoise(float x, float y, int period)
-        {
-            int ix = Mathf.FloorToInt(x), iy = Mathf.FloorToInt(y);
-            float u = x - ix, v = y - iy;
-            u = u * u * (3 - 2 * u); v = v * v * (3 - 2 * v);
-            return Mathf.Lerp(Mathf.Lerp(Hash(ix, iy, period), Hash(ix + 1, iy, period), u),
-                Mathf.Lerp(Hash(ix, iy + 1, period), Hash(ix + 1, iy + 1, period), u), v);
-        }
-
-        private static float Hash(int x, int y, int period)
-        {
-            x = (x % period + period) % period; y = (y % period + period) % period;
-            unchecked
-            {
-                uint value = (uint)(x * 374761393 + y * 668265263 + 8039);
-                value = (value ^ (value >> 16)) * 0x7feb352du;
-                value = (value ^ (value >> 15)) * 0x846ca68bu;
-                return (value ^ (value >> 16)) / (float)uint.MaxValue;
-            }
         }
 
         private static void Configure(string name)
@@ -263,10 +238,14 @@ namespace Breachpoint.Editor.Enemies
                 total += mesh.triangles.Length / 3;
                 if (!filter.transform.IsChildOf(floor)) continue;
                 floorTriangles += mesh.triangles.Length / 3;
+                bool isJointBed = filter.name == "SM_QuietFloor_FloorJoint";
                 foreach (var v in mesh.vertices)
                 {
                     var p = filter.transform.TransformPoint(v);
                     float h = p.x >= 12.999f && p.z >= 32 && p.z <= 56 ? GalleryHeight(p.z) : 0;
+                    if (isJointBed && p.x >= 12.999f && p.x <= 18.001f && p.z >= 31.999f && p.z <= 56.001f &&
+                        p.y >= -.0121f && p.y <= h + .0031f)
+                        continue;
                     if (p.x < -18.001f || p.x > 18.001f || p.z < 19.999f || p.z > 64.001f || p.y - h < -.001f || p.y - h > .0161f)
                         throw new InvalidOperationException("Quiet floor surface envelope failed: " + p);
                 }

@@ -10,18 +10,18 @@
     "central_aisle_clear": true
   },
   "envelope_audit": {
-    "objects": 35,
+    "objects": 31,
     "inside_room": true,
     "end_doorways_clear": true
   },
   "detail_uv_audit": {
-    "physical_faces": 14452,
+    "physical_faces": 14220,
     "floor_uv_untouched": true
   },
   "existing_finish_mapping_preserved": true,
   "market_room": {
     "groups": 19,
-    "triangles": 28208
+    "triangles": 27840
   },
   "door_clear_widths_m": [
     2.8,

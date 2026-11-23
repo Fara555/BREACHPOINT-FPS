@@ -93,7 +93,8 @@ for north in [False,True]:
     end('Portal head service field',north,-14.40,4.14,3.09,1.27,.050,'FacadeGraphite')
     end('Portal top closure',north,-14.50,4.87,6.88,.25,.20,'FacadeTrim',offset=.060,r=.018)
     end('Portal sparse identity inset',north,-14.40,3.54,.72,.040,.028,'FacadeWarm',offset=.068,r=.005)
-    for x in [-15.94,-12.86]:end('Portal lining return fold',north,x,1.63,.095,3.20,.070,'FacadeTrim',offset=.035,r=.012)
+    # Keep the base below the shadow bed at 30 mm and clear of the adjacent skirting.
+    for x in [-15.94,-12.86]:end('Portal lining return fold',north,x,1.626,.095,3.208,.070,'FacadeTrim',offset=.035,r=.012)
     # Corner posts bridge the perpendicular sheets, with 20mm separation of their visible planes.
     z=46.990 if north else 34.010
     box('Folded east corner post',(-10.930,2.50,z),(.300,4.96,.380),'FacadeTrim',.018)

@@ -21,6 +21,63 @@ for obj in list(bpy.context.scene.objects):
         bpy.data.objects.remove(obj,do_unlink=True);removed+=1
 assert removed>60,'Workshop selection is unexpectedly incomplete'
 
+# Standalone loading cases now provide the visuals for all three cover locations.
+cover_families = (
+    'Cover casing gasket', 'Attached formed cassette', 'Cover edge clamp',
+    'Cover cooling slot', 'Equipment top lid', 'Cover top latch',
+)
+cover_locations = [('entry', 1, 31.6, 4), ('east', 8.5, 43.6, 3), ('north', -5.5, 51.6, 3)]
+legacy_housings = {location: [] for location, _, _, _ in cover_locations}
+for obj in bpy.context.scene.objects:
+    if obj.type != 'MESH' or obj.get('WallComposition') or not obj.name.startswith(cover_families):
+        continue
+    center = sum((obj.matrix_world @ Vector(p) for p in obj.bound_box), Vector()) / 8
+    if not .04 < center.z < 1.23:
+        continue
+    for location, x, z, width in cover_locations:
+        if abs(-center.x - x) < width / 2 + .20 and abs(-center.y - z) < .80:
+            legacy_housings[location].append(obj)
+cover_counts = {location: len(objects) for location, objects in legacy_housings.items()}
+assert all(24 <= count <= 54 for count in cover_counts.values()), f'Unexpected cover objects: {cover_counts}'
+for objects in legacy_housings.values():
+    for obj in objects:
+        bpy.data.objects.remove(obj, do_unlink=True)
+
+# The east gallery access hatches are separate prefabs attached to the retained wall.
+gallery_hatch_positions = (36.4, 39.2, 42, 44.8, 47.6)
+gallery_hatch_parts = {'Attached formed cassette', 'Wall folded perimeter bezel',
+                       'Wall captive socket', 'Wall fastener head', 'Gallery maintenance pull'}
+gallery_hatches = {z: [] for z in gallery_hatch_positions}
+for obj in bpy.context.scene.objects:
+    if obj.type != 'MESH' or not obj.get('WallComposition') or obj.name.split('.')[0] not in gallery_hatch_parts:
+        continue
+    center = sum((obj.matrix_world @ Vector(p) for p in obj.bound_box), Vector()) / 8
+    if 17.58 < -center.x < 17.799 and abs(center.z - 3.05) < .42:
+        for z in gallery_hatch_positions:
+            if abs(-center.y - z) < .60:
+                gallery_hatches[z].append(obj)
+assert all(len(parts) == 12 for parts in gallery_hatches.values()), 'Expected twelve original parts per gallery hatch'
+for parts in gallery_hatches.values():
+    for obj in parts:
+        bpy.data.objects.remove(obj, do_unlink=True)
+
+# Both hall rows use the same standalone luminaire at their original mounting points.
+luminaire_parts = {'Lamp carrier hanger', 'Attached ceiling light housing', 'Ceiling light frame', 'Ceiling diffuser'}
+hall_luminaires = {(x, z): [] for x in (-10, 10) for z in (28, 42, 56)}
+for obj in bpy.context.scene.objects:
+    if obj.type != 'MESH' or obj.name.split('.')[0] not in luminaire_parts:
+        continue
+    center = sum((obj.matrix_world @ Vector(p) for p in obj.bound_box), Vector()) / 8
+    if 7.50 < center.z < 7.95:
+        for x, z in hall_luminaires:
+            if abs(-center.x - x) < 1.70 and abs(-center.y - z) < .01:
+                hall_luminaires[x, z].append(obj)
+assert all(len(parts) == 5 for parts in hall_luminaires.values()), 'Expected five old parts per hall luminaire'
+for parts in hall_luminaires.values():
+    for obj in parts:
+        bpy.data.objects.remove(obj, do_unlink=True)
+
+
 def export(name):
     # Separate authored inside/outside finishes before merging shared materials.
     for obj in list(bpy.context.scene.objects):
@@ -49,7 +106,13 @@ def export(name):
         axis_forward='-Z',axis_up='Y',bake_anim=False,add_leaf_bones=False,mesh_smooth_type='FACE')
     return {'groups':len(groups),'triangles':sum(len(o.data.polygons) for o in bpy.context.selected_objects)}
 
-report={'removed_workshop_skin_objects':removed,'unchanged_interior':export('InteriorWithoutWorkshop')}
+report={'removed_workshop_skin_objects':removed,'removed_cover_objects':cover_counts,
+        'removed_gallery_hatches':len(gallery_hatches),
+        'removed_hall_luminaires':len(hall_luminaires),
+        'unchanged_interior':export('InteriorWithoutWorkshop')}
+if '--' in sys.argv and '--interior-only' in sys.argv[sys.argv.index('--') + 1:]:
+    print('RETAINED_INTERIOR_REPORT', json.dumps(report))
+    sys.exit(0)
 bpy.ops.wm.read_factory_settings(use_empty=True)
 bpy.context.preferences.filepaths.save_version=0
 bpy.context.preferences.filepaths.file_preview_type='NONE'
@@ -114,6 +177,56 @@ def round_fitting(name,p,radius,depth,mat='MarketWorktop'):
 
 def lining(name,p,size,mat='MarketLining',bevel=.015):
     obj=box(name,p,size,mat,bevel);obj['MarketEnvelope']=1
+    return obj
+
+def end_portal_jamb(x, z):
+    # One continuous post from the floor to the lintel. The lower profile widens
+    # into its protective foot, with a 2 mm joint to the structural reveal.
+    south = z < 40
+    wall_z = 34.28 if south else 46.72
+    inward = 1 if south else -1
+    profiles = (
+        # Height, half-width, reveal distance, roomward depth, corner chamfer.
+        (.008, .074, .004, .172, .008),
+        (.026, .076, .002, .175, .010),
+        (.532, .076, .002, .175, .010),
+        (.558, .070, .002, .150, .012),
+        (3.184, .070, .002, .150, .012),
+        (3.200, .060, .008, .139, .008),
+    )
+    vertices = []
+    for height, width, near, far, chamfer in profiles:
+        ring = (
+            (-width + chamfer, near), (width - chamfer, near), (width, near + chamfer),
+            (width, far - chamfer), (width - chamfer, far), (-width + chamfer, far),
+            (-width, far - chamfer), (-width, near + chamfer),
+        )
+        vertices.extend((-x - side, -wall_z - inward * depth, height) for side, depth in ring)
+
+    last = len(vertices) - 8
+    faces = [tuple(range(7, -1, -1)), tuple(range(last, last + 8))]
+    for start in range(0, last, 8):
+        for i in range(8):
+            a, b = start + i, start + (i + 1) % 8
+            faces.append((a, b, b + 8, a + 8))
+
+    name = 'Interior end portal folded jamb'
+    mesh = bpy.data.meshes.new(name)
+    mesh.from_pydata(vertices, [], faces)
+    bm = bmesh.new(); bm.from_mesh(mesh)
+    bmesh.ops.recalc_face_normals(bm, faces=list(bm.faces))
+    bm.to_mesh(mesh); bm.free(); mesh.update()
+    origin = Vector((-x, -wall_z, 0))
+    uv = mesh.uv_layers.new(name='UV0')
+    for face in mesh.polygons:
+        axes = sorted(range(3), key=lambda axis: abs(face.normal[axis]))[:2]
+        for loop in face.loop_indices:
+            point = mesh.vertices[mesh.loops[loop].vertex_index].co - origin
+            uv.data[loop].uv = (point[axes[0]], point[axes[1]])
+    mesh.materials.append(bpy.data.materials['MarketFrame'])
+    obj = bpy.data.objects.new(name, mesh)
+    bpy.context.collection.objects.link(obj)
+    obj['MarketEnvelope'] = 1
     return obj
 
 def ceiling_cassette(name,z):
@@ -294,8 +407,7 @@ for z in [37.45,43.55]:
     lining('Storage upper lining field',(-17.294,3.93,z),(.04,.75,5.55),'MarketLining',.025)
 for z in [34.34,46.66]:
     for x in [-15.87,-12.93]:
-        lining('Interior end portal folded jamb',(x,1.60,z),(.14,3.20,.18),'MarketFrame',.022)
-        lining('Interior end portal protective shoe',(x,.32,z),(.14,.48,.23),'MarketFrame',.016)
+        end_portal_jamb(x,z)
     lining('Interior end portal lintel',(-14.4,3.30,z),(3.08,.20,.22),'MarketFrame',.025)
     lining('Interior end portal warm inset',(-14.4,3.31,z+(.12 if z<40 else -.12)),(1.1,.045,.025),'MarketWarm',.005)
     for x,width in [(-16.69,1.28),(-12.04,1.34)]:
@@ -450,7 +562,7 @@ if '--counter-finish-only' in sys.argv:
         saved_names=list(source_data.objects);target_data.objects=list(saved_names)
     references=dict(zip(saved_names,target_data.objects))
     for obj in bpy.context.scene.objects:
-        if obj.type!='MESH':continue
+        if obj.type!='MESH' or obj.name.startswith('Interior end portal folded jamb'):continue
         saved=references[obj.name].data;mesh=obj.data
         assert len(mesh.vertices)==len(saved.vertices) and len(mesh.loops)==len(saved.loops),obj.name
         for uv in saved.uv_layers:
