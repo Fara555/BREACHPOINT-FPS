@@ -1,11 +1,13 @@
 ﻿using UnityEngine;
 using UnityEngine.Audio;
+using UnityEngine.Scripting.APIUpdating;
 
 namespace Breachpoint.Audio
 {
     [CreateAssetMenu(
         fileName = "AudioCue",
         menuName = "Breachpoint/Audio/Audio Cue")]
+    [MovedFrom(true, sourceAssembly: "Assembly-CSharp")]
     public sealed class AudioCue : ScriptableObject
     {
         [Header("Clips")]

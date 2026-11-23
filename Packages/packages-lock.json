@@ -1,5 +1,13 @@
 {
   "dependencies": {
+    "com.breachpoint.audio": {
+      "version": "file:com.breachpoint.audio",
+      "depth": 0,
+      "source": "embedded",
+      "dependencies": {
+        "com.unity.modules.audio": "1.0.0"
+      }
+    },
     "com.unity.ai.navigation": {
       "version": "2.0.12",
       "depth": 0,

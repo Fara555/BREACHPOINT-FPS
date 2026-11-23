@@ -1,22 +1,24 @@
 ﻿using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Scripting.APIUpdating;
+using UnityEngine.Serialization;
 
 namespace Breachpoint.Audio
 {
+    [MovedFrom(true, sourceAssembly: "Assembly-CSharp")]
     public sealed class AudioService : MonoBehaviour, IAudioService
     {
         [Header("Pool")]
         [Min(1)]
-        [SerializeField] private int _initialPoolSize = 16;
+        [Tooltip("Number of AudioSources created at startup. The pool grows as needed.")]
+        [FormerlySerializedAs("_maxPoolSize")]
+        [SerializeField] private int _prewarmSourceCount = 48;
 
-        [Min(1)]
-        [SerializeField] private int _maxPoolSize = 48;
-
-        private readonly List<AudioSourceSlot> _allSlots = new();
         private readonly List<AudioSourceSlot> _activeSlots = new();
         private readonly Stack<AudioSourceSlot> _availableSlots = new();
         private readonly Dictionary<int, AudioSourceSlot> _loopPlaybacks = new();
 
+        private int _createdSourceCount;
         private int _nextPlaybackId = 1;
         private bool _initialized;
 
@@ -143,11 +145,6 @@ namespace Breachpoint.Audio
 
             AudioSourceSlot slot = AcquireSlot();
 
-            if (slot == null)
-            {
-                return default;
-            }
-
             ConfigureSource(
                 slot,
                 cue,
@@ -184,14 +181,9 @@ namespace Breachpoint.Audio
 
             _initialized = true;
 
-            if (_maxPoolSize < _initialPoolSize)
+            for (int i = 0; i < _prewarmSourceCount; i++)
             {
-                _maxPoolSize = _initialPoolSize;
-            }
-
-            for (int i = 0; i < _initialPoolSize; i++)
-            {
-                CreateSlot();
+                _availableSlots.Push(CreateSlot());
             }
         }
 
@@ -207,22 +199,13 @@ namespace Breachpoint.Audio
                 return _availableSlots.Pop();
             }
 
-            if (_allSlots.Count >= _maxPoolSize)
-            {
-                return null;
-            }
-
-            AudioSourceSlot slot = CreateSlot();
-
-            _availableSlots.Pop();
-
-            return slot;
+            return CreateSlot();
         }
 
         private AudioSourceSlot CreateSlot()
         {
             GameObject sourceObject = new(
-                $"AudioSource_{_allSlots.Count:00}");
+                $"AudioSource_{_createdSourceCount:00}");
 
             sourceObject.transform.SetParent(transform, false);
 
@@ -230,12 +213,8 @@ namespace Breachpoint.Audio
 
             source.playOnAwake = false;
 
-            AudioSourceSlot slot = new(source);
-
-            _allSlots.Add(slot);
-            _availableSlots.Push(slot);
-
-            return slot;
+            _createdSourceCount++;
+            return new AudioSourceSlot(source);
         }
 
         private void ConfigureSource(
@@ -275,25 +254,23 @@ namespace Breachpoint.Audio
             {
                 AudioSourceSlot slot = _activeSlots[i];
 
-                UpdateFollowTarget(slot);
+                Transform followTarget = slot.FollowTarget;
 
-                if (slot.Source.isPlaying)
+                // A destroyed Unity object compares equal to null but retains its managed reference.
+                bool lostLoopTarget = slot.PlaybackId > 0 &&
+                                      followTarget is not null &&
+                                      followTarget == null;
+                if (lostLoopTarget || !slot.Source.isPlaying)
                 {
+                    ReleaseSlot(slot, i);
                     continue;
                 }
 
-                ReleaseSlot(slot, i);
+                if (followTarget != null)
+                {
+                    slot.Source.transform.position = followTarget.position;
+                }
             }
-        }
-
-        private static void UpdateFollowTarget(AudioSourceSlot slot)
-        {
-            if (slot.FollowTarget == null)
-            {
-                return;
-            }
-
-            slot.Source.transform.position = slot.FollowTarget.position;
         }
 
         private void ReleaseSlot(AudioSourceSlot slot)
