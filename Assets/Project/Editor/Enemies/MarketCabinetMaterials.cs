@@ -61,7 +61,8 @@ namespace Breachpoint.Editor.Enemies
         {
             string path=Folder+"/Textures/"+name+".png";var texture=new Texture2D(size,size,TextureFormat.RGBA32,false,!srgb);
             try{texture.SetPixels(pixels);texture.Apply();File.WriteAllBytes(path,texture.EncodeToPNG());}finally{Object.DestroyImmediate(texture);}
-            Import(path,srgb,normal,size);return AssetDatabase.LoadAssetAtPath<Texture2D>(path);
+            int maxImportSize = name.StartsWith("CabinetDoorPaint_", StringComparison.Ordinal) ? 1024 : size;
+            Import(path,srgb,normal,maxImportSize);return AssetDatabase.LoadAssetAtPath<Texture2D>(path);
         }
         private static void Import(string path,bool srgb,bool normal,int size)
         {

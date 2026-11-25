@@ -2,6 +2,7 @@
 import bpy,bmesh,json,math,sys
 from pathlib import Path
 from mathutils import Vector,Matrix
+from mathutils.bvhtree import BVHTree
 
 SOURCE=Path(__file__).resolve().parent
 PROJECT=SOURCE.parents[2]
@@ -77,8 +78,126 @@ for parts in hall_luminaires.values():
     for obj in parts:
         bpy.data.objects.remove(obj, do_unlink=True)
 
+# The north exit frame and leaves are now a standalone prefab. Retain the wall
+# skins, sign backing and sign brackets from InteriorFinish.
+exit_trim = {'Exit portal black reveal', 'Exit portal frame', 'Exit portal lintel'}
+exit_portal = []
+for obj in bpy.context.scene.objects:
+    if obj.type != 'MESH' or obj.get('WallComposition'):
+        continue
+    name = obj.name.split('.')[0]
+    if name in exit_trim or (obj.get('LandmarkFinish') and name.startswith('EXIT ')):
+        exit_portal.append(obj)
+    elif name == 'Attached formed cassette':
+        center = sum((obj.matrix_world @ Vector(p) for p in obj.bound_box), Vector()) / 8
+        if abs(-center.y - 63.57) < .005 and abs(center.z - 2.15) < .005 and abs(abs(center.x - 4) - .78) < .005:
+            exit_portal.append(obj)
+assert len(exit_portal) == 20, 'Expected the former north exit surround and both leaves'
+for obj in exit_portal:
+    bpy.data.objects.remove(obj, do_unlink=True)
 
-def export(name):
+def compact_wall_fittings():
+    # Bound the small bevel reductions in metres before they reach the exported hall.
+    tolerances = {
+        'Wall captive socket': .00085,
+        'Wall fastener head': .00085,
+        'HVAC blade web': .0022,
+        'HVAC blade folded lip': .0022,
+        'HVAC blade central support': .00195,
+    }
+
+    def surface(mesh):
+        points = [vertex.co.copy() for vertex in mesh.vertices]
+        mesh.calc_loop_triangles()
+        triangles = [tuple(face.vertices) for face in mesh.loop_triangles]
+        samples = points + [sum((points[index] for index in face), Vector()) / 3 for face in triangles]
+        return BVHTree.FromPolygons(points, triangles, all_triangles=True), samples, len(triangles)
+
+    counts = {name: {'changed': 0, 'removed_triangles': 0} for name in tolerances}
+    fittings = []
+    for obj in bpy.context.scene.objects:
+        name = obj.name.split('.')[0]
+        if obj.type != 'MESH' or not obj.get('WallComposition') or name not in tolerances:
+            continue
+        modifier = obj.modifiers.new('Reduce small wall bevels', 'DECIMATE')
+        modifier.ratio = .70
+        modifier.use_collapse_triangulate = True
+        fittings.append((obj, name, modifier))
+
+    depsgraph = bpy.context.evaluated_depsgraph_get()
+    compact_meshes = [bpy.data.meshes.new_from_object(obj.evaluated_get(depsgraph),
+                      preserve_all_data_layers=True, depsgraph=depsgraph) for obj, _, _ in fittings]
+    for (obj, name, modifier), compact in zip(fittings, compact_meshes):
+        original = obj.data
+        obj.modifiers.remove(modifier)
+        original_tree, original_samples, original_count = surface(original)
+        compact_tree, compact_samples, compact_count = surface(compact)
+        tolerance = tolerances[name]
+        if (compact_count >= original_count
+                or compact.uv_layers.keys() != original.uv_layers.keys()
+                or compact.has_custom_normals != original.has_custom_normals
+                or any(compact_tree.find_nearest(point)[3] > tolerance for point in original_samples)
+                or any(original_tree.find_nearest(point)[3] > tolerance for point in compact_samples)):
+            bpy.data.meshes.remove(compact)
+            continue
+        obj.data = compact
+        counts[name]['changed'] += 1
+        counts[name]['removed_triangles'] += original_count - compact_count
+    return counts
+
+
+def hall_section(obj):
+    bounds = [obj.matrix_world @ Vector(corner) for corner in obj.bound_box]
+    center = sum(bounds, Vector()) / 8
+    # Match the authored hall coordinates in Unity after the FBX axis conversion.
+    x, y, z = -center.x, center.z, -center.y
+    if y >= 7.80:
+        return 'Roof'
+    if z <= 21.20:
+        return 'SouthWall'
+    if z >= 62.80:
+        return 'NorthWall'
+    if abs(x) >= 16.85:
+        side = 'East' if x > 0 else 'West'
+        bay = 'Entry' if z < 34 else 'Main' if z < 50 else 'Return'
+        return side + bay
+    return 'Core'
+
+
+def split_hall_mesh(obj, sections):
+    mesh = obj.data
+    section_ids = mesh.attributes['HallSection'].data
+    faces_by_section = {}
+    for face in mesh.polygons:
+        faces_by_section.setdefault(section_ids[face.index].value, []).append(face)
+    normals = mesh.corner_normals
+    for section_id, faces in faces_by_section.items():
+        vertices = {}
+        for face in faces:
+            for vertex in face.vertices:
+                vertices.setdefault(vertex, len(vertices))
+        prefix, material_name = obj.name.rsplit('_', 1)
+        name = f'{prefix}_{sections[section_id]}_{material_name}'
+        section = bpy.data.meshes.new(name)
+        section.from_pydata([mesh.vertices[v].co for v in vertices], [],
+                            [tuple(vertices[v] for v in face.vertices) for face in faces])
+        section.materials.append(mesh.materials[0])
+        source_loops = [loop for face in faces for loop in face.loop_indices]
+        for source_uv in mesh.uv_layers:
+            target_uv = section.uv_layers.new(name=source_uv.name)
+            for index, source_loop in enumerate(source_loops):
+                target_uv.data[index].uv = source_uv.data[source_loop].uv
+        section.uv_layers.active_index = mesh.uv_layers.active_index
+        for target, source in zip(section.polygons, faces):
+            target.use_smooth = source.use_smooth
+        section.normals_split_custom_set([normals[loop].vector for loop in source_loops])
+        part = bpy.data.objects.new(name, section)
+        bpy.context.collection.objects.link(part)
+    bpy.data.objects.remove(obj, do_unlink=True)
+    bpy.data.meshes.remove(mesh)
+
+
+def export(name, partition_hall=False):
     # Separate authored inside/outside finishes before merging shared materials.
     for obj in list(bpy.context.scene.objects):
         if obj.type!='MESH' or len({p.material_index for p in obj.data.polygons})<2:continue
@@ -86,30 +205,43 @@ def export(name):
         bpy.ops.object.mode_set(mode='EDIT');bpy.ops.mesh.select_all(action='SELECT')
         bpy.ops.mesh.separate(type='MATERIAL');bpy.ops.object.mode_set(mode='OBJECT')
     groups={}
+    sections = []
     for obj in list(bpy.context.scene.objects):
         if obj.type=='MESH':
             used={p.material_index for p in obj.data.polygons};assert len(used)==1,obj.name
             material=obj.data.materials[next(iter(used))]
             obj.data.materials.clear();obj.data.materials.append(material)
             for p in obj.data.polygons:p.material_index=0
+            if partition_hall and material.name in {'InteriorQuietFrame', 'Recess', 'WallDark'}:
+                section = hall_section(obj)
+                if section not in sections:
+                    sections.append(section)
+                section_id = sections.index(section)
+                attribute = obj.data.attributes.new('HallSection', 'INT', 'FACE')
+                attribute.data.foreach_set('value', [section_id] * len(obj.data.polygons))
             groups.setdefault(material.name,[]).append(obj)
-    for mat,parts in groups.items():
+    for group,parts in groups.items():
         bpy.ops.object.select_all(action='DESELECT')
         for obj in parts:obj.select_set(True)
         bpy.context.view_layer.objects.active=parts[0]
         if len(parts)>1:bpy.ops.object.join()
-        obj=bpy.context.object;obj.name='SM_'+name+'_'+mat
+        obj=bpy.context.object;obj.name='SM_'+name+'_'+group
         bpy.ops.object.transform_apply(location=True,rotation=True,scale=True)
         mod=obj.modifiers.new('Export triangles','TRIANGULATE');mod.keep_custom_normals=True;bpy.ops.object.modifier_apply(modifier=mod.name)
+        if 'HallSection' in obj.data.attributes:
+            # Partition the finished mesh so the join and triangulation use the original normals.
+            split_hall_mesh(obj, sections)
     bpy.ops.object.select_all(action='SELECT')
     bpy.ops.export_scene.fbx(filepath=str(OUTPUT/(name+'.fbx')),use_selection=True,object_types={'MESH'},
         axis_forward='-Z',axis_up='Y',bake_anim=False,add_leaf_bones=False,mesh_smooth_type='FACE')
-    return {'groups':len(groups),'triangles':sum(len(o.data.polygons) for o in bpy.context.selected_objects)}
+    return {'groups':len(bpy.context.selected_objects),'triangles':sum(len(o.data.polygons) for o in bpy.context.selected_objects)}
 
 report={'removed_workshop_skin_objects':removed,'removed_cover_objects':cover_counts,
         'removed_gallery_hatches':len(gallery_hatches),
         'removed_hall_luminaires':len(hall_luminaires),
-        'unchanged_interior':export('InteriorWithoutWorkshop')}
+        'removed_north_exit_parts':len(exit_portal),
+        'compact_wall_fittings':compact_wall_fittings(),
+        'unchanged_interior':export('InteriorWithoutWorkshop', partition_hall=True)}
 if '--' in sys.argv and '--interior-only' in sys.argv[sys.argv.index('--') + 1:]:
     print('RETAINED_INTERIOR_REPORT', json.dumps(report))
     sys.exit(0)

@@ -6,6 +6,7 @@ using System.Text;
 using Breachpoint.Composition;
 using Breachpoint.Gameplay.AI;
 using Breachpoint.Gameplay.Player.Input;
+using TMPro;
 using Unity.AI.Navigation;
 using UnityEditor;
 using UnityEditor.SceneManagement;
@@ -17,6 +18,25 @@ namespace Breachpoint.Editor.Enemies
 {
     public static partial class BattlefieldBlockout
     {
+        // Validate archived mesh geometry from its prefab only when every mesh was removed by scene overrides.
+        internal static Transform LegacyMeshValidationRoot(Transform instance)
+        {
+            if (instance.GetComponentsInChildren<MeshFilter>(true).Any(filter => filter.GetComponent<TMP_Text>() == null))
+                return instance;
+
+            var source = PrefabUtility.GetCorrespondingObjectFromSource(instance.gameObject);
+            if (source == null) return instance;
+
+            var removed = PrefabUtility.GetRemovedGameObjects(instance.gameObject)
+                .Where(entry => entry.assetGameObject != null)
+                .Select(entry => entry.assetGameObject.transform).ToArray();
+            var meshes = source.GetComponentsInChildren<MeshFilter>(true)
+                .Where(filter => filter.GetComponent<TMP_Text>() == null).ToArray();
+            return meshes.Length > 0 && meshes.All(filter => removed.Any(root => filter.transform.IsChildOf(root)))
+                ? source.transform
+                : instance;
+        }
+
         public static void ValidateGuards()
         {
             BattlefieldBaseline.RequireIdleEditor();

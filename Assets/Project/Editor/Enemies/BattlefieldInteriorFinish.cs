@@ -181,10 +181,11 @@ namespace Breachpoint.Editor.Enemies
                 throw new InvalidOperationException("Missing component reference in interior visuals.");
             var lights = root.GetComponentsInChildren<Light>(true);
             if (lights.Length != 6 || lights.Count(l => l.shadows != LightShadows.None) != 3 || lights.Any(l => l.type != LightType.Spot)) throw new InvalidOperationException("Interior light budget failed.");
-            var renderers = root.GetComponentsInChildren<MeshRenderer>(true).Where(r => r.GetComponent<TMP_Text>() == null).ToArray();
+            var geometry = BattlefieldBlockout.LegacyMeshValidationRoot(root);
+            var renderers = geometry.GetComponentsInChildren<MeshRenderer>(true).Where(r => r.GetComponent<TMP_Text>() == null).ToArray();
             if (renderers.Length != 12 || renderers.Any(r => r.sharedMaterial == null || r.sharedMaterial.shader.name != "HDRP/Lit")) throw new InvalidOperationException("Interior material group check failed.");
             int triangles = 0;
-            foreach (var filter in root.GetComponentsInChildren<MeshFilter>(true).Where(f => f.GetComponent<TMP_Text>() == null))
+            foreach (var filter in geometry.GetComponentsInChildren<MeshFilter>(true).Where(f => f.GetComponent<TMP_Text>() == null))
             {
                 var mesh = filter.sharedMesh;
                 if (mesh == null || mesh.normals.Length != mesh.vertexCount || mesh.uv.Length != mesh.vertexCount) throw new InvalidOperationException("Interior mesh data missing.");
@@ -199,7 +200,7 @@ namespace Breachpoint.Editor.Enemies
             }
             if (triangles > 500000) throw new InvalidOperationException("Interior geometry budget exceeded: " + triangles);
             Directory.CreateDirectory(Output);
-            File.WriteAllLines(Output + "/wall-material-bindings.txt", root.GetComponentsInChildren<MeshRenderer>(true)
+            File.WriteAllLines(Output + "/wall-material-bindings.txt", geometry.GetComponentsInChildren<MeshRenderer>(true)
                 .Where(r => r.GetComponent<TMP_Text>() == null)
                 .SelectMany(r => r.sharedMaterials.Select(m => r.name + " => " + AssetDatabase.GetAssetPath(m) + " | " + AssetDatabase.GetAssetPath(m.GetTexture("_BaseColorMap")))));
             File.WriteAllText(Output + "/visual-validation.txt", "PASS frozen floor/accepted asset hashes and gameplay checksum unchanged.\nInterior references, UVs/normals, no generated floor/colliders, twelve mesh groups and six spotlights (three shadowed).\nTriangles=" + triangles + "\nNo combat/AI/pathfinding tests.\n" + EnemyValidationRunner.ConsoleCounts());

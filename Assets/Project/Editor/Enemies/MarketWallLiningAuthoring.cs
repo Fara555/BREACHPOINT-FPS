@@ -31,10 +31,10 @@ namespace Breachpoint.Editor.Enemies
             }
             BattlefieldCornerMaterials.EnsureFolder(Folder + "/Materials");
             BattlefieldCornerMaterials.EnsureFolder(Folder + "/Textures");
-            Finish("LiningCeramic", new Color(.52f, .54f, .51f), .03f, .26f, .035f);
+            var sharedLiningNormal = Finish("LiningCeramic", new Color(.52f, .54f, .51f), .03f, .26f, .035f);
             Finish("LiningGraphite", new Color(.26f, .32f, .33f), .18f, .29f, .055f);
             Finish("LiningTrim", new Color(.18f, .23f, .25f), .30f, .32f, .04f);
-            Finish("LiningWarm", new Color(.56f, .31f, .14f), .20f, .28f, .035f);
+            Finish("LiningWarm", new Color(.56f, .31f, .14f), .20f, .28f, .035f, sharedLiningNormal);
             string modelPath = Folder + "/Models/MarketWallLining.fbx";
             var importer = (ModelImporter)AssetImporter.GetAtPath(modelPath);
             importer.importAnimation = false; importer.importCameras = false; importer.importLights = false; importer.addCollider = false;
@@ -117,7 +117,7 @@ namespace Breachpoint.Editor.Enemies
             File.WriteAllText(Output + "/legacy-replacement.txt", "Old MarketLining renderer disabled (internal facing only). Backpan triangles omitted=" + removed + ". Canonical room art unchanged.\n");
         }
 
-        private static void Finish(string name, Color color, float metal, float roughnessInverse, float relief)
+        private static Texture2D Finish(string name, Color color, float metal, float roughnessInverse, float relief, Texture2D sharedNormal = null)
         {
             int count = TextureSize * TextureSize;
             var colors = new Color[count]; var masks = new Color[count]; var normals = new Color[count];
@@ -138,12 +138,14 @@ namespace Breachpoint.Editor.Enemies
             material.SetColor("_BaseColor", Color.white);
             material.SetTexture("_BaseColorMap", Map(name + "_BaseColor", colors, true, false));
             material.SetTexture("_MaskMap", Map(name + "_Mask", masks, false, false));
-            material.SetTexture("_NormalMap", Map(name + "_Normal", normals, false, true));
+            var normalMap = sharedNormal ?? Map(name + "_Normal", normals, false, true);
+            material.SetTexture("_NormalMap", normalMap);
             material.SetFloat("_MetallicRemapMin", 0); material.SetFloat("_MetallicRemapMax", 1);
             material.SetFloat("_SmoothnessRemapMin", 0); material.SetFloat("_SmoothnessRemapMax", 1);
             material.SetFloat("_AORemapMin", 0); material.SetFloat("_AORemapMax", 1);
             material.SetFloat("_NormalScale", .7f); material.SetFloat("_EnableGeometricSpecularAA", 1);
             HDMaterial.ValidateMaterial(material); EditorUtility.SetDirty(material); AssetDatabase.SaveAssetIfDirty(material);
+            return normalMap;
         }
 
         private static Texture2D Map(string name, Color[] pixels, bool srgb, bool normal)

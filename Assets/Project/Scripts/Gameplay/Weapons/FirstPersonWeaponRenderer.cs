@@ -159,7 +159,7 @@ namespace Breachpoint.Gameplay.Weapons
                 if (light == null ||
                     !light.enabled ||
                     light.shadows == LightShadows.None ||
-                    light.lightmapBakeType == LightmapBakeType.Baked ||
+                    light.bakingOutput.lightmapBakeType == LightmapBakeType.Baked ||
                     (light.cullingMask & _weaponLayer.value) == 0)
                 {
                     continue;

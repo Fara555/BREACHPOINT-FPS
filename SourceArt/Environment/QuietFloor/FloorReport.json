@@ -1,8 +1,9 @@
 {
   "CornerBody": {
     "groups": 7,
-    "triangles": 82072,
-    "omitted_floor_objects": 296
+    "triangles": 74464,
+    "omitted_floor_objects": 296,
+    "hardware_triangles_removed": 7608
   },
   "GalleryBody": {
     "groups": 4,

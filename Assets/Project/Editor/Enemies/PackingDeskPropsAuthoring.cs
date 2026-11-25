@@ -135,16 +135,16 @@ namespace Breachpoint.Editor.Enemies
         {
             BattlefieldCornerMaterials.EnsureFolder(Folder + "/Materials");
             BattlefieldCornerMaterials.EnsureFolder(Folder + "/Textures");
-            Finish("CupCoating", new Color(.16f, .24f, .26f), .05f, .29f, true);
+            var sharedCoatingNormal = Finish("CupCoating", new Color(.16f, .24f, .26f), .05f, .29f, true);
             Finish("DispatchPrint", new Color(.60f, .55f, .44f), 0, .13f, true);
             Finish("DeskSteel", new Color(.55f, .60f, .62f), .90f, .46f, false);
-            Finish("DeskRubber", new Color(.07f, .085f, .09f), 0, .18f, false);
-            Finish("DeskPolymer", new Color(.25f, .32f, .34f), .08f, .30f, false);
-            Finish("DeskAccent", new Color(.62f, .31f, .11f), .45f, .34f, false);
-            Finish("DeskCoffee", new Color(.012f, .006f, .003f), 0, .70f, false);
+            Finish("DeskRubber", new Color(.07f, .085f, .09f), 0, .18f, false, sharedCoatingNormal);
+            Finish("DeskPolymer", new Color(.25f, .32f, .34f), .08f, .30f, false, sharedCoatingNormal);
+            Finish("DeskAccent", new Color(.62f, .31f, .11f), .45f, .34f, false, sharedCoatingNormal);
+            Finish("DeskCoffee", new Color(.012f, .006f, .003f), 0, .70f, false, sharedCoatingNormal);
         }
 
-        private static void Finish(string name, Color color, float metal, float smoothness, bool print)
+        private static Texture2D Finish(string name, Color color, float metal, float smoothness, bool print, Texture2D sharedNormal = null)
         {
             const int size = 512;
             var albedo = new Color[size * size]; var mask = new Color[albedo.Length]; var normal = new Color[albedo.Length];
@@ -166,12 +166,14 @@ namespace Breachpoint.Editor.Enemies
             material.SetColor("_BaseColor", Color.white);
             material.SetTexture("_BaseColorMap", baseMap);
             material.SetTexture("_MaskMap", Save(name + "_Mask", mask, false, false));
-            material.SetTexture("_NormalMap", Save(name + "_Normal", normal, false, true));
+            var normalMap = sharedNormal ?? Save(name + "_Normal", normal, false, true);
+            material.SetTexture("_NormalMap", normalMap);
             material.SetFloat("_MetallicRemapMin", 0); material.SetFloat("_MetallicRemapMax", 1);
             material.SetFloat("_SmoothnessRemapMin", 0); material.SetFloat("_SmoothnessRemapMax", 1);
             material.SetFloat("_AORemapMin", 0); material.SetFloat("_AORemapMax", 1);
             material.SetFloat("_NormalScale", .6f); material.SetFloat("_EnableGeometricSpecularAA", 1);
             HDMaterial.ValidateMaterial(material); EditorUtility.SetDirty(material); AssetDatabase.SaveAssetIfDirty(material);
+            return normalMap;
         }
 
         private static Texture2D Save(string name, Color[] pixels, bool srgb, bool normal)

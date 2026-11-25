@@ -167,11 +167,12 @@ namespace Breachpoint.Editor.Enemies
             var floor = new Bounds(new Vector3(8, .01f, 26), new Vector3(8.002f, .062f, 10.002f));
             var screen = new Bounds(new Vector3(7, 2, 29), new Vector3(6.4f, 4.02f, 2.4f));
             var blocked = new Bounds(new Vector3(7, .01f, 29), new Vector3(5.98f, .08f, 1.98f));
-            var renderers = root.GetComponentsInChildren<MeshRenderer>();
+            var geometry = BattlefieldBlockout.LegacyMeshValidationRoot(root);
+            var renderers = geometry.GetComponentsInChildren<MeshRenderer>();
             if (renderers.Length != 5 || renderers.Any(r => r.sharedMaterial == null || r.sharedMaterial.shader.name != "HDRP/Lit"))
                 throw new InvalidOperationException("Entry requires five existing HDRP material groups.");
             int triangles = 0;
-            foreach (var filter in root.GetComponentsInChildren<MeshFilter>())
+            foreach (var filter in geometry.GetComponentsInChildren<MeshFilter>())
             {
                 var mesh = filter.sharedMesh;
                 triangles += mesh.triangles.Length / 3;

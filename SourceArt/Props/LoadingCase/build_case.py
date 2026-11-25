@@ -39,7 +39,8 @@ def finish(obj, finish_name, bevel):
     if bevel:
         modifier = obj.modifiers.new("Machined edges", "BEVEL")
         modifier.width = bevel
-        modifier.segments = 3 if bevel >= 0.012 else 2
+        # Keep three segments on broad shell radii; narrow fittings use fewer.
+        modifier.segments = 3 if bevel >= 0.016 else (2 if bevel >= 0.005 else 1)
         modifier.harden_normals = True
         bpy.ops.object.modifier_apply(modifier=modifier.name)
         for polygon in obj.data.polygons:

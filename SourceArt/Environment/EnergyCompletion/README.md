@@ -21,3 +21,5 @@ Validation is visual/asset-focused: prefab/material/mesh references, UVs/normals
 
 Scene wiring is saved with in-memory user edits preserved; the previously saved file is backed up in `Logs/BattlefieldEnergyCompletion/scene-before-completion.unity`. Four actual HDRP views cover the south join, west face, northwest corner and northeast join. No runtime routes, GPU timing or Windows build for this visual stage. Full room enclosure and the remaining floor/outer architecture are future work; thin facade skins have no separate physics.
 Final export/import: 56372 triangles, five renderers/material groups. Four HDRP viewpoints inspected; current visual validation passes with Console errors/warnings zero. No combat route or Play Mode runs. Source and prefab include the final cable termination junctions.
+
+The optimization pass uses two bevel segments on narrow painted and steel edges. The dark recesses retain their original profiles. The export and Unity import now contain 42,532 triangles across the same five material groups.

@@ -28,7 +28,8 @@ def finish(obj,mat,bevel=.008):
     bpy.ops.object.transform_apply(location=False,rotation=False,scale=True)
     obj.data.materials.clear(); obj.data.materials.append(materials[mat])
     if bevel:
-        mod=obj.modifiers.new('Manufactured edge','BEVEL'); mod.width=bevel; mod.segments=1 if bevel<=.003 else 3
+        mod=obj.modifiers.new('Manufactured edge','BEVEL'); mod.width=bevel
+        mod.segments=1 if bevel<=.003 else (2 if bevel<=.009 and mat!='Recess' else 3)
         mod.harden_normals=True; bpy.ops.object.modifier_apply(modifier=mod.name)
     for p in obj.data.polygons: p.use_smooth=True
     mod=obj.modifiers.new('Face weighted normals','WEIGHTED_NORMAL'); mod.keep_sharp=True

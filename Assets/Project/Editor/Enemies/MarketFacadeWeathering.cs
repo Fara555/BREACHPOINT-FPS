@@ -132,7 +132,8 @@ namespace Breachpoint.Editor.Enemies
             var importer = (TextureImporter)AssetImporter.GetAtPath(path);
             importer.textureType = normal ? TextureImporterType.NormalMap : TextureImporterType.Default;
             importer.sRGBTexture = srgb; importer.mipmapEnabled = true; importer.filterMode = FilterMode.Trilinear;
-            importer.wrapMode = TextureWrapMode.Repeat; importer.anisoLevel = 8; importer.maxTextureSize = size;
+            importer.wrapMode = TextureWrapMode.Repeat; importer.anisoLevel = 8;
+            importer.maxTextureSize = name.StartsWith("FacadeEnamel_", StringComparison.Ordinal) ? 1024 : size;
             importer.textureCompression = TextureImporterCompression.CompressedHQ; importer.SaveAndReimport();
         }
     }

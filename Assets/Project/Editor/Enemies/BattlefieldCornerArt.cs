@@ -339,7 +339,7 @@ namespace Breachpoint.Editor.Enemies
             Scene scene = BattlefieldBlockout.RequireBlockout();
             var root = BattlefieldBlockout.FindInScene<NavMeshSurface>(scene).Single().transform.parent.Find(RootName);
             if (root == null) throw new InvalidOperationException("Create the art sample first.");
-            ValidateDetailedModel(root);
+            ValidateDetailedModel(BattlefieldBlockout.LegacyMeshValidationRoot(root));
             if (root.GetComponentsInChildren<Collider>(true).Length != 0) throw new InvalidOperationException("Art sample must not introduce colliders.");
             if (PrefabUtility.GetPrefabAssetPathOfNearestInstanceRoot(root.gameObject) != PrefabPath) throw new InvalidOperationException("Art sample prefab connection is missing.");
             if (GameplayFingerprint(scene) != File.ReadAllText(BaselinePath)) throw new InvalidOperationException("Gameplay fingerprint differs from the pre-art baseline.");

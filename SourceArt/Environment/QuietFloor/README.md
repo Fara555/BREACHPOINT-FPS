@@ -42,3 +42,5 @@ Run `python SourceArt/Environment/QuietFloor/build_surface_wear.py` to regenerat
 The main deck and MARKET infill share UV0 in physical units. `FloorWearColor` and `FloorWearMask` use that layout for worn traffic paths, drier buildup at sheltered edges, scuffs around cases, the east loading marks, and matte grip coating at both MARKET thresholds. `FloorCoatingDetail` repacks the original fine normal in the HDRP Lit detail format, keeping its two-meter repeat independent of the wear map. Floor geometry, collision and sills retain their previous dimensions.
 
 The joint bed under the east gallery is a single closed core following both ramp slopes and the raised platform. The lower side cassettes sit in front of the core, with their panel gaps backed by the existing joint material.
+
+The `CornerBody` export reduces repeated screws, washers and small slots with a bidirectional surface tolerance of up to 1 mm. The editable `EnergyCorner.blend` supplies the source geometry. Pass `-- --corner-body-only` to regenerate just this FBX without rebuilding the floor or gallery.

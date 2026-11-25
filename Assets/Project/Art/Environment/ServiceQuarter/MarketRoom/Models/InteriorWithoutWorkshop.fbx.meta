@@ -17,11 +17,6 @@ ModelImporter:
   - first:
       type: UnityEngine:Material
       assembly: UnityEngine.CoreModule
-      name: ExitAccent
-    second: {fileID: 2100000, guid: 3d2378a44a9588c42b12ad40f6d8252e, type: 2}
-  - first:
-      type: UnityEngine:Material
-      assembly: UnityEngine.CoreModule
       name: InteriorCeiling
     second: {fileID: 2100000, guid: 8a9b079a395062f40915889818edf745, type: 2}
   - first:

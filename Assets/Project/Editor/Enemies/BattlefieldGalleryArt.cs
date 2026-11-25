@@ -123,11 +123,12 @@ namespace Breachpoint.Editor.Enemies
             if (AcceptedAssetsHash() != File.ReadAllText(HashPath)) throw new InvalidOperationException("Accepted corner or entry assets changed.");
             if (BattlefieldCornerArt.GameplayFingerprint(scene) != File.ReadAllText(BattlefieldCornerMaterials.Folder + "/GameplayBaseline.txt"))
                 throw new InvalidOperationException("Gameplay data differs from the saved baseline.");
-            var renderers = root.GetComponentsInChildren<MeshRenderer>(true);
+            var geometry = BattlefieldBlockout.LegacyMeshValidationRoot(root);
+            var renderers = geometry.GetComponentsInChildren<MeshRenderer>(true);
             if (renderers.Length != 5 || renderers.Any(r => r.sharedMaterials.Any(m => m == null || m.shader.name != "HDRP/Lit")))
                 throw new InvalidOperationException("Gallery must use five existing HDRP material groups.");
             int triangles = 0;
-            foreach (var filter in root.GetComponentsInChildren<MeshFilter>(true))
+            foreach (var filter in geometry.GetComponentsInChildren<MeshFilter>(true))
             {
                 var mesh = filter.sharedMesh;
                 if (mesh == null || mesh.uv.Length != mesh.vertexCount || mesh.normals.Length != mesh.vertexCount)

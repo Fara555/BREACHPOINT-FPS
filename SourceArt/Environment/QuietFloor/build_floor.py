@@ -1,7 +1,8 @@
 """Quiet full-room industrial floor; legacy non-floor models copied without editing accepted assets."""
-import bpy,bmesh,json
+import bpy,bmesh,json,sys
 from pathlib import Path
 from mathutils import Vector
+from mathutils.bvhtree import BVHTree
 
 SOURCE=Path(__file__).resolve().parent
 PROJECT=SOURCE.parents[2]
@@ -10,6 +11,53 @@ OUTPUT.mkdir(parents=True,exist_ok=True)
 bpy.context.preferences.filepaths.save_version=0
 bpy.context.preferences.filepaths.file_preview_type='NONE'
 report={}
+
+def compact_corner_hardware():
+    # Preserve the accepted shell and restrict reduction to small repeated hardware.
+    settings = {
+        'Recessed fastener washer': (.62, .0009),
+        'Hex socket screw': (.85, .0010),
+        'Screw drive slot': (.52, .0005),
+        'Skirt drainage slot': (.74, .0008),
+        'Foundation lower vent': (.74, .0008),
+    }
+
+    def sample_surface(mesh):
+        mesh.calc_loop_triangles()
+        points = [vertex.co.copy() for vertex in mesh.vertices]
+        triangles = [tuple(triangle.vertices) for triangle in mesh.loop_triangles]
+        centers = [(points[a] + points[b] + points[c]) / 3 for a, b, c in triangles]
+        return BVHTree.FromPolygons(points, triangles, all_triangles=True), points + centers, len(triangles)
+
+    candidates = []
+    for obj in bpy.context.scene.objects:
+        name = obj.name.split('.')[0]
+        if name not in settings or obj.type != 'MESH':
+            continue
+        ratio, tolerance = settings[name]
+        modifier = obj.modifiers.new('Compact repeated hardware', 'DECIMATE')
+        modifier.ratio = ratio
+        modifier.use_collapse_triangulate = True
+        candidates.append((obj, modifier, tolerance))
+
+    depsgraph = bpy.context.evaluated_depsgraph_get()
+    meshes = [bpy.data.meshes.new_from_object(obj.evaluated_get(depsgraph),
+              preserve_all_data_layers=True, depsgraph=depsgraph) for obj, _, _ in candidates]
+    removed = 0
+    for (obj, modifier, tolerance), mesh in zip(candidates, meshes):
+        obj.modifiers.remove(modifier)
+        original = obj.data
+        old_surface, old_points, old_count = sample_surface(original)
+        new_surface, new_points, new_count = sample_surface(mesh)
+        if (new_count >= old_count or mesh.uv_layers.keys() != original.uv_layers.keys()
+                or mesh.has_custom_normals != original.has_custom_normals
+                or any(new_surface.find_nearest(point)[3] > tolerance for point in old_points)
+                or any(old_surface.find_nearest(point)[3] > tolerance for point in new_points)):
+            bpy.data.meshes.remove(mesh)
+            continue
+        obj.data = mesh
+        removed += old_count - new_count
+    return removed
 
 def export(name):
     groups={}
@@ -28,8 +76,8 @@ def export(name):
         axis_forward='-Z',axis_up='Y',bake_anim=False,add_leaf_bones=False,mesh_smooth_type='FACE')
     report[name]={'groups':len(groups),'triangles':sum(len(o.data.polygons) for o in bpy.context.selected_objects)}
 
-# These new body-only exports retain the original editable meshes, materials, UVs and normals.
-# Original sources/FBX/prefabs remain read-only; only named floor families are omitted.
+# The body exports reuse the accepted assets. Compact named corner hardware only on export.
+corner_only = '--' in sys.argv and '--corner-body-only' in sys.argv[sys.argv.index('--') + 1:]
 for name,path,prefixes in [
     ('CornerBody','EnergyCorner/EnergyCorner.blend',('Deck ',)),
     ('GalleryBody','ServiceGallery/ServiceGallery.blend',('Gallery Deck','Gallery narrow edge deck','Gallery edge steel insert','Gallery continuous toe strip'))]:
@@ -39,7 +87,13 @@ for name,path,prefixes in [
         if obj.type!='MESH' or obj.name.startswith(prefixes):
             bpy.data.objects.remove(obj,do_unlink=True);removed+=1
     assert not any(o.data.materials[0].name=='DeckMetal' for o in bpy.context.scene.objects if o.type=='MESH'),name+' retained old deck'
+    hardware_reduction = compact_corner_hardware() if name == 'CornerBody' else 0
     export(name);report[name]['omitted_floor_objects']=removed
+    if name == 'CornerBody':
+        report[name]['hardware_triangles_removed'] = hardware_reduction
+        if corner_only:
+            print(json.dumps(report))
+            sys.exit(0)
 
 bpy.ops.wm.read_factory_settings(use_empty=True)
 bpy.context.preferences.filepaths.save_version=0
